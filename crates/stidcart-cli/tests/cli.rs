@@ -19,6 +19,7 @@ fn scratch(tag: &str) -> PathBuf {
     dir
 }
 
+/// AC-1 (CLI): build writes an image to the given path and reports success.
 #[test]
 fn ac_1_cli_build_writes_an_image_and_reports_success() {
     let dir = scratch("ac1");
@@ -40,6 +41,7 @@ fn ac_1_cli_build_writes_an_image_and_reports_success() {
     );
 }
 
+/// AC-1 (CLI): the entry name is derived from the input file stem.
 #[test]
 fn ac_1_cli_entry_name_comes_from_the_file_stem() {
     let dir = scratch("ac1-name");
@@ -64,6 +66,7 @@ fn ac_1_cli_entry_name_comes_from_the_file_stem() {
     );
 }
 
+/// AC-5 (CLI): oversized input fails with a message and writes nothing.
 #[test]
 fn ac_5_cli_oversized_input_fails_without_writing_an_image() {
     let dir = scratch("ac5");
@@ -92,6 +95,7 @@ fn ac_5_cli_oversized_input_fails_without_writing_an_image() {
     );
 }
 
+/// AC-11 (CLI): an empty input list matches the reference tool's behaviour.
 #[test]
 fn ac_11_cli_empty_input_list_matches_the_reference_behaviour() {
     // Measured on the reference tool: it exits reporting success and writes no file. Pinned here
@@ -105,6 +109,7 @@ fn ac_11_cli_empty_input_list_matches_the_reference_behaviour() {
     assert!(!out.exists(), "an empty request should write no file");
 }
 
+/// AC-5 (CLI): a missing input file is reported rather than ignored.
 #[test]
 fn ac_5_cli_a_missing_input_file_is_reported_not_ignored() {
     let dir = scratch("ac5-missing");

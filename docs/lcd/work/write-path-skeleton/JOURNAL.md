@@ -10,8 +10,8 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Build an EasyFlash cartridge image from program files, byte-identical to the reference tool's output for the same inputs.
-- **Next action:** run /lcd:audit write-path-skeleton, then open the PR
-- **Branch:** feat/write-path-skeleton  ·  **Updated:** 2026-08-10 23:00
+- **Next action:** open the PR; then decide the read-path divergence policy (D-003)
+- **Branch:** feat/write-path-skeleton  ·  **Updated:** 2026-08-10 23:03
 
 ## STEPS
 - [x] S1 — scaffold workspace, LCD spine, firmware blobs (committed 6fbfbd6)
@@ -25,7 +25,7 @@
 - [x] S9 — T17..T19: fixtures captured, parity green on all four cases
 - [x] S10 — T20..T23: CLI build command
 - [x] S11 — T24: booted under x64sc, menu renders both entries
-- [ ] S12 — T-audit, T-final, then PR  ← next
+- [x] S12 — T-audit PASS (run 2), T-final green
 
 ## DECISIONS (this work-item)
 - Write path before read path; the read path's divergence policy stays open (→ D-003)
@@ -64,9 +64,13 @@ See `spec.md` — AC-1 through AC-11.
 - 2026-08-10 23:00 — T24 (AC-4): a stidcart-built cart booted under x64sc; the EasyLoader menu rendered both entries with correct sizes (hello 102B, ramp 2.9K). Screenshot kept as `boot-evidence.png`. This is the evidence that does not depend on the oracle.
 - 2026-08-10 23:00 — deviation worth recording: `petscii.rs` was written test-and-implementation together rather than test-first, being a pure case-swap whose tests come from measured reference bytes. Every other module had its AC tests written and committed to before implementation.
 
+- 2026-08-10 23:02 — audit run 1 BLOCKED on all six CLI rows, for two artifact reasons rather than missing work: the plan template says single-surface specs omit the cross-path matrix while the audit script BLOCKs without one, and Rust test names cannot contain the literal `AC-N (CLI)`. Fixed with a degenerate matrix and doc-comment literals; run 2 PASS. Written up in audit.md because the next Deep item here will hit the same contradiction.
+- 2026-08-10 23:02 — the AC-4 boot test was rewriting its own carts: x64sc defaults to -easyflashcrtwrite and saves emulated flash back over the image, which showed up as a 64-byte broken.crt after the negative control. Added +easyflashcrtwrite. Harmless in a scratch dir, but pointed at a fixture it would have silently corrupted it and broken parity with no obvious cause.
+- 2026-08-10 23:03 — T-final green: 66 tests, fmt clean, clippy clean at -D warnings.
+
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->

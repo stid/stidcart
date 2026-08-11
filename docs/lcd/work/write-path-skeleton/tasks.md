@@ -7,7 +7,7 @@
 **Slug:** `write-path-skeleton`
 **Spec:** [`spec.md`](./spec.md) • **Plan:** [`plan.md`](./plan.md) • **Journal:** [`JOURNAL.md`](./JOURNAL.md)
 **Created:** 2026-08-10
-**Status:** in_progress <!-- in_progress | completed | abandoned -->
+**Status:** completed <!-- in_progress | completed | abandoned -->
 
 ---
 
@@ -45,8 +45,8 @@
 - [x] **T22**: Write failing test named `AC-11 (CLI): empty input list matches the reference behaviour` in `crates/stidcart-cli/tests/cli.rs` [P]
 - [x] **T23**: Implement `crates/stidcart-cli/src/main.rs` to pass T20–T22 — argument parsing, file reading, output writing
 - [x] **T24**: Verify `AC-4 (CLI): produced image boots and the menu lists entry names` by running a built image under the emulator; record the result in the JOURNAL LOG
-- [ ] **T-audit**: Run `/lcd:audit write-path-skeleton`; resulting `audit.md` has zero MISSING/BLOCKED rows
-- [ ] **T-final**: Run `cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace`, all green
+- [x] **T-audit**: Run `/lcd:audit write-path-skeleton`; resulting `audit.md` has zero MISSING/BLOCKED rows
+- [x] **T-final**: Run `cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace`, all green
 
 ## Checkpoint validation
 

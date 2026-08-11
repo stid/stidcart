@@ -47,8 +47,11 @@ independently: the CLI defaults the header name to `stidcart <version>`, and the
 to `ndefpack 1.0.1`. The divergence becomes an explicit argument rather than a reason the test can
 never pass.
 
-All non-`none` ACs land on one path — the `build` command in `crates/stidcart-cli/src/main.rs` —
-so there is no cross-surface matrix to maintain (section omitted below, per the template rule).
+All non-`none` ACs land on one path — the `build` command in `crates/stidcart-cli/src/main.rs`.
+The template says a single-surface spec omits the cross-path matrix; the audit script disagrees and
+BLOCKs every row without one. The matrix below is therefore present but degenerate, every row
+naming the same handler. Recorded because the next person to read the template will hit the same
+contradiction.
 
 Rejected: a mutable global image mirroring ndefpack — it is the specific defect this project exists
 to not inherit. Rejected: streaming the output through a `Write` sink — premature for a 1 MB buffer,
@@ -73,6 +76,20 @@ abstraction over cartridge formats — there is exactly one format today (`no-ov
 | `MAP.md` invariant: the crate version lands in every cart | yes | Made explicit — see Architecture. The default is the crate version, read from one place. |
 | `MAP.md` invariant: format facts come from the vault spec | yes | Every offset and field below traces to `reference/easyflash-cart-format.md`, which records which `ndefpack` behaviours are format-mandated and which are artifacts. |
 | `MAP.md` invariant: read-path divergence stays open | yes | Nothing here reads a cart, so nothing here prejudges it. |
+
+## Cross-path behavior matrix
+
+Every AC with a non-`none` surface reaches the same entry point, so this table is one column wide
+in practice. It exists because the audit binds each (AC × surface) pair to a path through it.
+
+| AC | Surface | Path |
+|---|---|---|
+| `AC-1` | CLI | `crates/stidcart-cli/src/main.rs:build` |
+| `AC-2` | CLI | `crates/stidcart-cli/src/main.rs:build` |
+| `AC-3` | CLI | `crates/stidcart-cli/src/main.rs:build` |
+| `AC-4` | CLI | `crates/stidcart-cli/src/main.rs:build` |
+| `AC-5` | CLI | `crates/stidcart-cli/src/main.rs:build` |
+| `AC-11` | CLI | `crates/stidcart-cli/src/main.rs:build` |
 
 ## Reused primitives
 

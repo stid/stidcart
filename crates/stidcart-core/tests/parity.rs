@@ -63,6 +63,7 @@ fn build(case: &Case) -> Vec<u8> {
     b.build().expect("fixture case should build")
 }
 
+/// AC-2 (CLI): the produced file is byte-identical to the stored reference image.
 #[test]
 fn ac_2_cli_byte_identical_to_the_reference_image() {
     for case in CASES {
@@ -95,6 +96,7 @@ fn ac_2_cli_byte_identical_to_the_reference_image() {
     }
 }
 
+/// AC-3 (CLI): the byte-identity check runs from checked-in fixtures alone.
 #[test]
 fn ac_3_cli_parity_check_runs_without_the_reference_tool() {
     let dir = fixtures_dir();

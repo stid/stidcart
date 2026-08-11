@@ -34,6 +34,7 @@ fn chips(bytes: &[u8]) -> Vec<(u16, u16, u16)> {
     out
 }
 
+/// AC-2 (CLI): container header fields, the wrapper half of byte identity.
 #[test]
 fn ac_2_cli_container_header_fields() {
     let c = a_cart();
@@ -58,6 +59,7 @@ fn ac_2_cli_container_header_fields() {
     assert_eq!(&c[0x20..0x40], want.as_slice(), "header name field");
 }
 
+/// AC-2 (CLI): the header name defaults to this tool, not the reference (D-006).
 #[test]
 fn ac_2_cli_header_name_defaults_to_this_tool_not_the_reference() {
     // The two names are different fields at different offsets and are easy to conflate; the
@@ -76,6 +78,7 @@ fn ac_2_cli_header_name_defaults_to_this_tool_not_the_reference() {
     );
 }
 
+/// AC-2 (CLI): CHIP packets cover written banks only.
 #[test]
 fn ac_2_cli_chip_packets_cover_the_written_banks_only() {
     let c = a_cart();
@@ -113,6 +116,7 @@ fn ac_2_cli_chip_packets_cover_the_written_banks_only() {
     );
 }
 
+/// AC-2 (CLI): packet ordering is bank, then ROML before ROMH.
 #[test]
 fn ac_2_cli_packets_are_ordered_by_bank_then_half() {
     let c = CartBuilder::new()
