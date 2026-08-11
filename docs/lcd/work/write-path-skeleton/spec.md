@@ -6,7 +6,7 @@
 **Slug:** `write-path-skeleton`
 **Created:** 2026-08-10
 **Related issue:** none
-**Status:** draft <!-- draft | approved | implemented | abandoned -->
+**Status:** implemented <!-- draft | approved | implemented | abandoned -->
 
 ---
 

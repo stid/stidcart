@@ -10,8 +10,8 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Build an EasyFlash cartridge image from program files, byte-identical to the reference tool's output for the same inputs.
-- **Next action:** this work-item is DONE. PR #1 is open and green — https://github.com/stid/stidcart/pull/1. Merge it; do NOT re-run the pipeline on this slug. The next work-item starts by deciding the read-path divergence policy (D-003).
-- **Branch:** feat/write-path-skeleton  ·  **Updated:** 2026-08-10 23:10
+- **Next action:** nothing — this work-item is CLOSED. PR #1 merged 2026-08-11 (0fd28be); main is green. Do NOT re-run the pipeline on this slug. The next work-item starts by deciding the read-path divergence policy (D-003); run `lcd:triage` for it.
+- **Branch:** feat/write-path-skeleton  ·  **Updated:** 2026-08-11 06:25
 
 ## STEPS
 - [x] S1 — scaffold workspace, LCD spine, firmware blobs (committed 6fbfbd6)
@@ -36,8 +36,9 @@
 - Version is `0.2.0`, not `0.1.0`: `versioning.md` bumps minor on a `feat/` branch and the scaffold
   commit had already claimed `0.1.0`. That string is the default CRT header name, so it is inside
   every cart built without an explicit header name, and the test only asserts the `stidcart ` prefix.
-  Raised with the user 2026-08-10, unanswered. A one-line change in `Cargo.toml` before merge if the
-  first working version should be `0.1.0`.
+  Raised with the user 2026-08-10, still unanswered, and now merged to main at `0.2.0`. Changing it
+  is a one-line `Cargo.toml` edit, but it alters the bytes of every cart built without an explicit
+  header name — so it needs its own commit saying so, not a drive-by.
 
 ## EDIT BOUNDARY (paths this work may touch)
 - `crates/stidcart-core/src`
@@ -71,6 +72,8 @@ See `spec.md` — AC-1 through AC-11.
 - 2026-08-10 23:02 — audit run 1 BLOCKED on all six CLI rows, for two artifact reasons rather than missing work: the plan template says single-surface specs omit the cross-path matrix while the audit script BLOCKs without one, and Rust test names cannot contain the literal `AC-N (CLI)`. Fixed with a degenerate matrix and doc-comment literals; run 2 PASS. Written up in audit.md because the next Deep item here will hit the same contradiction.
 - 2026-08-10 23:02 — the AC-4 boot test was rewriting its own carts: x64sc defaults to -easyflashcrtwrite and saves emulated flash back over the image, which showed up as a 64-byte broken.crt after the negative control. Added +easyflashcrtwrite. Harmless in a scratch dir, but pointed at a fixture it would have silently corrupted it and broken parity with no obvious cause.
 - 2026-08-10 23:03 — T-final green: 66 tests, fmt clean, clippy clean at -D warnings.
+
+- 2026-08-11 06:22 — PR #1 merged (0fd28be). Gate re-run on merged main: 66 tests, fmt and clippy clean. Work-item closed.
 
 ## DEEP PIPELINE (Deep lane only)
 
