@@ -8,9 +8,54 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-007 -->
+<!-- Next id: D-009 -->
 
 ---
+
+## D-008 · 2026-08-10 · Crate version stays 0.2.0, and the header default keeps tracking it
+- **Context:** Open question carried by write-path-skeleton since 2026-08-10. `versioning.md` bumped
+  the minor on a `feat/` branch after the scaffold commit had already claimed `0.1.0`, so the crate
+  merged to main at `0.2.0`. That string is the default CRT header name, so it sits inside every cart
+  built without an explicit one; the write-path test only asserts the `stidcart ` prefix.
+- **Decision:** Keep `0.2.0`, and keep the default deriving from `CARGO_PKG_VERSION`. The number is
+  arbitrary before 1.0, no fixture is affected (parity pins the header to the reference tool's own
+  string), and rolling it back would change produced bytes to buy nothing. The open question is closed
+  as intentional rather than left to drift a second work-item.
+- **Alternatives rejected:** Roll back to `0.1.0` — a bytes-changing commit whose only benefit is that
+  a first release "should" be 0.1.0. Decouple the header default from the crate version so output is
+  reproducible across releases — a real argument, but it discards the field's actual purpose of
+  identifying the producing tool *and version*, and the read path preserves what it finds (D-007)
+  rather than re-stamping, which is what would have made cross-version churn bite.
+- **Scope:** project-wide
+- **Status:** active
+
+## D-007 · 2026-08-10 · Read-path divergence is decided per behaviour, not by a blanket rule
+- **Context:** D-003 deferred this deliberately. The proposal on the table was to be bug-compatible
+  with ndefpack on accept/reject now and fix each quirk later, on the reasoning that reproducing them
+  keeps byte parity a clean pass/fail oracle through the read path.
+- **Decision:** Split the list by the classification `reference/easyflash-cart-format.md` already
+  carries, because the right answer differs per item. **Accept** an empty new-format directory (the
+  note calls it a `break`-ordering slip and prescribes accepting). **Validate** the CHIP magic and the
+  `0x04` total-length field as one decision, settling the read-by-`total` vs read-by-data-length fork
+  on malformed input. **Keep** rejecting 256 valid slots with no end marker — the note marks that one
+  format-mandated, since accepting it reads as an empty cart and destroys the directory on save.
+  **Do not implement** the wide-16k-xbank bound or EasyFS1 type-guessing; both return a typed
+  `Unsupported` error, because the write path cannot produce a cart entry yet and so neither has
+  anything to round-trip against.
+- **Why the stated reasoning did not hold:** parity compares produced bytes, and "rejected" has no
+  bytes to compare — accept/reject was never under the parity oracle. The read path's oracle is the
+  round trip against the frozen fixtures, and all four (`single`, `named`, `two`, `spill`) are
+  well-formed PRG-only carts that cannot trigger any of the quirks. Bug-compatibility buys zero oracle
+  strength on the tests this work-item writes. It also breaks self-consistency: `CartBuilder::new()
+  .build()` succeeds today and emits a 16480-byte cart with the end marker in slot 0 — exactly the
+  empty directory ndefpack rejects — so a bug-compatible reader could not read what this library
+  writes, failing the zero-program base case of the round-trip property.
+- **Alternatives rejected:** Blanket bug-compatible now, fix later — would mean writing code to reject
+  a cart we produce, plus a test asserting a known-wrong answer that gets deleted when the fix lands.
+  Fix everything now — would commit to an xbank bound the note says nobody has needed to pick, with no
+  fixture to check it against.
+- **Scope:** project-wide (supersedes nothing; it answers the question D-003 left open)
+- **Status:** active
 
 ## D-006 · 2026-08-10 · CRT header name and EF-Name are separate caller-supplied fields
 - **Context:** Byte parity against `ndeft` looked unsatisfiable: `ndeft` writes `PACKAGE_STRING`

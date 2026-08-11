@@ -64,8 +64,10 @@ against frozen fixtures, never scored.
 - **Format facts come from `reference/easyflash-cart-format.md`** in the Obsidian vault, which
   records which ndefpack behaviours are format-mandated and which are implementation artifacts.
   Re-deriving from the C risks inheriting a quirk by accident.
-- **Read-path divergence is an open decision, not a default.** Whether stidcart reproduces
-  ndefpack's loader quirks is unanswered by design; the write path was built first to defer it.
+- **Read-path divergence is decided per behaviour, never by a blanket rule** (D-007). The vault
+  spec's "behaviours to decide on" list classifies each one; follow that classification rather than
+  reproducing or fixing the set wholesale. A quirk the spec calls an implementation artifact gets
+  fixed; one it calls format-mandated stays.
 
 ## Conventions pointer
 
