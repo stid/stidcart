@@ -6,7 +6,7 @@
 **Slug:** `write-path-skeleton`
 **Spec:** [`spec.md`](./spec.md) · **Journal:** [`JOURNAL.md`](./JOURNAL.md)
 **Created:** 2026-08-10
-**Status:** draft <!-- draft | approved | implemented | superseded -->
+**Status:** implemented <!-- draft | approved | implemented | superseded -->
 
 ---
 
