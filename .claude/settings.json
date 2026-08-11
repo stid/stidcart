@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(audit-crosspath.sh:*)",
+      "Bash(parse-acs.sh:*)",
+      "Bash(lcd-doctor.sh:*)"
+    ]
+  }
+}

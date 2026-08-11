@@ -1,0 +1,14 @@
+[package]
+name = "stidcart-cli"
+description = "Command-line harness for stidcart-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "stidcart"
+path = "src/main.rs"
+
+[dependencies]
+stidcart-core = { path = "../stidcart-core" }
