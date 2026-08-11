@@ -10,18 +10,22 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Build an EasyFlash cartridge image from program files, byte-identical to the reference tool's output for the same inputs.
-- **Next action:** run /lcd:tasks write-path-skeleton
-- **Branch:** feat/write-path-skeleton  ·  **Updated:** 2026-08-10 22:52
+- **Next action:** run /lcd:test-gen write-path-skeleton
+- **Branch:** feat/write-path-skeleton  ·  **Updated:** 2026-08-10 22:58
 
 ## STEPS
 - [x] S1 — scaffold workspace, LCD spine, firmware blobs (committed 6fbfbd6)
 - [x] S2 — write plan.md
-- [ ] S3 — write tasks.md  ← next
-- [ ] S4 — generate failing tests, one per (AC × surface)
-- [ ] S5 — red-green loop to green
-- [ ] S6 — capture reference fixtures + their exact request lines
-- [ ] S7 — boot a produced image on the emulator
-- [ ] S8 — audit, then PR
+- [x] S3 — write tasks.md (T1..T24 + T-audit + T-final)
+- [ ] S4 — T1..T4: petscii and image, tests first  ← next
+- [ ] S5 — T5..T8: firmware blobs and the bank-0 reserved map
+- [ ] S6 — T9..T11: directory entry encoding
+- [ ] S7 — T12..T13: placement
+- [ ] S8 — T14..T16: CRT container, then wire CartBuilder
+- [ ] S9 — T17..T19: capture fixtures, then parity
+- [ ] S10 — T20..T23: CLI build command
+- [ ] S11 — T24: boot a produced image under the emulator
+- [ ] S12 — T-audit, T-final, then PR
 
 ## DECISIONS (this work-item)
 - Write path before read path; the read path's divergence policy stays open (→ D-003)
@@ -59,5 +63,5 @@ See `spec.md` — AC-1 through AC-11.
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->

@@ -124,6 +124,7 @@ crates/stidcart-core/src/crt.rs          CRT header and CHIP packet writer
 crates/stidcart-core/tests/reserved.rs   AC-6, AC-8 — reserved layout and name encoding
 crates/stidcart-core/tests/directory.rs  AC-7, AC-9 — entry encoding, end marker, entry cap
 crates/stidcart-core/tests/placement.rs  AC-10 — bank-crossing continuation
+crates/stidcart-core/tests/container.rs  AC-2 (container half) — header fields, CHIP packets, erased-block skipping
 crates/stidcart-core/tests/parity.rs     AC-2, AC-3 — byte identity against frozen fixtures
 crates/stidcart-cli/src/main.rs          `build` command: argument parsing and file I/O
 crates/stidcart-cli/tests/cli.rs         AC-1, AC-5, AC-11 — command behaviour
