@@ -10,14 +10,14 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Load a cartridge image back into the description that would produce it, and prove it by rebuilding the frozen reference images byte-identically.
-- **Next action:** run `/lcd:plan read-path`
-- **Branch:** feat/read-path  ·  **Updated:** 2026-08-10 23:42
+- **Next action:** run `/lcd:tasks read-path`
+- **Branch:** feat/read-path  ·  **Updated:** 2026-08-10 23:55
 
 ## STEPS
 - [x] S1 — settle the divergence policy (→ D-007) and the version question (→ D-008), commit 43792b7
 - [x] S2 — write spec.md (AC-1..AC-12; two branch points put to the maintainer)
-- [ ] S3 — write plan.md  ← next
-- [ ] S4 — write tasks.md
+- [x] S3 — write plan.md (decoders beside encoders; two spec amendments called out)
+- [ ] S4 — write tasks.md  ← next
 - [ ] S5 — generate failing tests, one per AC
 - [ ] S6 — red-green loop to green
 - [ ] S7 — audit gate, then PR
@@ -33,8 +33,15 @@
 - none — all four spec questions resolved before planning
 
 ## EDIT BOUNDARY (paths this work may touch)
-- `crates/stidcart-core/src`
-- `crates/stidcart-core/tests`
+> From plan.md File structure. The red-green loop may modify only these.
+- `crates/stidcart-core/src/read.rs` (new)
+- `crates/stidcart-core/tests/read.rs` (new)
+- `crates/stidcart-core/tests/roundtrip.rs` (new)
+- `crates/stidcart-core/src/crt.rs`
+- `crates/stidcart-core/src/directory.rs`
+- `crates/stidcart-core/src/reserved.rs`
+- `crates/stidcart-core/src/lib.rs`
+- `Cargo.toml` (version bump only)
 - `docs/lcd/work/read-path`
 - `docs/lcd/DECISIONS.md`
 - `docs/lcd/MAP.md`
@@ -83,7 +90,7 @@ template omits one for single-surface specs; the same degenerate-matrix workarou
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ⬜  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
 
 <!--
