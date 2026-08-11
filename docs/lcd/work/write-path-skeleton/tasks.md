@@ -21,30 +21,30 @@
 
 > Each test task that covers a cross-path AC should have a separate task per surface, so the literal `AC-N (SURFACE)` string maps one-to-one to a task. See the ac-convention rule.
 
-- [ ] **T1**: Write failing inline tests for the character-encoding swap in `crates/stidcart-core/src/petscii.rs`
-- [ ] **T2**: Implement `crates/stidcart-core/src/petscii.rs` to pass T1 — owned results, no shared buffer
-- [ ] **T3**: Write failing inline tests for the bank/half offset mapping in `crates/stidcart-core/src/image.rs`
-- [ ] **T4**: Implement `crates/stidcart-core/src/image.rs` to pass T3 — 1 MB image, `(bank << 13) | (romh ? 1<<19 : 0)`, erased to `0xFF`
-- [ ] **T5**: Implement `crates/stidcart-core/src/firmware.rs` — embed the five blobs, parse the 2-byte load address, overlay at `start_addr - base`
-- [ ] **T6**: Write failing test named `AC-6 (none): reserved region layout` in `crates/stidcart-core/tests/reserved.rs`
-- [ ] **T7**: Write failing test named `AC-8 (none): entry name encoding and reserved flag bits` in `crates/stidcart-core/tests/reserved.rs` [P]
-- [ ] **T8**: Implement `crates/stidcart-core/src/reserved.rs` to pass T6 and T7 — bank-0 map, EF-Name magic and field
-- [ ] **T9**: Write failing test named `AC-7 (none): entry geometry round-trips` in `crates/stidcart-core/tests/directory.rs`
-- [ ] **T10**: Write failing test named `AC-9 (none): end marker and entry cap` in `crates/stidcart-core/tests/directory.rs` [P]
-- [ ] **T11**: Implement `crates/stidcart-core/src/directory.rs` to pass T9 and T10 — entry types, flags byte, 24-byte encoding
-- [ ] **T12**: Write failing test named `AC-10 (none): program continues across a bank boundary` in `crates/stidcart-core/tests/placement.rs`
-- [ ] **T13**: Implement `crates/stidcart-core/src/place.rs` to pass T12 — weight-ordered, interleaved top-space placement
-- [ ] **T14**: Write failing test named `AC-2 (CLI): container header and CHIP packets` in `crates/stidcart-core/tests/container.rs`
-- [ ] **T15**: Implement `crates/stidcart-core/src/crt.rs` to pass T14 — 64-byte header, CHIP packets, all-`0xFF` blocks skipped
-- [ ] **T16**: Implement `crates/stidcart-core/src/lib.rs` — `CartBuilder`, `Program`, `BuildError`; wire the modules; no file I/O
-- [ ] **T17**: Capture reference fixtures into `fixtures/` and record the exact `ndeft` request for each in `fixtures/MANIFEST.md`
-- [ ] **T18**: Write failing test named `AC-2 (CLI): byte-identical to the reference image` in `crates/stidcart-core/tests/parity.rs`
-- [ ] **T19**: Write failing test named `AC-3 (CLI): parity check runs without the reference tool` in `crates/stidcart-core/tests/parity.rs` [P]
-- [ ] **T20**: Write failing test named `AC-1 (CLI): build writes an image and reports success` in `crates/stidcart-cli/tests/cli.rs`
-- [ ] **T21**: Write failing test named `AC-5 (CLI): oversized input fails without writing an image` in `crates/stidcart-cli/tests/cli.rs` [P]
-- [ ] **T22**: Write failing test named `AC-11 (CLI): empty input list matches the reference behaviour` in `crates/stidcart-cli/tests/cli.rs` [P]
-- [ ] **T23**: Implement `crates/stidcart-cli/src/main.rs` to pass T20–T22 — argument parsing, file reading, output writing
-- [ ] **T24**: Verify `AC-4 (CLI): produced image boots and the menu lists entry names` by running a built image under the emulator; record the result in the JOURNAL LOG
+- [x] **T1**: Write failing inline tests for the character-encoding swap in `crates/stidcart-core/src/petscii.rs`
+- [x] **T2**: Implement `crates/stidcart-core/src/petscii.rs` to pass T1 — owned results, no shared buffer
+- [x] **T3**: Write failing inline tests for the bank/half offset mapping in `crates/stidcart-core/src/image.rs`
+- [x] **T4**: Implement `crates/stidcart-core/src/image.rs` to pass T3 — 1 MB image, `(bank << 13) | (romh ? 1<<19 : 0)`, erased to `0xFF`
+- [x] **T5**: Implement `crates/stidcart-core/src/firmware.rs` — embed the five blobs, parse the 2-byte load address, overlay at `start_addr - base`
+- [x] **T6**: Write failing test named `AC-6 (none): reserved region layout` in `crates/stidcart-core/tests/reserved.rs`
+- [x] **T7**: Write failing test named `AC-8 (none): entry name encoding and reserved flag bits` in `crates/stidcart-core/tests/reserved.rs` [P]
+- [x] **T8**: Implement `crates/stidcart-core/src/reserved.rs` to pass T6 and T7 — bank-0 map, EF-Name magic and field
+- [x] **T9**: Write failing test named `AC-7 (none): entry geometry round-trips` in `crates/stidcart-core/tests/directory.rs`
+- [x] **T10**: Write failing test named `AC-9 (none): end marker and entry cap` in `crates/stidcart-core/tests/directory.rs` [P]
+- [x] **T11**: Implement `crates/stidcart-core/src/directory.rs` to pass T9 and T10 — entry types, flags byte, 24-byte encoding
+- [x] **T12**: Write failing test named `AC-10 (none): program continues across a bank boundary` in `crates/stidcart-core/tests/placement.rs`
+- [x] **T13**: Implement `crates/stidcart-core/src/place.rs` to pass T12 — weight-ordered, interleaved top-space placement
+- [x] **T14**: Write failing test named `AC-2 (CLI): container header and CHIP packets` in `crates/stidcart-core/tests/container.rs`
+- [x] **T15**: Implement `crates/stidcart-core/src/crt.rs` to pass T14 — 64-byte header, CHIP packets, all-`0xFF` blocks skipped
+- [x] **T16**: Implement `crates/stidcart-core/src/lib.rs` — `CartBuilder`, `Program`, `BuildError`; wire the modules; no file I/O
+- [x] **T17**: Capture reference fixtures into `fixtures/` and record the exact `ndeft` request for each in `fixtures/MANIFEST.md`
+- [x] **T18**: Write failing test named `AC-2 (CLI): byte-identical to the reference image` in `crates/stidcart-core/tests/parity.rs`
+- [x] **T19**: Write failing test named `AC-3 (CLI): parity check runs without the reference tool` in `crates/stidcart-core/tests/parity.rs` [P]
+- [x] **T20**: Write failing test named `AC-1 (CLI): build writes an image and reports success` in `crates/stidcart-cli/tests/cli.rs`
+- [x] **T21**: Write failing test named `AC-5 (CLI): oversized input fails without writing an image` in `crates/stidcart-cli/tests/cli.rs` [P]
+- [x] **T22**: Write failing test named `AC-11 (CLI): empty input list matches the reference behaviour` in `crates/stidcart-cli/tests/cli.rs` [P]
+- [x] **T23**: Implement `crates/stidcart-cli/src/main.rs` to pass T20–T22 — argument parsing, file reading, output writing
+- [x] **T24**: Verify `AC-4 (CLI): produced image boots and the menu lists entry names` by running a built image under the emulator; record the result in the JOURNAL LOG
 - [ ] **T-audit**: Run `/lcd:audit write-path-skeleton`; resulting `audit.md` has zero MISSING/BLOCKED rows
 - [ ] **T-final**: Run `cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace`, all green
 
