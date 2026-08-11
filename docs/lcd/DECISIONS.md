@@ -8,9 +8,25 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-006 -->
+<!-- Next id: D-007 -->
 
 ---
+
+## D-006 · 2026-08-10 · CRT header name and EF-Name are separate caller-supplied fields
+- **Context:** Byte parity against `ndeft` looked unsatisfiable: `ndeft` writes `PACKAGE_STRING`
+  ("ndefpack 1.0.1") into the 32-byte CRT header name at offset `0x20` of every EasyFlash cart, and
+  `-e` does not change it. `-e` sets the *EF-Name*, a different 16-byte PETSCII string living inside
+  the flash image at `0x81b08` behind an `"ef-nAME:"` magic. Two strings, two offsets, easy to
+  conflate — and conflating them produces a parity failure that reads like a deep bug.
+- **Decision:** `CartBuilder` takes both independently. `header_name` defaults to `stidcart <crate
+  version>`; `ef_name` defaults to the same `"(no EF-Name)"` placeholder `ndeft` writes when `-e` is
+  omitted. The parity test sets `header_name` to `ndefpack 1.0.1` explicitly, so the divergence is an
+  argument rather than a reason the test can never pass.
+- **Alternatives rejected:** Hardcode the header name to the crate version — makes AC-2 unsatisfiable
+  by construction. Mask the 32-byte range when comparing — hides real drift in a field that is part
+  of the format, and the mask would have to be maintained forever.
+- **Scope:** write-path-skeleton (the API shape it sets is project-wide)
+- **Status:** active
 
 ## D-005 · 2026-08-10 · Firmware embedded as-is; custom menu later
 - **Context:** The C64-side menu (EasyLoader), boot launcher and EAPI are zlib-licensed 6502 blobs
