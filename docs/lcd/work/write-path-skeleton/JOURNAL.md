@@ -10,8 +10,8 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Build an EasyFlash cartridge image from program files, byte-identical to the reference tool's output for the same inputs.
-- **Next action:** open the PR; then decide the read-path divergence policy (D-003)
-- **Branch:** feat/write-path-skeleton  ·  **Updated:** 2026-08-10 23:03
+- **Next action:** this work-item is DONE. PR #1 is open and green — https://github.com/stid/stidcart/pull/1. Merge it; do NOT re-run the pipeline on this slug. The next work-item starts by deciding the read-path divergence policy (D-003).
+- **Branch:** feat/write-path-skeleton  ·  **Updated:** 2026-08-10 23:10
 
 ## STEPS
 - [x] S1 — scaffold workspace, LCD spine, firmware blobs (committed 6fbfbd6)
@@ -33,7 +33,11 @@
 - All four spec open questions resolved by measuring the reference tool, not by assumption
 
 ## OPEN QUESTIONS
-- none
+- Version is `0.2.0`, not `0.1.0`: `versioning.md` bumps minor on a `feat/` branch and the scaffold
+  commit had already claimed `0.1.0`. That string is the default CRT header name, so it is inside
+  every cart built without an explicit header name, and the test only asserts the `stidcart ` prefix.
+  Raised with the user 2026-08-10, unanswered. A one-line change in `Cargo.toml` before merge if the
+  first working version should be `0.1.0`.
 
 ## EDIT BOUNDARY (paths this work may touch)
 - `crates/stidcart-core/src`
