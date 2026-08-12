@@ -8,9 +8,34 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-010 -->
+<!-- Next id: D-011 -->
 
 ---
+
+## D-010 · 2026-08-11 · The Rust toolchain is pinned in-repo, not tracked as `stable`
+- **Context:** [[D-009]] made `gate` a required status check on `main` with `enforce_admins: true`, and
+  the gate runs `clippy -- -D warnings`. CI installed plain `stable`, so the toolchain was an input that
+  changed on the Rust release calendar rather than on a commit here. A new stable adding one lint would
+  fail CI on code nobody touched — and because the check is required with no owner bypass, it would
+  block every PR *including the one that fixes it*.
+- **Decision:** `rust-toolchain.toml` pins `channel = "1.97.1"` (current stable) with `rustfmt` and
+  `clippy` on the minimal profile. CI runs `rustup toolchain install` with **no toolchain argument**,
+  which installs the active toolchain — the one this file names. Naming `stable` in the workflow would
+  silently un-pin CI while the file sat there looking authoritative. Upgrades are a deliberate PR:
+  change `channel`, run the gate, fix any new lints in the same commit.
+- **Known gap — the pin only binds through rustup's shims.** The maintainer's machine currently resolves
+  `cargo`/`rustc` to the Homebrew `rust` formula at `/opt/homebrew/bin` (the shims in `~/.cargo/bin` are
+  dangling symlinks to a `rustup` that Homebrew relocated), and a non-rustup cargo ignores this file
+  entirely. Both are 1.97.1 today, so local and CI agree by coincidence, and `brew upgrade rust` is what
+  ends that. Making the pin bind locally means letting rustup own the toolchain — deliberately not done
+  as part of this, because it is a machine change, not a repo change.
+- **Alternatives rejected:** Track `stable` and fix lints as they land — that is the deadlock above, and
+  it arrives as a red `main` with no obvious cause. Keep `stable` but drop `-D warnings` — trades a
+  known, occasional chore for permanently weaker static analysis, which is the half ndefpack lacked.
+  Add `rust-version` (MSRV) to `Cargo.toml` instead — a different thing: MSRV declares the floor
+  consumers must clear, not which compiler CI runs. Worth doing on its own terms, not as a substitute.
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-009 · 2026-08-11 · `main` is protected behind a PR and one required check, `gate`
 - **Context:** The remote had no protection at all, so "never commit to `main`" was a convention held
