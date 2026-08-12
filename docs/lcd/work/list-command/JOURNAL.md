@@ -12,8 +12,8 @@
 - **Goal:** Expose the existing read path through a `stidcart list <file>` command that prints the
   cartridge name, one line per directory entry (index, name, type, bank, offset, size) and a
   free-space summary.
-- **Next action:** S7 — run `/lcd:audit list-command`, then open the PR.
-- **Branch:** feat/list-command  ·  **Updated:** 2026-08-11 22:44
+- **Next action:** open the PR (`gh pr create`); the audit passed and the gate is green.
+- **Branch:** feat/list-command  ·  **Updated:** 2026-08-11 22:52
 
 ## STEPS
 - [x] S1 — `README.md` State section: it still says "no reading"; the read path landed. Docs-only.
@@ -23,7 +23,8 @@
 - [x] S4 — test first: `stidcart list` on each fixture — entry lines, cart name, free space (AC-1..3).
 - [x] S5 — test first: `list` on a non-cartridge, and `list` with no path (AC-4, AC-5).
 - [x] S6 — implement the CLI command and its usage text.
-- [ ] S7 — gate green (108 tests, fmt + clippy clean); run `/lcd:audit list-command`, then PR.  ← next
+- [x] S7 — gate green (108 tests, fmt + clippy clean); audit PASS (`audit.md`).
+- [ ] S8 — open the PR.  ← next
 
 ## DECISIONS (this work-item)
 - **`list` reports the file's own positions, not regenerated ones.** `load()` returns a
@@ -79,6 +80,15 @@ would regenerate.
 
 - 2026-08-11 22:19 — triaged `LCD → Standard (3 signals)`: 3–4 files, one CLI surface, one-commit
   revert; no hard trigger, no risk signal. Work-item opened on `feat/list-command`.
+- 2026-08-11 22:52 — audit PASS (test-presence; the cross-path script does not apply to a Standard
+  item, which has no `plan.md` matrix). Recorded in `audit.md`, including the finding that a bare
+  `AC-N (SURFACE)` grep now matches three other work-items and would pass this slug even with no
+  tests written — the numbering is per work-item, so this only gets worse. A slug-qualified token
+  would fix it; not acted on here, phase 6 is verification only.
+- 2026-08-11 22:48 — version bumped 0.3.0 → 0.4.0 (`versioning.md`: `feat/` → minor). It belongs in
+  the branch's first commit and landed three commits late, because this branch opened with a
+  docs-only fix and the habit is anchored to the first *source* commit. Changes the bytes of any
+  cart built without an explicit `-e` (D-008); no fixture moves.
 - 2026-08-11 22:44 — S2..S6 green in one pass. Worth recording which criterion actually carries the
   positions claim: **AC-1 does not**. It compares the printed line against `inspect`'s own output on
   `two.crt`, and that fixture round-trips byte-identically, so regenerated and recorded positions
