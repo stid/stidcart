@@ -10,17 +10,21 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Load a cartridge image back into the description that would produce it, and prove it by rebuilding the frozen reference images byte-identically.
-- **Next action:** run `/lcd:tasks read-path`
-- **Branch:** feat/read-path  ·  **Updated:** 2026-08-10 23:55
+- **Next action:** run `/lcd:test-gen read-path`
+- **Branch:** feat/read-path  ·  **Updated:** 2026-08-11 00:10
 
 ## STEPS
 - [x] S1 — settle the divergence policy (→ D-007) and the version question (→ D-008), commit 43792b7
 - [x] S2 — write spec.md (AC-1..AC-12; two branch points put to the maintainer)
 - [x] S3 — write plan.md (decoders beside encoders; two spec amendments called out)
-- [ ] S4 — write tasks.md  ← next
-- [ ] S5 — generate failing tests, one per AC
-- [ ] S6 — red-green loop to green
-- [ ] S7 — audit gate, then PR
+- [x] S4 — write tasks.md (T1..T25 + T-audit + T-final)
+- [ ] S5 — T1: version bump 0.2.0 → 0.3.0, first code commit  ← next
+- [ ] S6 — T2..T7: decoders beside their encoders (directory, crt, reserved)
+- [ ] S7 — T8..T9: read.rs contract + lib.rs wiring, so the AC tests compile red
+- [ ] S8 — T10..T21: one failing test per AC (`AC-N (none)` literals)
+- [ ] S9 — T22..T24: implement load in three stages (container, reserved, directory)
+- [ ] S10 — T25: round-trip closes on all four fixtures + the empty base case
+- [ ] S11 — T-audit, then T-final gate, then PR
 
 ## DECISIONS (this work-item)
 - Divergence decided per behaviour from the format spec's own classification, not by a blanket
@@ -86,11 +90,22 @@ template omits one for single-surface specs; the same degenerate-matrix workarou
   A reader that applies the case swap to all three turns `ndefpack 1.0.1` into `NDEFPACK 1.0.1` and
   breaks parity on every reference image. D-006 exists because these fields were conflated once.
 
+- 2026-08-11 00:10 — tasks.md written, T1..T25 + T-audit + T-final. Two orderings are deliberate and
+  worth not "fixing" on a resume. T1 bumps the version first because `versioning.md` puts the bump in
+  the branch's first code commit and the branch base was verified at 0.2.0. T8 lands the read contract
+  (error types + a `load` signature that returns an error) *before* the AC tests, because in Rust a
+  test referencing a function that does not exist is a build failure rather than a legible red — the
+  stub is what makes every AC test fail for the right reason.
+- 2026-08-11 00:12 — session interrupted mid-phase by a machine sleep. Nothing was lost: the last
+  commit was the plan (732bb2c) and tasks.md had not been written, so the phase simply re-ran from
+  its gate. Recorded because the recovery path (check the tracker and the last commit, not the
+  transcript) is the reusable part.
+
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
 
 <!--
