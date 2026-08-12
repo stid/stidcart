@@ -12,19 +12,18 @@
 - **Goal:** Expose the existing read path through a `stidcart list <file>` command that prints the
   cartridge name, one line per directory entry (index, name, type, bank, offset, size) and a
   free-space summary.
-- **Next action:** S1 — correct the stale "no reading" State section in `README.md`.
-- **Branch:** feat/list-command  ·  **Updated:** 2026-08-11 22:19
+- **Next action:** S7 — run `/lcd:audit list-command`, then open the PR.
+- **Branch:** feat/list-command  ·  **Updated:** 2026-08-11 22:44
 
 ## STEPS
-- [ ] S1 — `README.md` State section: it still says "no reading"; the read path landed. Docs-only.  ← next
-- [ ] S2 — test first: `read::inspect` returns the directory as the **file** records it (AC-6).
-- [ ] S3 — refactor `read.rs` so one directory walk feeds both `load` and `inspect`; no behaviour
+- [x] S1 — `README.md` State section: it still says "no reading"; the read path landed. Docs-only.
+- [x] S2 — test first: `read::inspect` returns the directory as the **file** records it (AC-6).
+- [x] S3 — refactor `read.rs` so one directory walk feeds both `load` and `inspect`; no behaviour
       change (round-trip + parity tests are the guard).
-- [ ] S4 — test first: `stidcart list` on each fixture — entry lines, cart name, free space (AC-1..3).
-- [ ] S5 — test first: `list` on a non-cartridge, and `list` with no path (AC-4, AC-5).
-- [ ] S6 — implement the CLI command and its usage text.
-- [ ] S7 — gate (`cargo fmt --check && clippy -D warnings && test --workspace`), then `/lcd:audit
-      list-command`, then PR.
+- [x] S4 — test first: `stidcart list` on each fixture — entry lines, cart name, free space (AC-1..3).
+- [x] S5 — test first: `list` on a non-cartridge, and `list` with no path (AC-4, AC-5).
+- [x] S6 — implement the CLI command and its usage text.
+- [ ] S7 — gate green (108 tests, fmt + clippy clean); run `/lcd:audit list-command`, then PR.  ← next
 
 ## DECISIONS (this work-item)
 - **`list` reports the file's own positions, not regenerated ones.** `load()` returns a
@@ -46,6 +45,7 @@
 - `crates/stidcart-core/tests/read.rs`
 - `crates/stidcart-cli/src/main.rs`
 - `crates/stidcart-cli/tests/cli.rs`
+- `crates/stidcart-cli/tests/list.rs`
 - `docs/lcd/work/list-command/JOURNAL.md`
 <!-- /lcd-resume -->
 
@@ -79,6 +79,21 @@ would regenerate.
 
 - 2026-08-11 22:19 — triaged `LCD → Standard (3 signals)`: 3–4 files, one CLI surface, one-commit
   revert; no hard trigger, no risk signal. Work-item opened on `feat/list-command`.
+- 2026-08-11 22:44 — S2..S6 green in one pass. Worth recording which criterion actually carries the
+  positions claim: **AC-1 does not**. It compares the printed line against `inspect`'s own output on
+  `two.crt`, and that fixture round-trips byte-identically, so regenerated and recorded positions
+  coincide there — a CLI that rebuilt instead of inspecting would still pass it. AC-6 is the one with
+  teeth, and it has its own asserted negative control (an entry planted at bank 40, with the
+  rebuilding path checked to disagree). Do not "simplify" AC-6 away on the grounds that AC-1 covers
+  the same ground; it does not.
+- 2026-08-11 22:44 — `list` prints to stdout and errors to stderr, and AC-4 asserts stdout is empty
+  on refusal. That is what keeps the output pipeable without a partial listing arriving ahead of an
+  error.
+- 2026-08-11 22:31 — `lcd:refine`: added `crates/stidcart-cli/tests/list.rs` to the EDIT BOUNDARY.
+  The boundary named `tests/cli.rs`, but that file already carries the *write-path* work-item's
+  AC-1/AC-5, and this work-item numbers its own criteria from 1 as well. Two unrelated AC-1 (CLI)
+  tokens in one file would make the audit's test-presence check unreadable, so `list` gets its own
+  target — the same split `read-path` used against `cli.rs`.
 - 2026-08-11 22:19 — the read-path spec named this work itself ("This work-item delivers the
   capability; exposing it to a user is separate work"), so scope is that sentence and nothing more:
   no editing, no `dump`/`ext`, no entry types the loader already refuses.
