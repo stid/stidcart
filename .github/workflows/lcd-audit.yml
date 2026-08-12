@@ -10,10 +10,12 @@
 
 name: LCD audit gate
 
+# Deliberately NOT `paths:`-filtered, so `audit` can be a required status check on
+# `main`. A filtered job never reports on a PR outside the filter, and a required
+# check that never reports sits in "Expected" and blocks the PR forever. The filter
+# is redundant anyway: the step below exits 0 as soon as no work-item changed.
 on:
   pull_request:
-    paths:
-      - "docs/lcd/work/**"
 
 jobs:
   audit:
