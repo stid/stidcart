@@ -10,18 +10,18 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Load a cartridge image back into the description that would produce it, and prove it by rebuilding the frozen reference images byte-identically.
-- **Next action:** run `/lcd:test-gen read-path`
-- **Branch:** feat/read-path  ·  **Updated:** 2026-08-11 00:10
+- **Next action:** run `lcd:redgreen-loop` — first iteration is T8, the `read.rs` contract stub, which turns two build errors into twelve failing assertions
+- **Branch:** feat/read-path  ·  **Updated:** 2026-08-11 00:25
 
 ## STEPS
 - [x] S1 — settle the divergence policy (→ D-007) and the version question (→ D-008), commit 43792b7
 - [x] S2 — write spec.md (AC-1..AC-12; two branch points put to the maintainer)
 - [x] S3 — write plan.md (decoders beside encoders; two spec amendments called out)
 - [x] S4 — write tasks.md (T1..T25 + T-audit + T-final)
-- [ ] S5 — T1: version bump 0.2.0 → 0.3.0, first code commit  ← next
-- [ ] S6 — T2..T7: decoders beside their encoders (directory, crt, reserved)
+- [x] S5 — T1: version bump 0.2.0 → 0.3.0, first source-touching commit
+- [x] S8 — T10..T21: one failing test per AC, all twelve `AC-N (none)` literals present, both targets red
+- [ ] S6 — T2..T7: decoders beside their encoders (directory, crt, reserved)  ← next
 - [ ] S7 — T8..T9: read.rs contract + lib.rs wiring, so the AC tests compile red
-- [ ] S8 — T10..T21: one failing test per AC (`AC-N (none)` literals)
 - [ ] S9 — T22..T24: implement load in three stages (container, reserved, directory)
 - [ ] S10 — T25: round-trip closes on all four fixtures + the empty base case
 - [ ] S11 — T-audit, then T-final gate, then PR
@@ -37,15 +37,17 @@
 - none — all four spec questions resolved before planning
 
 ## EDIT BOUNDARY (paths this work may touch)
-> From plan.md File structure. The red-green loop may modify only these.
-- `crates/stidcart-core/src/read.rs` (new)
-- `crates/stidcart-core/tests/read.rs` (new)
-- `crates/stidcart-core/tests/roundtrip.rs` (new)
+> From plan.md File structure. The red-green loop may modify only these. Keep every bullet a bare
+> path — the boundary hook matches the whole bullet, so a trailing note like `(new)` makes the path
+> unmatchable and denies the edit. The first three are new files; `Cargo.toml` is the version bump only.
+- `crates/stidcart-core/src/read.rs`
+- `crates/stidcart-core/tests/read.rs`
+- `crates/stidcart-core/tests/roundtrip.rs`
 - `crates/stidcart-core/src/crt.rs`
 - `crates/stidcart-core/src/directory.rs`
 - `crates/stidcart-core/src/reserved.rs`
 - `crates/stidcart-core/src/lib.rs`
-- `Cargo.toml` (version bump only)
+- `Cargo.toml`
 - `docs/lcd/work/read-path`
 - `docs/lcd/DECISIONS.md`
 - `docs/lcd/MAP.md`
@@ -101,11 +103,30 @@ template omits one for single-surface specs; the same degenerate-matrix workarou
   its gate. Recorded because the recovery path (check the tracker and the last commit, not the
   transcript) is the reusable part.
 
+- 2026-08-11 00:25 — twelve failing tests written, one per AC, split across `tests/read.rs` (the
+  refusals) and `tests/roundtrip.rs` (the oracle). Both targets are red as a build error, which is
+  the correct phase-4 red in Rust: the tests reference a module that does not exist yet, and T8's
+  stub is what converts that into twelve legible assertion failures.
+- 2026-08-11 00:26 — the boundary hook denied the first write of `tests/read.rs` even though the
+  path was listed. Cause: the hook matches the whole EDIT BOUNDARY bullet, so the ` (new)`
+  annotation made the path unmatchable. Bullets are now bare paths with the annotations moved into
+  the note above them. Same class of matcher limitation the write-path item hit with `lcd-doctor`
+  and prose inside a machine-block value — worth remembering that these blocks are parsed strictly.
+- 2026-08-11 00:27 — T1 version bump 0.2.0 → 0.3.0 applied with this, the first source-touching
+  commit on the branch (`versioning.md`: `feat/` → minor, branch base verified at 0.2.0). Checked
+  first that nothing asserts the full string — `tests/container.rs:76` asserts only the
+  `stidcart ` prefix, and parity pins the reference tool's name, so no fixture moves.
+- 2026-08-11 00:28 — recorded for the audit phase: **this work-item's audit gate is vacuous.**
+  `audit-crosspath.sh` skips every `none` surface, and all twelve ACs are `none`, so it will emit an
+  empty table and exit 0 without checking anything. The real gates are T-final and the round-trip.
+  The plan's matrix note originally claimed the matrix was kept to avoid a BLOCK; that was wrong —
+  the write-path BLOCKed on its CLI rows — and has been corrected in `plan.md`.
+
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
 
 <!--

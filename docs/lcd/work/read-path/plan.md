@@ -87,11 +87,20 @@ bytes ──crt::parse──► (FlashImage, header_name)
 ## Cross-path behavior matrix
 
 > Degenerate by construction: **every AC in this spec is `surfaces: none`**, so there are no
-> non-`none` (AC × surface) pairs and no behavior exposed through two paths. The section is kept
-> rather than omitted because the write-path audit BLOCKed on a missing matrix even where the
-> template said to skip it (`write-path-skeleton/audit.md`); supplying it costs a table and avoids
-> re-running the gate. The audit's real check here is test-presence — each row's test carries the
-> literal `AC-N (none)`.
+> non-`none` (AC × surface) pairs and no behavior exposed through two paths.
+>
+> **The audit gate is therefore vacuous for this work-item, and that should not be mistaken for
+> coverage.** `audit-crosspath.sh` skips every `none` surface outright, so it will emit an empty
+> table and exit 0 without checking anything. (The write-path audit BLOCKed on its *CLI* rows, not
+> its `none` ones — its own report records that the `none` criteria sit "outside the cross-path
+> contract".) The real gates here are T-final — the full fmt + clippy + test suite — and the
+> round-trip ACs, which are the only thing that can actually prove the read path inverts the write
+> path. The table below is kept as documentation of where each AC's test lives, not because the
+> script reads it.
+
+Each test carries the literal `AC-N (none)`, matching this project's established
+`/// AC-N (SURFACE): …` doc-comment style rather than the generator's bare-`AC-N` default for
+`none` ACs. Both satisfy the phase-4 quality gate; the project style wins for consistency.
 
 | AC | Surface | Path |
 |---|---|---|
