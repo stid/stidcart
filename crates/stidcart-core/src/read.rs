@@ -30,6 +30,8 @@ pub enum PacketProblem {
     LengthDisagrees,
     /// A data size or load address the format does not permit.
     Geometry,
+    /// A bank number past the top of flash.
+    Bank,
 }
 
 /// Content that is well-formed but that this tool cannot represent, and so will not load rather
@@ -49,11 +51,14 @@ pub enum ReadError {
         need: usize,
         have: usize,
     },
+    /// A malformed container packet. `at` is an offset **into the file**.
     BadPacket {
         at: usize,
         problem: PacketProblem,
     },
-    /// A file-supplied size or location described a region outside the image.
+    /// A directory entry described a region outside the image. `at` is an offset **into the flash
+    /// image**, not into the file — the two coordinate spaces do not coincide, and this variant
+    /// only ever carries the latter.
     OutOfBounds {
         at: usize,
         len: usize,
@@ -81,12 +86,13 @@ impl std::fmt::Display for ReadError {
                     PacketProblem::Marker => "no CHIP marker",
                     PacketProblem::LengthDisagrees => "stated length disagrees with its data",
                     PacketProblem::Geometry => "data size or load address the format does not allow",
+                    PacketProblem::Bank => "a bank number past the top of flash",
                 };
-                write!(f, "bad packet at {at:#x}: {what}")
+                write!(f, "bad packet at {at:#x} in the file: {what}")
             }
             ReadError::OutOfBounds { at, len } => write!(
                 f,
-                "a recorded location reaches outside the image: {len} bytes at {at:#x}"
+                "an entry reaches outside the image: {len} bytes at {at:#x} in the flash image"
             ),
             ReadError::BadEntry { slot, type_value } => write!(
                 f,
@@ -214,6 +220,20 @@ mod tests {
 
     #[test]
     fn a_zero_length_entry_needs_no_space() {
+        // The loop body never runs, so this documents the base case rather than the bank check.
         assert!(check_extent(63, 0x3fff, 0).is_ok());
+    }
+
+    #[test]
+    fn a_bank_past_the_top_of_flash_is_out_of_bounds_immediately() {
+        // The guard has to fire before the first byte is consumed, not after.
+        assert!(check_extent(N_BANKS as u16, 0, 1).is_err());
+        assert!(check_extent(200, 0, 1).is_err());
+    }
+
+    #[test]
+    fn an_entry_filling_the_last_bank_exactly_is_in_bounds() {
+        assert!(check_extent(63, 0, 2 * BANK_SIZE as u32).is_ok());
+        assert!(check_extent(63, 0, 2 * BANK_SIZE as u32 + 1).is_err());
     }
 }

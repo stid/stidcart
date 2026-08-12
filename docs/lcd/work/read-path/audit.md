@@ -60,9 +60,14 @@ Twelve ACs, twelve distinct tests, no AC sharing a test with another.
    write path check each other rather than both being checked against one reading of the format.
 2. **T-final** — `cargo fmt --all --check && cargo clippy … -D warnings && cargo test --workspace`.
    97 tests, 0 failures, fmt and clippy clean.
-3. **A negative control**, because every AC passing on the first run is weak evidence on its own.
-   Decoding the container header name with the machine's character swap makes AC-8 and AC-9 fail
-   immediately — the exact conflation D-006 exists to prevent — which shows those criteria bite.
+3. **Two negative controls**, because every AC passing on the first run is weak evidence on its own,
+   and one control only proves the path it touches:
+   - Decoding the container header name with the machine's character swap makes AC-8 and AC-9 fail
+     immediately — the exact conflation D-006 exists to prevent.
+   - Returning the loaded entries in reverse order makes AC-2 fail on `two.crt` (`18 bytes differ;
+     first at 0x2060`). That is the one that matters: the first control only exercises the header,
+     so without this one "load then rebuild is byte-identical" could have been true without being
+     load-bearing for entry recovery or placement. It is.
 
 ## Status legend
 

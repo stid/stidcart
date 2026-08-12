@@ -137,6 +137,19 @@ template omits one for single-surface specs; the same degenerate-matrix workarou
   would have returned the directory as though it were program data. Silently wrong rather than
   merely broken, and the reason `check_extent` tracks bank and half instead of a flat offset.
 
+- 2026-08-11 01:05 — second negative control, and the one that actually mattered. The header-name
+  control only proved the header path bites; AC-2 could still have passed for the wrong reason.
+  Reversing the order loaded entries are returned in makes AC-2 fail on `two.crt` (18 bytes differ,
+  first at `0x2060`), which is what shows the round trip is load-bearing for entry recovery and
+  placement rather than just for the container. Worth repeating on any future oracle: sabotage the
+  thing the test exists to prove, not the nearest thing to hand.
+- 2026-08-11 01:07 — fixed a diagnostic trap in `ReadError`: `BadPacket.at` was a file offset while
+  `OutOfBounds.at` was a flash-image offset, two coordinate spaces in error messages a reader would
+  compare side by side. A bank past the top of flash is now `BadPacket { problem: Bank }`, so
+  `BadPacket.at` is always a file offset and `OutOfBounds.at` always an image offset, and both say
+  which in their message. Added the `check_extent` cases that actually exercise the bank guard —
+  the previous zero-length case never entered the loop. 99 tests green.
+
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.

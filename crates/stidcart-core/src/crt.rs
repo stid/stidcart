@@ -102,7 +102,10 @@ pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
             });
         }
         if bank >= N_BANKS {
-            return Err(ReadError::OutOfBounds { at: p, len });
+            return Err(ReadError::BadPacket {
+                at: p,
+                problem: PacketProblem::Bank,
+            });
         }
 
         let data = &bytes[p + CHIP_HEADER_LEN..p + total];

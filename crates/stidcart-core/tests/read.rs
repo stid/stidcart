@@ -253,9 +253,17 @@ fn ac_12_a_size_or_location_reaching_outside_the_image_is_refused() {
     wild_bank[crt::HEADER_LEN + 10] = 0x00;
     wild_bank[crt::HEADER_LEN + 11] = 200;
     assert!(
-        matches!(read::load(&wild_bank), Err(ReadError::OutOfBounds { .. })),
+        matches!(
+            read::load(&wild_bank),
+            Err(ReadError::BadPacket {
+                problem: PacketProblem::Bank,
+                ..
+            })
+        ),
         "bank 200 is past the end of a 64-bank image; the bank is file-controlled and reaches an \
-         index, so it is checked before it is used"
+         index, so it is checked before it is used. A container fault reports a file offset, which \
+         is why it is a BadPacket rather than the entry-level OutOfBounds below — the two carry \
+         offsets in different coordinate spaces"
     );
 
     // A packet claiming more data than the file actually contains.
