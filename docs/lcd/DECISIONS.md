@@ -62,10 +62,16 @@
   loses the plugin's fan-out and validation pass, which is the part that makes its findings worth
   blocking on. Require it immediately on merge — the deadlock above. `paths:`-filter it to source
   files — the D-009 `Expected`-forever trap.
-- **Known gap:** the `--json-schema` verdict and the skip-override are both unverified, because the
-  workflow-validation rule above means neither can run until this lands on `main`. The check is
-  unrequired, and it fails closed, so the cost of being wrong is a red advisory check on the next PR
-  rather than a blocked repository. Confirm on that PR before promoting it to required.
+- **Known gap — closed 2026-08-11 on PR #15.** The `--json-schema` verdict and the skip-override could
+  not be verified before merging, because of the workflow-validation rule above. Both hold: the run
+  returned `{"reviewed":true,"blocking":false,...}`, so the schema does compose with a slash-command
+  prompt, and the review ran rather than skipping a small docs change as trivial. It posted its comment
+  (the `--comment` + write-permission fix) and cross-checked the claim under review against
+  `crates/stidcart-cli/src/main.rs` instead of taking the diff at face value. `claude-review` was added
+  to the required checks on `main` after that run, alongside `gate` and `audit`.
+- **Cost, measured:** 12 turns / ~$0.48 for a one-line docs PR, 25 turns / ~$1.03 for the earlier code
+  PR — it scales with the diff, and it draws on the Claude subscription through the GitHub App's OAuth
+  token rather than API billing. That is the reason for one reviewing workflow rather than two.
 - **Scope:** project-wide
 - **Status:** active
 
