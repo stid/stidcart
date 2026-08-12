@@ -8,9 +8,66 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-012 -->
+<!-- Next id: D-013 -->
 
 ---
+
+## D-012 · 2026-08-11 · A Claude review gates `main`, and it blocks only on high-severity findings
+- **Context:** `gate` and `audit` check that the suite is green and that every AC has a test. Neither
+  reads the code. The list-command work-item made the gap concrete: the audit passed, and a review of
+  the same branch then found seven defects, two of them severe — both in code no AC described, which a
+  test-presence check cannot reach by construction.
+- **Decision:** `.github/workflows/claude-review.yml` runs the **official `code-review` plugin** on
+  every PR and fails the job **only** when the verdict is blocking: a finding that survived the
+  plugin's own validation step and that would produce wrong behaviour, corrupt output, or a panic.
+  Everything else is commented with `blocking: false` and does not fail the build. The threshold is the
+  whole point — a gate that goes red on style is one that gets routinely overridden, and an overridden
+  gate is not a gate. The prompt additionally points the review at this project's invariants and at
+  this log, because a finding that contradicts a recorded decision is noise.
+- **The plugin reviews; this workflow gates. Both halves were needed.** An earlier draft hand-wrote the
+  review prompt; reading the plugin's own definition settled it — it fans out to four parallel
+  reviewers (two on `CLAUDE.md` compliance, two hunting bugs) and then **independently re-validates
+  every finding, dropping the ones that fail**. That validation pass is what makes its output worth
+  gating on, and it is not something worth reimplementing by hand.
+- **`/install-github-app`'s stock workflow is a no-op, and that is worth knowing before trusting it.**
+  As generated it omits `--comment` — the plugin's step 7 then says "stop here, do not post any GitHub
+  comments" — and sets `pull-requests: read`, so it could not post even if asked. Measured on PR #13:
+  25 turns, 2m48s, ~$1 of subscription usage, **zero comments posted**, check green. Both halves are
+  fixed here; the generated file was deleted rather than kept, since its job was also named
+  `claude-review` and two jobs sharing a name make a required check ambiguous.
+- **The plugin's "already commented, skip" rule had to be overridden, or the gate is bypassable.** Its
+  step 1 stops when Claude has already commented on the PR — correct for a one-shot reviewer, wrong for
+  a merge gate: the first push gets reviewed, and every later push sails through unread. That also
+  rules out counting posted comments as the blocking signal, since comments from an earlier commit
+  would either block forever or (scoped to the head SHA) clear on any empty commit. The verdict
+  therefore comes from the run itself via `--json-schema`, and the prompt overrides the skip for
+  everything except closed and draft PRs.
+- **A missing verdict fails the check, and that guard earned its place three times over.**
+  `claude-code-action` **exits successfully when it has done nothing at all**, which was observed in
+  three distinct ways while building this: with no `CLAUDE_CODE_OAUTH_TOKEN` secret configured, and
+  twice because the action validates that the workflow file matches the copy on the default branch and
+  silently skips when it does not (so a review workflow can never be tested on the PR that changes it —
+  it has to land on `main` first). Every one of those would have been a **green check with no review
+  behind it**. Never treat this action's exit status as evidence a review happened; require both
+  `conclusion == success` and a verdict.
+- **Sequencing was the risk, not the workflow.** D-009 put `enforce_admins: true` on `main`, so a
+  required check that cannot authenticate blocks every PR *including the one that fixes it*. The check
+  is therefore added unrequired, run green on a real PR first, and promoted only after — the same
+  ordering the `paths:` trap in D-009 taught, arrived at from a different direction.
+- **Alternatives rejected:** Block on any finding at all — the strictest reading of the ask, and the
+  fastest route to a check nobody trusts, with no owner bypass to clear a false positive. Report
+  findings without ever failing — makes the check a comment bot, and "blocking" was the actual
+  requirement. Keep both the generated workflow and a separate gate — two full multi-agent reviews per
+  PR, roughly double the ~$1 subscription cost, for one merge decision. Hand-write the review prompt —
+  loses the plugin's fan-out and validation pass, which is the part that makes its findings worth
+  blocking on. Require it immediately on merge — the deadlock above. `paths:`-filter it to source
+  files — the D-009 `Expected`-forever trap.
+- **Known gap:** the `--json-schema` verdict and the skip-override are both unverified, because the
+  workflow-validation rule above means neither can run until this lands on `main`. The check is
+  unrequired, and it fails closed, so the cost of being wrong is a red advisory check on the next PR
+  rather than a blocked repository. Confirm on that PR before promoting it to required.
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-011 · 2026-08-11 · Describing an image and rebuilding it are held to different standards
 - **Context:** `list` was built on a single directory walk shared by `load` and the new `inspect`, and
