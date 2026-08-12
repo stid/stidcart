@@ -6,7 +6,7 @@
 > structure; refined by `lcd:refine` when reality drifts. Keep under ~150 lines.
 
 **Project type:** software
-**Generated:** 2026-08-10 · **Last refined:** 2026-08-10
+**Generated:** 2026-08-10 · **Last refined:** 2026-08-11
 
 ---
 
@@ -41,6 +41,7 @@ supports cartridge entries, half-confined entries or the older directory format.
 ## Entry points
 
 - `cargo run -p stidcart-cli -- build -e "name" -o out.crt some.prg` → `crates/stidcart-cli/src/main.rs`
+- `cargo run -p stidcart-cli -- list out.crt` → same file; prints the directory as the image records it
 - `cargo test --workspace` → the full suite, including the parity test against the frozen fixtures
 - Library consumers start at `crates/stidcart-core/src/lib.rs`
 
