@@ -8,9 +8,29 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-009 -->
+<!-- Next id: D-010 -->
 
 ---
+
+## D-009 · 2026-08-11 · `main` is protected behind a PR and one required check, `gate`
+- **Context:** The remote had no protection at all, so "never commit to `main`" was a convention held
+  up by nothing but a session reading `CLAUDE.md`. Auto-merge and auto-delete were both off.
+- **Decision:** Protect `main`: PR required, force-push and deletion refused, conversation resolution
+  required, `enforce_admins` on (no owner escape hatch — the constitution says never commit to `main`,
+  so the setting matches the stated intent). Required approving reviews is **0**: a single-maintainer
+  repo cannot approve its own PR, and 1 would deadlock every merge. One required status check, `gate`,
+  from `.github/workflows/ci.yml`, which mirrors the `gate:` key in `lcd-conventions.md` step for step
+  — CI and the local pre-commit check must not drift. `strict: true`, plus `allow_update_branch`, so a
+  branch must be current with `main` before it merges. Auto-merge and delete-branch-on-merge on.
+- **Alternatives rejected:** Require `lcd-audit` instead of adding a CI workflow — **it cannot serve as
+  a required check.** It is `paths:`-filtered to `docs/lcd/work/**`, so on any PR outside that
+  directory the job never runs, never reports, and the required check sits in `Expected` forever,
+  blocking the PR with no way to clear it. It stays an unrequired advisory gate. Protection with no
+  required check at all — auto-merge would be decorative, since GitHub only offers the button when
+  something is actually pending. Require 1 review — deadlocks a solo repo. `required_linear_history` —
+  would conflict with merge commits, which are still an allowed merge method here.
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-008 · 2026-08-10 · Crate version stays 0.2.0, and the header default keeps tracking it
 - **Context:** Open question carried by write-path-skeleton since 2026-08-10. `versioning.md` bumped
