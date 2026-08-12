@@ -1,18 +1,25 @@
-# Claude review gate — every PR is reviewed, and a high-severity finding blocks the merge.
+# Claude review gate — the official code-review plugin does the reviewing, and this workflow
+# turns its verdict into a merge gate.
 #
-# Auth is the Claude GitHub App's OAuth token, stored as the repository secret
-# CLAUDE_CODE_OAUTH_TOKEN (created by `/install-github-app` in Claude Code). The secret is
-# the single point of failure for this check: without it the action fails, the job goes red,
-# and — once `claude-review` is a required status check — every PR is blocked with no owner
-# bypass, because `enforce_admins` is on (D-009). Do not make this check required until it
-# has actually run green on a PR.
+# Two things this adds over the plugin's stock invocation, both load-bearing:
+#
+#   1. `--comment`, plus `pull-requests: write`. Without the flag the plugin's own step 7 says
+#      "stop here, do not post any GitHub comments", and without the permission it could not
+#      post even if asked — so the stock setup reviews at full cost and discards the result
+#      into the Actions log. Measured on PR #13: 25 turns, 2m48s, ~$1 of subscription usage,
+#      zero comments posted.
+#
+#   2. A verdict this job can fail on. The plugin reports; it never exits non-zero.
+#
+# Auth is the Claude GitHub App's OAuth token (`/install-github-app`), which draws on the
+# Claude subscription rather than API billing. One review per PR-push is the budget; do not
+# add a second reviewing workflow alongside this one.
 
 name: Claude review
 
-# Deliberately NOT `paths:`-filtered, for the reason D-009 records: a filtered job never
-# reports on a PR outside the filter, and a required check that never reports sits in
-# "Expected" forever, blocking the PR with nothing able to clear it. Filter inside the job
-# if that is ever wanted, never in `on:`.
+# Deliberately NOT `paths:`-filtered, per D-009: a filtered job never reports on a PR outside
+# the filter, and a required check that never reports sits in "Expected" forever with nothing
+# able to clear it. Filter inside the job if that is ever wanted, never in `on:`.
 on:
   pull_request:
 
@@ -22,74 +29,104 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: read
       id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Review the changes
+      - name: Review the pull request
         id: review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
+          plugins: "code-review@claude-code-plugins"
           prompt: |
-            Review this pull request against the base branch. Read `CLAUDE.md`,
-            `.claude/rules/lcd-conventions.md`, `docs/lcd/MAP.md`, and `docs/lcd/DECISIONS.md`
-            first — this project has recorded invariants and past decisions, and a "finding"
-            that contradicts one of them is not a finding.
+            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment
 
-            This is a Rust workspace producing byte-exact EasyFlash cartridge images for the
-            Commodore 64. Weight your attention accordingly:
+            The instructions above are the review procedure. The following apply to this run
+            and take precedence where they conflict with it.
 
-            - Byte parity against the frozen fixtures in `fixtures/` gates the write path. A
-              change that alters produced bytes must update the fixtures deliberately and say
-              why. Silent fixture churn is a high-severity finding.
+            **This review is a merge gate, and it runs again on every push to the pull
+            request.** Do not stop because Claude has already commented here — that skip
+            condition is for one-shot reviews and would let a later push through unread.
+            Review the current head commit on its own terms. Still stop for a closed or draft
+            pull request, and still skip a change that genuinely does not need review.
+
+            Do not post a second comment for an issue you have already commented on in this
+            pull request; comment only on issues that are new or still unaddressed.
+
+            This project keeps its constitution in `CLAUDE.md`, its conventions in
+            `.claude/rules/lcd-conventions.md`, and its settled decisions in
+            `docs/lcd/DECISIONS.md`. Read the decisions log before flagging anything that
+            looks like a deliberate choice — a finding that contradicts a recorded decision is
+            noise, and the log explains what was already considered and rejected.
+
+            Weigh these project-specific invariants alongside the standard bug hunt:
+
+            - Byte parity against the frozen fixtures in `fixtures/` gates the write path.
+              Output that changes without the fixtures being updated in the same commit, and
+              without the commit saying why, is a blocking finding.
             - Binary-format facts come from the extracted spec, not from re-reading the
-              reference C implementation. Code that appears to have re-derived an offset or a
+              reference C implementation. Code that looks like it re-derived an offset or a
               layout rule from `ndefpack` is worth flagging.
-            - The core library holds no global mutable state and makes no I/O policy
-              decisions. A `static mut`, a lazily-initialised singleton, or a filesystem call
-              in `stidcart-core` is high severity.
-            - `firmware/` is zlib-licensed; everything else is GPL-2.0-or-later. Code moving
-              across that boundary in either direction is high severity.
-            - Anything reading a file-supplied length, offset, or bank number must
-              bounds-check it before it reaches an index.
+            - `stidcart-core` holds no global mutable state and makes no I/O policy decisions.
+            - `firmware/` is zlib-licensed; everything else is GPL-2.0-or-later.
+            - Any file-supplied length, offset, or bank number must be bounds-checked before
+              it reaches an index.
 
-            Post your findings as a PR comment. Then return the structured result.
+            Finish by returning the structured verdict.
 
-            Set `blocking: true` **only** for a defect you are confident is real and that
-            would produce wrong behaviour, corrupt output, or a panic — the kind of thing that
-            should stop a merge. Style, naming, structure, test-organisation preferences, and
-            anything you are unsure about go in `findings` with a lower severity and
-            `blocking: false`. A blocking finding must name the input or state that triggers
-            it. When in doubt, do not block: this check is only worth having if a red result
-            means something.
+            Set `blocking: true` only for a finding that survived the validation step and that
+            would produce wrong behaviour, corrupt output, or a panic — something that should
+            stop a merge. Everything else is reported with `blocking: false`: it still gets a
+            comment, it just does not fail the build. A gate that goes red on style is one
+            that gets routinely overridden, and an overridden gate is not a gate.
+
+            Set `reviewed: false` with a `skip_reason` only when you genuinely did not review
+            (closed or draft pull request, or a change that needs no review). Never report
+            `reviewed: false` because the review was inconvenient or the diff was large.
           claude_args: |
-            --allowedTools Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(gh pr:*)
-            --json-schema '{"type":"object","properties":{"blocking":{"type":"boolean"},"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"file":{"type":"string"},"line":{"type":"integer"},"severity":{"type":"string","enum":["high","medium","low"]},"blocking":{"type":"boolean"},"summary":{"type":"string"}},"required":["file","severity","blocking","summary"]}}},"required":["blocking","summary","findings"]}'
+            --json-schema '{"type":"object","properties":{"reviewed":{"type":"boolean"},"skip_reason":{"type":["string","null"]},"blocking":{"type":"boolean"},"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"file":{"type":"string"},"line":{"type":"integer"},"severity":{"type":"string","enum":["high","medium","low"]},"blocking":{"type":"boolean"},"summary":{"type":"string"}},"required":["file","severity","blocking","summary"]}}},"required":["reviewed","blocking","summary","findings"]}'
 
-      - name: Block the merge on a high-severity finding
+      - name: Gate the merge on the verdict
         env:
-          RESULT: ${{ steps.review.outputs.structured_output }}
+          CONCLUSION: ${{ steps.review.outputs.conclusion }}
+          VERDICT: ${{ steps.review.outputs.structured_output }}
         run: |
           set -euo pipefail
 
-          # An empty result means the review did not produce one — treat that as a failure of
-          # the check rather than a pass, so a broken review can never look like a clean bill.
-          if [ -z "${RESULT:-}" ]; then
-            echo "::error::the review produced no structured output"
+          # Liveness first. This action exits SUCCESSFULLY when it has done nothing at all —
+          # observed three separate times while building this: no OAuth secret configured, and
+          # twice when the workflow file did not yet match the copy on the default branch (it
+          # validates that before running, and silently skips otherwise). Every one of those
+          # would have shown a green check with no review behind it. Never treat this step's
+          # own status as evidence that a review happened; require a verdict.
+          if [ "${CONCLUSION:-}" != "success" ]; then
+            echo "::error::the review did not complete (conclusion: ${CONCLUSION:-none})"
+            exit 1
+          fi
+          if [ -z "${VERDICT:-}" ]; then
+            echo "::error::the review produced no verdict — it was skipped or failed to report"
             exit 1
           fi
 
-          echo "$RESULT" | jq -r '.summary'
-          echo "$RESULT" | jq -r '
+          echo "$VERDICT" | jq -r '.summary'
+
+          if [ "$(echo "$VERDICT" | jq -r '.reviewed')" != "true" ]; then
+            echo "::notice::review skipped: $(echo "$VERDICT" | jq -r '.skip_reason // "no reason given"')"
+            exit 0
+          fi
+
+          echo "$VERDICT" | jq -r '
             .findings[]
             | "\(if .blocking then "BLOCKING" else .severity end)  \(.file):\(.line // 0)  \(.summary)"
           '
 
-          if [ "$(echo "$RESULT" | jq -r '.blocking')" = "true" ]; then
-            echo "::error::blocking finding — see the review comment on this PR"
+          if [ "$(echo "$VERDICT" | jq -r '.blocking')" = "true" ]; then
+            echo "::error::blocking finding — see the review comments on this PR"
             exit 1
           fi
           echo "no blocking findings"
