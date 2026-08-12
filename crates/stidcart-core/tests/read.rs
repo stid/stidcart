@@ -295,3 +295,77 @@ fn ac_12_a_size_or_location_reaching_outside_the_image_is_refused() {
         "an entry continuing past the last bank is refused, not wrapped around into bank 0"
     );
 }
+
+/// AC-6 (none): inspecting reports the positions the file records, not the ones a rebuild would
+/// choose.
+///
+/// This is the whole reason `inspect` exists beside `load`. `load` returns a [`CartBuilder`], which
+/// holds no positions at all — a rebuild re-places from scratch. A `list` built on that would print
+/// regenerated coordinates under a heading that claims to describe the file, which is wrong in a way
+/// nothing downstream could catch. So the case below places an entry where this tool's placer never
+/// would: a 4-byte program goes to bank 1 offset 0 on every fresh build, and this one is at bank 40
+/// in ROMH. An implementation that regenerates reports bank 1.
+#[test]
+fn ac_6_inspect_reports_the_positions_the_file_records() {
+    let mut planted = an_entry();
+    planted.bank = 40;
+    planted.offset = 0x2000;
+    planted.size = 4;
+
+    let cart = cart_with_slots(&[directory::encode(&planted), directory::end_marker()]);
+    let info = read::inspect(&cart).expect("a well-formed image inspects");
+
+    assert_eq!(
+        info.entries,
+        vec![planted],
+        "the directory as the file records it"
+    );
+
+    // The negative control, asserted rather than described: the same entry through the rebuilding
+    // path lands somewhere else entirely.
+    let rebuilt = read::load(&cart)
+        .expect("it loads too")
+        .build_image()
+        .unwrap();
+    let slot: [u8; directory::ENTRY_LEN] = rebuilt.as_bytes()
+        [reserved::DIRECTORY_OFFSET..reserved::DIRECTORY_OFFSET + directory::ENTRY_LEN]
+        .try_into()
+        .unwrap();
+    let directory::Slot::Program(replaced) = directory::decode(&slot) else {
+        panic!("the rebuilt directory should still hold a program");
+    };
+    assert_ne!(
+        (replaced.bank, replaced.offset),
+        (40, 0x2000),
+        "if a rebuild happened to preserve the position, this test proves nothing"
+    );
+}
+
+/// AC-6 (none): and it agrees with the reference images, where the two views do coincide.
+#[test]
+fn ac_6_inspect_agrees_with_the_reference_images() {
+    let info = read::inspect(&fixture("two.crt")).expect("two.crt inspects");
+
+    let names: Vec<&str> = info.entries.iter().map(|e| e.name.as_str()).collect();
+    assert_eq!(
+        names,
+        ["hello", "ramp"],
+        "directory order, as loading reports it"
+    );
+    assert_eq!(info.ef_name, "two entries");
+    assert_eq!(info.header_name, "ndefpack 1.0.1");
+    assert!(
+        info.entries
+            .iter()
+            .all(|e| e.kind == EntryType::Prg && !e.hidden),
+        "the reference images hold plain visible programs only"
+    );
+}
+
+/// Free space is the capacity less what the entries occupy — not a fragmentation model.
+#[test]
+fn free_space_is_capacity_less_the_entries() {
+    let empty = read::inspect(&fixture("single.crt")).expect("single.crt inspects");
+    let occupied: usize = empty.entries.iter().map(|e| e.size as usize).sum();
+    assert_eq!(empty.free_space(), 63 * 8192 * 2 - occupied);
+}

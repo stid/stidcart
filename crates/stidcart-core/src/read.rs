@@ -17,8 +17,9 @@
 //! - cartridge entries, hidden entries and unrecognised reserved firmware are **refused as
 //!   unsupported**, distinguishably from malformed input, rather than misparsed.
 
-use crate::directory::{self, Slot, ENTRY_LEN};
+use crate::directory::{self, DirEntry, Slot, ENTRY_LEN};
 use crate::image::{BANK_SIZE, N_BANKS};
+use crate::place::Placer;
 use crate::{crt, reserved, CartBuilder, Program};
 
 /// Why a container's packet was rejected.
@@ -167,14 +168,37 @@ fn check_extent(bank: u16, offset: u16, size: u32) -> Result<(), ReadError> {
     Ok(())
 }
 
-/// Load a `.crt` image into the description that would produce it.
-pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
-    let container = crt::parse(bytes)?;
-    reserved::verify_regions(&container.image)?;
+/// A cartridge as its own directory records it — **positions included**.
+///
+/// This is the view [`load`] cannot give. A [`CartBuilder`] holds no positions at all, because a
+/// rebuild re-places every entry from scratch; anything reporting on a file rather than rebuilding
+/// it has to read what the file actually says.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CartInfo {
+    /// The container header name, identifying the tool that produced the image.
+    pub header_name: String,
+    /// The cartridge name the menu shows.
+    pub ef_name: String,
+    /// The directory in slot order, which is the order the menu lists.
+    pub entries: Vec<DirEntry>,
+}
 
-    let mut builder = CartBuilder::new()
-        .with_header_name(&container.header_name)
-        .with_ef_name(&reserved::read_ef_name(&container.image));
+impl CartInfo {
+    /// The space left for further entries: the capacity available to them, less what they occupy.
+    ///
+    /// Deliberately not a fragmentation model — it does not account for entries that cannot be
+    /// packed contiguously into what remains. Reporting a placeable-bytes figure would mean
+    /// modelling a layout, and nothing here needs one.
+    pub fn free_space(&self) -> usize {
+        let occupied: usize = self.entries.iter().map(|e| e.size as usize).sum();
+        Placer::new().free_space().saturating_sub(occupied)
+    }
+}
+
+/// The one directory walk. [`load`] and [`inspect`] are two views over it, so they cannot disagree
+/// about what an image contains or about which images they refuse.
+fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
+    let mut entries = Vec::new();
 
     for slot in 0..reserved::DIRECTORY_SLOTS {
         let at = reserved::DIRECTORY_OFFSET + slot * ENTRY_LEN;
@@ -183,7 +207,13 @@ pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
             .expect("a directory slot is exactly one entry wide");
 
         match directory::decode(&raw) {
-            Slot::End => return Ok(builder),
+            Slot::End => {
+                return Ok(CartInfo {
+                    header_name: container.header_name.clone(),
+                    ef_name: reserved::read_ef_name(&container.image),
+                    entries,
+                })
+            }
             Slot::Cartridge { type_value } => {
                 return Err(Unsupported::CartridgeEntry { type_value }.into())
             }
@@ -191,17 +221,41 @@ pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
             Slot::Unknown { type_value } => return Err(ReadError::BadEntry { slot, type_value }),
             Slot::Program(entry) => {
                 check_extent(entry.bank, entry.offset, entry.size)?;
-                let data = container.image.read_program(
-                    entry.bank as usize,
-                    entry.offset as usize,
-                    entry.size as usize,
-                );
-                builder = builder.with_program(Program::new(&entry.name, data));
+                entries.push(entry);
             }
         }
     }
 
     Err(ReadError::DirectoryUnterminated)
+}
+
+/// Read a `.crt` image's directory without recovering the program data it points at.
+pub fn inspect(bytes: &[u8]) -> Result<CartInfo, ReadError> {
+    let container = crt::parse(bytes)?;
+    reserved::verify_regions(&container.image)?;
+    read_directory(&container)
+}
+
+/// Load a `.crt` image into the description that would produce it.
+pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
+    let container = crt::parse(bytes)?;
+    reserved::verify_regions(&container.image)?;
+    let info = read_directory(&container)?;
+
+    let mut builder = CartBuilder::new()
+        .with_header_name(&info.header_name)
+        .with_ef_name(&info.ef_name);
+
+    for entry in &info.entries {
+        let data = container.image.read_program(
+            entry.bank as usize,
+            entry.offset as usize,
+            entry.size as usize,
+        );
+        builder = builder.with_program(Program::new(&entry.name, data));
+    }
+
+    Ok(builder)
 }
 
 #[cfg(test)]
