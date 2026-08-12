@@ -10,8 +10,15 @@ reference for everything in `stidcart-core`.
 
 ## State
 
-Walking skeleton. It builds a cart from PRG files and nothing else: no reading, no editing, no
-GUI. That is deliberate — see below.
+Write, read and list, all for PRG entries only. It builds a cart from PRG files, loads one back
+into the same builder state byte-identically, and shows what one contains. It does not edit a cart,
+and it has no GUI. The order — write first — was deliberate; see below.
+
+Describing a cart and rebuilding it are held to different standards, because they need to be:
+`list` shows anything it can describe, including hidden entries, while loading additionally refuses
+whatever it could not reproduce unchanged (a hidden entry, or an image whose firmware regions
+differ from the blobs embedded here). Both refuse what neither can represent: cartridge entries,
+entries confined to one half of a bank, and the older directory format.
 
 ## Layout
 
@@ -40,6 +47,7 @@ Building the write path first defers that decision instead of pre-empting it.
 ```bash
 cargo test --workspace
 cargo run -p stidcart-cli -- build -e "name" -o out.crt some.prg
+cargo run -p stidcart-cli -- list out.crt
 ```
 
 The parity test needs only the checked-in fixtures; `ndeft` does not have to be installed.

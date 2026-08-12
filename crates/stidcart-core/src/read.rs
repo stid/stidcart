@@ -17,8 +17,9 @@
 //! - cartridge entries, hidden entries and unrecognised reserved firmware are **refused as
 //!   unsupported**, distinguishably from malformed input, rather than misparsed.
 
-use crate::directory::{self, Slot, ENTRY_LEN};
+use crate::directory::{self, DirEntry, EntryType, Slot, ENTRY_LEN};
 use crate::image::{BANK_SIZE, N_BANKS};
+use crate::place::Placer;
 use crate::{crt, reserved, CartBuilder, Program};
 
 /// Why a container's packet was rejected.
@@ -39,9 +40,22 @@ pub enum PacketProblem {
 /// broken" from "this cartridge is fine, we cannot open it yet".
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Unsupported {
-    CartridgeEntry { type_value: u8 },
-    HiddenEntry { name: String },
-    ReservedRegionMismatch { region: &'static str },
+    CartridgeEntry {
+        type_value: u8,
+    },
+    HiddenEntry {
+        name: String,
+    },
+    /// An entry confined to one half of a bank (type `0x02` or `0x03`). Refused rather than read:
+    /// every reader here walks the interleaved progression, so reading one with this code would
+    /// return part of the entry followed by whatever occupies the other half.
+    ConfinedEntry {
+        name: String,
+        kind: EntryType,
+    },
+    ReservedRegionMismatch {
+        region: &'static str,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -108,7 +122,12 @@ impl std::fmt::Display for ReadError {
                 ),
                 Unsupported::HiddenEntry { name } => write!(
                     f,
-                    "the entry '{name}' is hidden, which is not supported yet"
+                    "the entry '{name}' is hidden, which cannot be rebuilt unchanged yet"
+                ),
+                Unsupported::ConfinedEntry { name, kind } => write!(
+                    f,
+                    "the entry '{name}' is confined to one half of a bank ({kind:?}), which is not \
+                     supported yet"
                 ),
                 Unsupported::ReservedRegionMismatch { region } => write!(
                     f,
@@ -167,14 +186,50 @@ fn check_extent(bank: u16, offset: u16, size: u32) -> Result<(), ReadError> {
     Ok(())
 }
 
-/// Load a `.crt` image into the description that would produce it.
-pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
-    let container = crt::parse(bytes)?;
-    reserved::verify_regions(&container.image)?;
+/// A cartridge as its own directory records it — **positions included**.
+///
+/// This is the view [`load`] cannot give. A [`CartBuilder`] holds no positions at all, because a
+/// rebuild re-places every entry from scratch; anything reporting on a file rather than rebuilding
+/// it has to read what the file actually says.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CartInfo {
+    /// The container header name, identifying the tool that produced the image.
+    pub header_name: String,
+    /// The cartridge name the menu shows.
+    pub ef_name: String,
+    /// The directory in slot order, which is the order the menu lists.
+    pub entries: Vec<DirEntry>,
+}
 
-    let mut builder = CartBuilder::new()
-        .with_header_name(&container.header_name)
-        .with_ef_name(&reserved::read_ef_name(&container.image));
+impl CartInfo {
+    /// The contiguous run a further entry could actually occupy, given where these entries sit.
+    ///
+    /// Computed by replaying the entries into a placer at their recorded positions, because the
+    /// figure a caller sizes a program against has to account for *where* the image is occupied.
+    /// Subtracting the sizes from the capacity instead would report almost a full cartridge free
+    /// for an image holding one small entry parked high — every byte below it is unused and none
+    /// of it is placeable.
+    pub fn free_space(&self) -> usize {
+        let mut placer = Placer::new();
+        for e in &self.entries {
+            placer.occupy(e.bank, e.offset, e.size);
+        }
+        placer.free_space()
+    }
+}
+
+/// The one directory walk. [`load`] and [`inspect`] are two views over it, so they cannot disagree
+/// about what an image contains.
+///
+/// They *do* differ on what they refuse, and deliberately: a refusal whose reason is "the builder
+/// cannot express this" is a precondition of rebuilding, and applying it to a read-only listing
+/// makes the tool fail on exactly the images someone would want to inspect. So this walk refuses
+/// only what it cannot **describe** — malformed slots, entries reaching outside the image, and the
+/// two well-formed shapes with no representation here (a cartridge entry, whose type modelling
+/// [`CartInfo`] does not have, and a half-confined entry, whose layout no reader here implements).
+/// Everything else is described, and [`load`] applies the narrower rebuild rules on top.
+fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
+    let mut entries = Vec::new();
 
     for slot in 0..reserved::DIRECTORY_SLOTS {
         let at = reserved::DIRECTORY_OFFSET + slot * ENTRY_LEN;
@@ -183,25 +238,73 @@ pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
             .expect("a directory slot is exactly one entry wide");
 
         match directory::decode(&raw) {
-            Slot::End => return Ok(builder),
+            Slot::End => {
+                return Ok(CartInfo {
+                    header_name: container.header_name.clone(),
+                    ef_name: reserved::read_ef_name(&container.image),
+                    entries,
+                })
+            }
             Slot::Cartridge { type_value } => {
                 return Err(Unsupported::CartridgeEntry { type_value }.into())
             }
-            Slot::Hidden { name } => return Err(Unsupported::HiddenEntry { name }.into()),
             Slot::Unknown { type_value } => return Err(ReadError::BadEntry { slot, type_value }),
             Slot::Program(entry) => {
+                if entry.kind != EntryType::Prg {
+                    return Err(Unsupported::ConfinedEntry {
+                        name: entry.name,
+                        kind: entry.kind,
+                    }
+                    .into());
+                }
                 check_extent(entry.bank, entry.offset, entry.size)?;
-                let data = container.image.read_program(
-                    entry.bank as usize,
-                    entry.offset as usize,
-                    entry.size as usize,
-                );
-                builder = builder.with_program(Program::new(&entry.name, data));
+                entries.push(entry);
             }
         }
     }
 
     Err(ReadError::DirectoryUnterminated)
+}
+
+/// Read a `.crt` image's directory without recovering the program data it points at.
+///
+/// Deliberately does **not** check the reserved firmware regions. That check exists so a rebuild
+/// cannot silently swap the firmware an image carries; describing an image rebuilds nothing, and
+/// running it here would refuse every cart produced by any other tool or version.
+pub fn inspect(bytes: &[u8]) -> Result<CartInfo, ReadError> {
+    read_directory(&crt::parse(bytes)?)
+}
+
+/// Load a `.crt` image into the description that would produce it.
+///
+/// Stricter than [`inspect`] by exactly the rebuild preconditions: the reserved regions must hold
+/// the firmware this crate embeds, and no entry may carry a property `CartBuilder` cannot express.
+pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
+    let container = crt::parse(bytes)?;
+    reserved::verify_regions(&container.image)?;
+    let info = read_directory(&container)?;
+
+    if let Some(hidden) = info.entries.iter().find(|e| e.hidden) {
+        return Err(Unsupported::HiddenEntry {
+            name: hidden.name.clone(),
+        }
+        .into());
+    }
+
+    let mut builder = CartBuilder::new()
+        .with_header_name(&info.header_name)
+        .with_ef_name(&info.ef_name);
+
+    for entry in &info.entries {
+        let data = container.image.read_program(
+            entry.bank as usize,
+            entry.offset as usize,
+            entry.size as usize,
+        );
+        builder = builder.with_program(Program::new(&entry.name, data));
+    }
+
+    Ok(builder)
 }
 
 #[cfg(test)]

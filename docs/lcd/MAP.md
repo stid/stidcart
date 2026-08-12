@@ -19,10 +19,11 @@ decisions, which is what keeps a future GUI (toolkit undecided) a matter of addi
 than restructuring. Successor to ndefpack; no code is shared, and the binary format was extracted
 to a written spec before this repo existed.
 
-Current state: **write and read**, both for PRG entries only. It builds a cart from PRG files, and
-loads one back into the same builder state, byte-identically. It does not edit or display one, and
-it refuses cartridge entries, hidden entries and the older directory format rather than
-half-supporting them.
+Current state: **write, read and list**, all for PRG entries only. It builds a cart from PRG files,
+loads one back into the same builder state byte-identically, and prints what one contains. It does
+not edit a cart. Describing and rebuilding have deliberately different strictness (see Invariants):
+listing shows anything describable, loading also refuses what it could not reproduce. Neither
+supports cartridge entries, half-confined entries or the older directory format.
 
 ## Zones / Components
 
@@ -66,6 +67,10 @@ against frozen fixtures, never scored.
 - **Format facts come from `reference/easyflash-cart-format.md`** in the Obsidian vault, which
   records which ndefpack behaviours are format-mandated and which are implementation artifacts.
   Re-deriving from the C risks inheriting a quirk by accident.
+- **Describing an image and rebuilding it are held to different standards** (D-011). One directory
+  walk, two views: it refuses only what it cannot *describe*, and `load` layers the rebuild
+  preconditions on top. A refusal justified by "the builder cannot express this" belongs to the
+  rebuild path alone — applied to a listing, it fails on exactly the carts worth inspecting.
 - **Read-path divergence is decided per behaviour, never by a blanket rule** (D-007). The vault
   spec's "behaviours to decide on" list classifies each one; follow that classification rather than
   reproducing or fixing the set wholesale. A quirk the spec calls an implementation artifact gets

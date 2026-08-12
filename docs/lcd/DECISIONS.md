@@ -8,9 +8,47 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-011 -->
+<!-- Next id: D-012 -->
 
 ---
+
+## D-011 · 2026-08-11 · Describing an image and rebuilding it are held to different standards
+- **Context:** `list` was built on a single directory walk shared by `load` and the new `inspect`, and
+  the design note claimed the two "cannot disagree about what an image contains **or about which
+  images they refuse**". A code review found the second half wrong twice over. The walk refused a
+  hidden entry with the reason "the builder has no way to express hiding, so loading it would silently
+  drop the flag" — a statement about *rebuilding* — and `inspect` ran `verify_regions`, whose entire
+  purpose is to stop a rebuild silently swapping firmware. Both fired on a command that rebuilds
+  nothing, and the first discarded entries already collected, so one hidden entry in slot 0 emptied
+  the listing. Refusing to describe a cart because it could not be reproduced is the opposite of what
+  an inspection command is for.
+- **Decision:** Keep one walk; split the strictness. The walk refuses only what it cannot **describe**
+  — malformed slots, entries reaching outside the image, and the well-formed shapes with no
+  representation here. `load` layers the rebuild preconditions on top: the reserved regions must hold
+  the embedded firmware, and no entry may carry a property `CartBuilder` cannot express. What an image
+  *contains* is still answered in exactly one place, which was the property worth having; what may be
+  *done* with it is answered by the caller that is going to do it.
+- **Two consequences worth stating, since they change the model rather than just the control flow:**
+  a hidden entry now decodes as `Slot::Program` carrying `hidden: true` rather than a `Slot::Hidden`
+  that dropped its position and size — `decode` is a true inverse of `encode` again, and `load` finds
+  the flag itself. A **cartridge entry stays refused in the walk**, which is not inconsistent: hiding
+  is a `bool` the struct already had, while a cartridge entry needs xbank type modelling `CartInfo`
+  does not have. The line is describability, not severity.
+- **Half-confined entries (types `0x02`/`0x03`) are refused rather than implemented.** The same review
+  found that nothing consulted `DirEntry.kind`: those entries were read with the interleaved ROML →
+  ROMH → next-bank progression, so a round trip returned part of the entry followed by whatever
+  occupied the other half, then rebuilt it as a plain `Prg` — corrupt in both directions, silently.
+  Refusal rather than a correct reader, because this tool cannot produce one and the layout rule for
+  them is not in the extracted format spec; deriving it from the C is what the format-facts invariant
+  exists to prevent.
+- **Alternatives rejected:** Relax the refusals for both paths — `load` would then accept a cart it
+  rebuilds to different bytes, which is the defect `verify_regions` was added for. Give `inspect` its
+  own walk — two implementations of directory decoding, free to drift on what an image contains, which
+  is the one thing sharing the walk was for. Implement the half-confined layout now — it would commit
+  to a bounds progression nobody has established, with no fixture to check it against, in a work-item
+  about printing a listing.
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-010 · 2026-08-11 · The Rust toolchain is pinned in-repo, not tracked as `stable`
 - **Context:** [[D-009]] made `gate` a required status check on `main` with `enforce_admins: true`, and

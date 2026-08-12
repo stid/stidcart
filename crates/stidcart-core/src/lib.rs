@@ -25,7 +25,7 @@ pub mod read;
 pub mod reserved;
 
 pub use image::FlashImage;
-pub use read::{load, ReadError};
+pub use read::{inspect, load, CartInfo, ReadError};
 
 use directory::{DirEntry, EntryType, ENTRY_LEN, MAX_ENTRIES};
 use place::Placer;
