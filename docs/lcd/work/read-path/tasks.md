@@ -7,7 +7,7 @@
 **Slug:** `read-path`
 **Spec:** [`spec.md`](./spec.md) • **Plan:** [`plan.md`](./plan.md) • **Journal:** [`JOURNAL.md`](./JOURNAL.md)
 **Created:** 2026-08-11
-**Status:** in_progress <!-- in_progress | completed | abandoned -->
+**Status:** completed <!-- in_progress | completed | abandoned -->
 
 ---
 
@@ -27,33 +27,33 @@
 > rather than a legible red. The stub returns an error, so every AC test is genuinely failing when
 > written.
 
-- [ ] **T1**: Bump `Cargo.toml` 0.2.0 → 0.3.0 — `feat/` branch minor bump, first code commit of the branch (versioning rule; branch base verified as 0.2.0)
-- [ ] **T2**: Write failing inline tests for slot decoding in `crates/stidcart-core/src/directory.rs` — `encode`/`decode` round-trip, end marker recognised, hidden flag detected, a cartridge type value classified as unsupported, reserved flag bits tolerated whether set or clear
-- [ ] **T3**: Implement `decode` in `crates/stidcart-core/src/directory.rs` to pass T2 — inverse of `encode`, sharing its constants
-- [ ] **T4**: Write failing inline tests for container parsing in `crates/stidcart-core/src/crt.rs` — header magic and id, packet walk into a `FlashImage`, `write`→`parse` round-trip, both permitted data sizes [P]
-- [ ] **T5**: Implement `parse` in `crates/stidcart-core/src/crt.rs` to pass T4 — validate marker and total-length together, bounds-check before slicing, extract the header name without the character swap
-- [ ] **T6**: Write failing inline tests for reserved-region verification and cartridge-name extraction in `crates/stidcart-core/src/reserved.rs` — a written image verifies, a mutated region does not, name recovers through the swap [P]
-- [ ] **T7**: Implement `verify_regions` and `read_ef_name` in `crates/stidcart-core/src/reserved.rs` to pass T6 — compare against an image built by the existing writers rather than re-deriving expected bytes
-- [ ] **T8**: Create `crates/stidcart-core/src/read.rs` with the contract only — `ReadError`, `PacketProblem`, `Unsupported`, `Display`/`Error` impls, and a `load` signature returning an error so the AC tests compile and fail
-- [ ] **T9**: Wire `pub mod read` and re-export `ReadError` in `crates/stidcart-core/src/lib.rs`; add `header_name()` and `ef_name()` accessors alongside the existing `programs()`
-- [ ] **T10**: Write failing test named `AC-1 (none): a loaded image describes the programs that produced it` in `crates/stidcart-core/tests/read.rs`
-- [ ] **T11**: Write failing test named `AC-3 (none): an empty directory loads as a cartridge with no programs` in `crates/stidcart-core/tests/read.rs` [P]
-- [ ] **T12**: Write failing test named `AC-5 (none): a corrupt packet marker or disagreeing length is refused` in `crates/stidcart-core/tests/read.rs` [P]
-- [ ] **T13**: Write failing test named `AC-6 (none): a directory with no end marker anywhere is refused` in `crates/stidcart-core/tests/read.rs` [P]
-- [ ] **T14**: Write failing test named `AC-7 (none): cartridge and hidden entries are refused as unsupported` in `crates/stidcart-core/tests/read.rs` [P]
-- [ ] **T15**: Write failing test named `AC-8 (none): the container header name is recovered and never re-stamped` in `crates/stidcart-core/tests/read.rs` [P]
-- [ ] **T16**: Write failing test named `AC-9 (none): the header name is not character-swapped while entry and cartridge names are` in `crates/stidcart-core/tests/read.rs` [P]
-- [ ] **T17**: Write failing test named `AC-10 (none): reserved firmware differing from the embedded blobs is refused as unsupported` in `crates/stidcart-core/tests/read.rs` [P]
-- [ ] **T18**: Write failing test named `AC-12 (none): a size or location reaching outside the image is refused` in `crates/stidcart-core/tests/read.rs` [P]
-- [ ] **T19**: Write failing test named `AC-2 (none): every reference image loads and rebuilds byte-identically` in `crates/stidcart-core/tests/roundtrip.rs` [P]
-- [ ] **T20**: Write failing test named `AC-4 (none): a cart this tool builds from no programs loads and rebuilds byte-identically` in `crates/stidcart-core/tests/roundtrip.rs` [P]
-- [ ] **T21**: Write failing test named `AC-11 (none): an entry continuing past its starting region recovers unbroken` in `crates/stidcart-core/tests/roundtrip.rs` [P]
-- [ ] **T22**: Implement the container stage of `load` in `crates/stidcart-core/src/read.rs` — header, packet walk, header name — passing T12, T15, T16 (header half), T18
-- [ ] **T23**: Implement the reserved stage of `load` in `crates/stidcart-core/src/read.rs` — region verification and cartridge name — passing T16 (name half) and T17
-- [ ] **T24**: Implement the directory stage of `load` in `crates/stidcart-core/src/read.rs` — slot walk, entry classification, program recovery — passing T10, T11, T13, T14, T21
-- [ ] **T25**: Confirm the round-trip closes over all four reference images and the empty base case, passing T19 and T20; if a case fails, localize by module test before touching `read.rs`
-- [ ] **T-audit**: Run `/lcd:audit read-path`; resulting `audit.md` has zero MISSING/BLOCKED rows
-- [ ] **T-final**: Run `cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace`, all green
+- [x] **T1**: Bump `Cargo.toml` 0.2.0 → 0.3.0 — `feat/` branch minor bump, first code commit of the branch (versioning rule; branch base verified as 0.2.0)
+- [x] **T2**: Write failing inline tests for slot decoding in `crates/stidcart-core/src/directory.rs` — `encode`/`decode` round-trip, end marker recognised, hidden flag detected, a cartridge type value classified as unsupported, reserved flag bits tolerated whether set or clear
+- [x] **T3**: Implement `decode` in `crates/stidcart-core/src/directory.rs` to pass T2 — inverse of `encode`, sharing its constants
+- [x] **T4**: Write failing inline tests for container parsing in `crates/stidcart-core/src/crt.rs` — header magic and id, packet walk into a `FlashImage`, `write`→`parse` round-trip, both permitted data sizes [P]
+- [x] **T5**: Implement `parse` in `crates/stidcart-core/src/crt.rs` to pass T4 — validate marker and total-length together, bounds-check before slicing, extract the header name without the character swap
+- [x] **T6**: Write failing inline tests for reserved-region verification and cartridge-name extraction in `crates/stidcart-core/src/reserved.rs` — a written image verifies, a mutated region does not, name recovers through the swap [P]
+- [x] **T7**: Implement `verify_regions` and `read_ef_name` in `crates/stidcart-core/src/reserved.rs` to pass T6 — compare against an image built by the existing writers rather than re-deriving expected bytes
+- [x] **T8**: Create `crates/stidcart-core/src/read.rs` with the contract only — `ReadError`, `PacketProblem`, `Unsupported`, `Display`/`Error` impls, and a `load` signature returning an error so the AC tests compile and fail
+- [x] **T9**: Wire `pub mod read` and re-export `ReadError` in `crates/stidcart-core/src/lib.rs`; add `header_name()` and `ef_name()` accessors alongside the existing `programs()`
+- [x] **T10**: Write failing test named `AC-1 (none): a loaded image describes the programs that produced it` in `crates/stidcart-core/tests/read.rs`
+- [x] **T11**: Write failing test named `AC-3 (none): an empty directory loads as a cartridge with no programs` in `crates/stidcart-core/tests/read.rs` [P]
+- [x] **T12**: Write failing test named `AC-5 (none): a corrupt packet marker or disagreeing length is refused` in `crates/stidcart-core/tests/read.rs` [P]
+- [x] **T13**: Write failing test named `AC-6 (none): a directory with no end marker anywhere is refused` in `crates/stidcart-core/tests/read.rs` [P]
+- [x] **T14**: Write failing test named `AC-7 (none): cartridge and hidden entries are refused as unsupported` in `crates/stidcart-core/tests/read.rs` [P]
+- [x] **T15**: Write failing test named `AC-8 (none): the container header name is recovered and never re-stamped` in `crates/stidcart-core/tests/read.rs` [P]
+- [x] **T16**: Write failing test named `AC-9 (none): the header name is not character-swapped while entry and cartridge names are` in `crates/stidcart-core/tests/read.rs` [P]
+- [x] **T17**: Write failing test named `AC-10 (none): reserved firmware differing from the embedded blobs is refused as unsupported` in `crates/stidcart-core/tests/read.rs` [P]
+- [x] **T18**: Write failing test named `AC-12 (none): a size or location reaching outside the image is refused` in `crates/stidcart-core/tests/read.rs` [P]
+- [x] **T19**: Write failing test named `AC-2 (none): every reference image loads and rebuilds byte-identically` in `crates/stidcart-core/tests/roundtrip.rs` [P]
+- [x] **T20**: Write failing test named `AC-4 (none): a cart this tool builds from no programs loads and rebuilds byte-identically` in `crates/stidcart-core/tests/roundtrip.rs` [P]
+- [x] **T21**: Write failing test named `AC-11 (none): an entry continuing past its starting region recovers unbroken` in `crates/stidcart-core/tests/roundtrip.rs` [P]
+- [x] **T22**: Implement the container stage of `load` in `crates/stidcart-core/src/read.rs` — header, packet walk, header name — passing T12, T15, T16 (header half), T18
+- [x] **T23**: Implement the reserved stage of `load` in `crates/stidcart-core/src/read.rs` — region verification and cartridge name — passing T16 (name half) and T17
+- [x] **T24**: Implement the directory stage of `load` in `crates/stidcart-core/src/read.rs` — slot walk, entry classification, program recovery — passing T10, T11, T13, T14, T21
+- [x] **T25**: Confirm the round-trip closes over all four reference images and the empty base case, passing T19 and T20; if a case fails, localize by module test before touching `read.rs`
+- [x] **T-audit**: Run `/lcd:audit read-path`; resulting `audit.md` has zero MISSING/BLOCKED rows
+- [x] **T-final**: Run `cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace`, all green
 
 ## Checkpoint validation
 

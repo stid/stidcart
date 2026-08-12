@@ -10,8 +10,8 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Load a cartridge image back into the description that would produce it, and prove it by rebuilding the frozen reference images byte-identically.
-- **Next action:** run `lcd:redgreen-loop` — first iteration is T8, the `read.rs` contract stub, which turns two build errors into twelve failing assertions
-- **Branch:** feat/read-path  ·  **Updated:** 2026-08-11 00:25
+- **Next action:** nothing — work-item CLOSED, PR open. Do NOT re-run the pipeline on this slug. Next work would be a CLI surface for reading, or entry editing; run `lcd:triage` for it.
+- **Branch:** feat/read-path  ·  **Updated:** 2026-08-11 00:55
 
 ## STEPS
 - [x] S1 — settle the divergence policy (→ D-007) and the version question (→ D-008), commit 43792b7
@@ -20,11 +20,11 @@
 - [x] S4 — write tasks.md (T1..T25 + T-audit + T-final)
 - [x] S5 — T1: version bump 0.2.0 → 0.3.0, first source-touching commit
 - [x] S8 — T10..T21: one failing test per AC, all twelve `AC-N (none)` literals present, both targets red
-- [ ] S6 — T2..T7: decoders beside their encoders (directory, crt, reserved)  ← next
-- [ ] S7 — T8..T9: read.rs contract + lib.rs wiring, so the AC tests compile red
-- [ ] S9 — T22..T24: implement load in three stages (container, reserved, directory)
-- [ ] S10 — T25: round-trip closes on all four fixtures + the empty base case
-- [ ] S11 — T-audit, then T-final gate, then PR
+- [x] S6 — T2..T7: decoders beside their encoders (directory, crt, reserved)
+- [x] S7 — T8..T9: read.rs contract + lib.rs wiring
+- [x] S9 — T22..T24: load implemented; 97 tests green, fmt and clippy clean
+- [x] S10 — T25: round-trip closes on all four fixtures + the empty base case
+- [x] S11 — T-audit PASS (vacuous — see audit.md), T-final green: 97 tests, fmt and clippy clean
 
 ## DECISIONS (this work-item)
 - Divergence decided per behaviour from the format spec's own classification, not by a blanket
@@ -122,11 +122,26 @@ template omits one for single-surface specs; the same degenerate-matrix workarou
   The plan's matrix note originally claimed the matrix was kept to avoid a BLOCK; that was wrong —
   the write-path BLOCKed on its CLI rows — and has been corrected in `plan.md`.
 
+- 2026-08-11 00:45 — red-green: green in 1 iteration, 0 reverts. All twelve ACs passed on the first
+  full run, including the round-trip on all four fixtures and the empty base case. The only build
+  failures were two mechanical ones (`DirEntry` needed `PartialEq`/`Eq` for `Slot` to derive them;
+  the EF-Name magic was being compared against an expected image that never had it written).
+- 2026-08-11 00:46 — a first-run pass is weak evidence, so the oracle was checked against a
+  deliberate negative control rather than trusted: decoding the 32-byte container header name with
+  the machine's case swap makes AC-8 and AC-9 fail immediately. That is the exact conflation D-006
+  was written about, and it confirms those two criteria are load-bearing rather than vacuous. File
+  restored from a scratchpad copy and the suite re-run green.
+- 2026-08-11 00:47 — one design point worth keeping: entry extents are bounds-checked *before*
+  reading, not during. Stepping past the last bank does not run off the end of the buffer — the
+  interleave wraps the address back to bank 0 ROMH, which is the directory — so an over-long entry
+  would have returned the directory as though it were program data. Silently wrong rather than
+  merely broken, and the reason `check_extent` tracks bank and half instead of a flat offset.
+
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
 
 <!--

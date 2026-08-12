@@ -19,8 +19,10 @@ decisions, which is what keeps a future GUI (toolkit undecided) a matter of addi
 than restructuring. Successor to ndefpack; no code is shared, and the binary format was extracted
 to a written spec before this repo existed.
 
-Current state: walking skeleton on the **write** path only. It builds a cart from PRG files. It
-does not read, edit, or display one.
+Current state: **write and read**, both for PRG entries only. It builds a cart from PRG files, and
+loads one back into the same builder state, byte-identically. It does not edit or display one, and
+it refuses cartridge entries, hidden entries and the older directory format rather than
+half-supporting them.
 
 ## Zones / Components
 
@@ -28,7 +30,7 @@ does not read, edit, or display one.
 
 | Zone | Path | Responsibility | Don't put here |
 |---|---|---|---|
-| core | `crates/stidcart-core/` | Flash image model, EasyFS2 directory encoding, PETSCII, placement, CRT container, firmware embedding | Global mutable state, file dialogs, CLI arg parsing, anything that decides *policy* about I/O |
+| core | `crates/stidcart-core/` | Flash image model, EasyFS2 directory encoding **and decoding**, PETSCII, placement, CRT container **both directions**, firmware embedding and verification | Global mutable state, file dialogs, CLI arg parsing, anything that decides *policy* about I/O |
 | cli | `crates/stidcart-cli/` | Argument parsing, file reading/writing, human-facing output. The test harness for the core, not a product | Format knowledge, placement rules — those belong in core |
 | firmware | `firmware/` | zlib-licensed C64-side blobs, embedded as data | Any Rust source, anything GPL. The licence boundary runs through this directory |
 | fixtures | `fixtures/` | Frozen `ndeft`-built carts, their input PRGs, and the exact command line that produced each | Generated output, scratch carts, anything not reproducible from a recorded command |
