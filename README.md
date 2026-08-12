@@ -10,8 +10,10 @@ reference for everything in `stidcart-core`.
 
 ## State
 
-Walking skeleton. It builds a cart from PRG files and nothing else: no reading, no editing, no
-GUI. That is deliberate — see below.
+Write and read, both for PRG entries only. It builds a cart from PRG files, and loads one back
+into the same builder state, byte-identically. It does not edit or display one, and it refuses
+cartridge entries, hidden entries and the older directory format rather than half-supporting them.
+The order — write first — was deliberate; see below.
 
 ## Layout
 
