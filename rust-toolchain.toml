@@ -1,0 +1,13 @@
+# Pinned so the toolchain is an input this repo controls, not one the calendar changes.
+# `gate` runs `clippy -- -D warnings` and is a required check on `main` with
+# enforce_admins on: unpinned, a new stable that adds one lint fails CI on code nobody
+# touched, and blocks every PR including the one that would fix it. See D-010.
+#
+# Bumping is a deliberate PR: change `channel`, run the gate, fix any new lints in that
+# same PR. Note this file only binds tools invoked through rustup's shims — a cargo from
+# Homebrew or a distro package ignores it (see D-010 on keeping local and CI aligned).
+
+[toolchain]
+channel = "1.97.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
