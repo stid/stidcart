@@ -53,7 +53,11 @@ Key meanings:
   granularity available. Diagnose a failing binary by reading its output, not by re-filtering.
 - **gate** — format check, clippy at deny-warnings, then the full suite. There is no separate
   typecheck step; `cargo clippy` compiles. Clippy is the static-analysis half that ndefpack lacked
-  entirely.
+  entirely. **Which compiler runs it is pinned** by `rust-toolchain.toml` at the repo root, and the
+  same gate runs in CI as the required `gate` check on `main` (`.github/workflows/ci.yml` mirrors
+  this key step for step — do not let the two drift). Because `-D warnings` is on, an unpinned
+  toolchain would turn any new stable's lint into a CI failure on untouched code; D-010 covers that
+  and the one gap, which is that the pin binds only through rustup's shims.
 - **eval** — `n/a`. Output is byte-exact cartridge images compared against frozen fixtures.
 - **maintenance-bundle** — the gate plus a dependency check. `cargo outdated` is not installed on
   this machine, so `cargo update --dry-run` stands in; swap it if `cargo-outdated` is added.
