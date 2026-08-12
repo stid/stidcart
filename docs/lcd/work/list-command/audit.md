@@ -7,7 +7,7 @@
 
 **Slug:** `list-command`
 **Journal:** [`JOURNAL.md`](./JOURNAL.md) (ACs are inline there; no `spec.md` / `plan.md` / `tasks.md`)
-**Run:** 2026-08-11 22:52
+**Run:** 2026-08-11 23:35 (re-run after the review fixes; first run 22:52)
 **Result:** PASS
 
 ---
@@ -23,9 +23,25 @@
 | `AC-5` | CLI | `crates/stidcart-cli/src/main.rs:99` (`list`) | `crates/stidcart-cli/tests/list.rs:134` | OK |
 | `AC-6` | none | `crates/stidcart-core/src/read.rs:233` (`inspect`) | `crates/stidcart-core/tests/read.rs:309`, `:346` | OK |
 
-All six tests were run individually and pass; the full suite is green at 108 tests, with
+All six tests were run individually and pass; the full suite is green at 114 tests, with
 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets --all-features -- -D warnings`
 clean.
+
+## This audit passed while the code was wrong, and that is the finding worth keeping
+
+The first run of this audit was a clean PASS. A high-effort review of the same branch then found
+seven defects, two of them severe: half-confined entries (types `0x02`/`0x03`) were read with the
+interleaved progression and round-tripped corrupt, and `free_space` was computed off
+`Placer::new().free_space()` — the contiguous run at the top of flash, not the capacity — which
+overstated the placeable space by 2.7× on this work-item's own AC-6 fixture.
+
+Neither was an uncovered AC. Both sat in code that **no AC described**, so a check asking "does
+every criterion have a passing test" could not reach them by construction. The lesson is not that
+the audit misfired; it is that test-presence measures whether the criteria are covered, never
+whether the criteria were the right ones. Where the AC list is thin, a green audit is evidence
+about the AC list.
+
+The fixes are recorded in D-011 and the JOURNAL; the table above reflects the post-fix state.
 
 ## The token grep is ambiguous here, and that is worth stating
 
