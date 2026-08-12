@@ -63,6 +63,50 @@ pub fn write_ef_name(img: &mut FlashImage, name: &str) {
     img.write_at(EFNAME_OFFSET, &field);
 }
 
+/// Check that the image's reserved firmware is exactly what this tool embeds.
+///
+/// Rebuilding always writes the embedded blobs, so an image carrying different ones could be
+/// loaded but never rebuilt to the same bytes. Refusing here makes that failure land where its
+/// cause is legible instead of surfacing later as an unexplained diff.
+pub fn verify_regions(img: &FlashImage) -> Result<(), crate::read::ReadError> {
+    let mut expected = FlashImage::erased();
+    write_eapi(&mut expected);
+    write_boot(&mut expected);
+    write_loader(&mut expected);
+
+    let mismatch = |region| {
+        Err(crate::read::ReadError::Unsupported(
+            crate::read::Unsupported::ReservedRegionMismatch { region },
+        ))
+    };
+
+    let regions = [
+        ("EAPI", EAPI_OFFSET, EAPI_SIZE),
+        ("boot", BOOT_OFFSET, BOOT_SIZE),
+        ("menu loader", LOADER_NRM_OFFSET, LOADER_SIZE),
+    ];
+    for (region, at, size) in regions {
+        if img.as_bytes()[at..at + size] != expected.as_bytes()[at..at + size] {
+            return mismatch(region);
+        }
+    }
+
+    // The name field itself is caller data, but the magic in front of it is fixed, and its absence
+    // means this is not a cartridge whose name we can read.
+    if &img.as_bytes()[EFNAME_MAGIC_OFFSET..EFNAME_MAGIC_OFFSET + EFNAME_MAGIC.len()]
+        != EFNAME_MAGIC
+    {
+        return mismatch("EF-Name magic");
+    }
+
+    Ok(())
+}
+
+/// The inverse of [`write_ef_name`]: the cartridge name the menu shows.
+pub fn read_ef_name(img: &FlashImage) -> String {
+    petscii::petscii_to_ascii(&img.as_bytes()[EFNAME_OFFSET..EFNAME_OFFSET + EFNAME_LEN])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,6 +149,57 @@ mod tests {
         let field = &img.as_bytes()[EFNAME_OFFSET..EFNAME_OFFSET + EFNAME_LEN];
         assert_eq!(&field[..3], b"ABC");
         assert!(field[3..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn read_ef_name_inverts_write_ef_name() {
+        for name in ["custom name", "My Game v2", DEFAULT_EF_NAME] {
+            let mut img = FlashImage::erased();
+            write_ef_name(&mut img, name);
+            assert_eq!(read_ef_name(&img), name, "round trip failed for {name:?}");
+        }
+    }
+
+    #[test]
+    fn a_fully_written_image_verifies() {
+        let mut img = FlashImage::erased();
+        write_eapi(&mut img);
+        write_boot(&mut img);
+        write_loader(&mut img);
+        write_ef_name(&mut img, "anything");
+        assert!(verify_regions(&img).is_ok());
+    }
+
+    #[test]
+    fn a_mutated_reserved_region_does_not_verify() {
+        for at in [
+            EAPI_OFFSET,
+            BOOT_OFFSET,
+            LOADER_NRM_OFFSET,
+            EFNAME_MAGIC_OFFSET,
+        ] {
+            let mut img = FlashImage::erased();
+            write_eapi(&mut img);
+            write_boot(&mut img);
+            write_loader(&mut img);
+            write_ef_name(&mut img, "anything");
+            img.write_at(at, &[0x5a; 8]);
+            assert!(
+                verify_regions(&img).is_err(),
+                "a change at {at:#x} should be caught"
+            );
+        }
+    }
+
+    #[test]
+    fn the_name_field_itself_is_not_part_of_verification() {
+        // It is caller data — only the magic in front of it is fixed.
+        let mut img = FlashImage::erased();
+        write_eapi(&mut img);
+        write_boot(&mut img);
+        write_loader(&mut img);
+        write_ef_name(&mut img, "whatever the user chose");
+        assert!(verify_regions(&img).is_ok());
     }
 
     #[test]

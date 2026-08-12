@@ -21,9 +21,11 @@ pub mod firmware;
 pub mod image;
 pub mod petscii;
 pub mod place;
+pub mod read;
 pub mod reserved;
 
 pub use image::FlashImage;
+pub use read::{load, ReadError};
 
 use directory::{DirEntry, EntryType, ENTRY_LEN, MAX_ENTRIES};
 use place::Placer;
@@ -122,6 +124,17 @@ impl CartBuilder {
 
     pub fn programs(&self) -> &[Program] {
         &self.programs
+    }
+
+    /// The cartridge name the menu shows.
+    pub fn ef_name(&self) -> &str {
+        &self.ef_name
+    }
+
+    /// The name in the container header, identifying the tool that produced the image. A cart
+    /// loaded from a file keeps the name it arrived with — see [`read::load`].
+    pub fn header_name(&self) -> &str {
+        &self.header_name
     }
 
     /// Lay out the flash image without wrapping it in a container.
