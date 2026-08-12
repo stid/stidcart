@@ -23,12 +23,16 @@
   which installs the active toolchain — the one this file names. Naming `stable` in the workflow would
   silently un-pin CI while the file sat there looking authoritative. Upgrades are a deliberate PR:
   change `channel`, run the gate, fix any new lints in the same commit.
-- **Known gap — the pin only binds through rustup's shims.** The maintainer's machine currently resolves
-  `cargo`/`rustc` to the Homebrew `rust` formula at `/opt/homebrew/bin` (the shims in `~/.cargo/bin` are
-  dangling symlinks to a `rustup` that Homebrew relocated), and a non-rustup cargo ignores this file
-  entirely. Both are 1.97.1 today, so local and CI agree by coincidence, and `brew upgrade rust` is what
-  ends that. Making the pin bind locally means letting rustup own the toolchain — deliberately not done
-  as part of this, because it is a machine change, not a repo change.
+- **The pin binds only through rustup's shims — closed 2026-08-11, and worth knowing why.** A cargo that
+  is not a rustup shim ignores `rust-toolchain.toml` outright: it does not warn, it just builds with
+  whatever compiler it is. On the maintainer's machine both existed — Homebrew's `rust` formula at
+  `/opt/homebrew/bin` and its keg-only `rustup`, whose shims live at `/opt/homebrew/opt/rustup/bin` and
+  were on no `PATH` at all — so `cargo` resolved to the formula and this file was inert locally. Fixed by
+  ordering `PATH` so the shims win, in **both** `~/.zshenv` and `~/.zprofile`: the latter's
+  `brew shellenv` runs after the former and would otherwise put `/opt/homebrew/bin` back in front. The
+  formula was left installed, just shadowed; uninstalling it is a destructive fix to an ordering problem.
+  Verified by resolution (`rustup show` reports `overridden by '…/rust-toolchain.toml'`), **not** by
+  version string — both were 1.97.1, so `rustc --version` could not tell working from broken.
 - **Alternatives rejected:** Track `stable` and fix lints as they land — that is the deadlock above, and
   it arrives as a red `main` with no obvious cause. Keep `stable` but drop `-D warnings` — trades a
   known, occasional chore for permanently weaker static analysis, which is the half ndefpack lacked.
