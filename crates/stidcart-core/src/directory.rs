@@ -51,11 +51,6 @@ pub enum Slot {
     Cartridge {
         type_value: u8,
     },
-    /// A program the menu hides. The builder has no way to express hiding, so loading it would
-    /// silently drop the flag and rebuild to different bytes.
-    Hidden {
-        name: String,
-    },
     /// A type value the format does not define. Malformed, not merely unsupported.
     Unknown {
         type_value: u8,
@@ -88,18 +83,17 @@ pub fn decode(raw: &[u8; ENTRY_LEN]) -> Slot {
         v => return Slot::Unknown { type_value: v },
     };
 
-    let name = petscii::petscii_to_ascii(&raw[..NAME_LEN]);
-    if flags & HIDDEN_FLAG != 0 {
-        return Slot::Hidden { name };
-    }
-
+    // The hidden flag is carried on the entry rather than turned into a slot of its own. Refusing
+    // it is the *rebuild* path's business — `CartBuilder` cannot express hiding, so rebuilding one
+    // would drop the flag — and a reader that only describes an image has no reason to inherit
+    // that. Decoding it here keeps `decode` a true inverse of `encode`.
     Slot::Program(DirEntry {
-        name,
+        name: petscii::petscii_to_ascii(&raw[..NAME_LEN]),
         kind,
         bank: u16::from_le_bytes([raw[17], raw[18]]),
         offset: u16::from_le_bytes([raw[19], raw[20]]),
         size: u32::from_le_bytes([raw[21], raw[22], raw[23], 0]),
-        hidden: false,
+        hidden: flags & HIDDEN_FLAG != 0,
     })
 }
 
@@ -221,10 +215,20 @@ mod tests {
     }
 
     #[test]
-    fn a_hidden_entry_decodes_as_hidden_rather_than_as_a_program() {
+    fn a_hidden_entry_decodes_as_a_program_carrying_the_flag() {
+        // It used to decode as a slot of its own, which discarded the position and size and forced
+        // every reader to refuse it. Refusing belongs to the rebuild path; decoding describes.
         let mut e = an_entry();
         e.hidden = true;
-        assert!(matches!(decode(&encode(&e)), Slot::Hidden { .. }));
+        let Slot::Program(back) = decode(&encode(&e)) else {
+            panic!("a hidden entry is still a program entry");
+        };
+        assert!(back.hidden);
+        assert_eq!(back.name, e.name);
+        assert_eq!(
+            (back.bank, back.offset, back.size),
+            (e.bank, e.offset, e.size)
+        );
     }
 
     #[test]

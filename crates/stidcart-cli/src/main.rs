@@ -118,27 +118,31 @@ fn list(args: &[String]) -> Result<(), String> {
 /// The listing itself, kept separate from the printing so it can be asserted on directly.
 fn render(info: &read::CartInfo) -> String {
     let mut out = String::new();
+    // The cartridge name and every entry name arrive through the machine's own character mapping,
+    // which already turns control bytes into `.`. The container header name does not — it is
+    // host-encoded text carried through verbatim, and this is the first path that puts it in front
+    // of a terminal, so it is filtered here.
     out.push_str(&format!("cart: {}\n", info.ef_name));
-    out.push_str(&format!("built by: {}\n\n", info.header_name));
+    out.push_str(&format!("built by: {}\n\n", printable(&info.header_name)));
 
     if info.entries.is_empty() {
         out.push_str("  (no entries)\n");
     } else {
         out.push_str(&format!(
-            "  {:>3}  {:<16}  {:<5}  {:>4}  {:>6}  {:>8}\n",
-            "#", "name", "type", "bank", "offset", "size"
+            "  {:>3}  {:<16}  {:<5}  {:<5}  {:>4}  {:>6}  {:>8}\n",
+            "#", "name", "flags", "type", "bank", "offset", "size"
         ));
         for (i, e) in info.entries.iter().enumerate() {
             let kind = match e.kind {
                 EntryType::Prg => "PRG",
-                EntryType::PrgRomL => "PRG-L",
-                EntryType::PrgRomH => "PRG-H",
-                // The end marker never reaches here: it terminates the directory walk.
-                EntryType::End => "END",
+                // The walk refuses every other kind, so a listing cannot reach them. Labelling
+                // them would advertise support that no code path here has.
+                _ => "?",
             };
             out.push_str(&format!(
-                "  {i:>3}  {:<16}  {kind:<5}  {:>4}  {:>6}  {:>8}\n",
+                "  {i:>3}  {:<16}  {:<5}  {kind:<5}  {:>4}  {:>6}  {:>8}\n",
                 e.name,
+                if e.hidden { "H" } else { "-" },
                 format!("${:02x}", e.bank),
                 format!("${:04x}", e.offset),
                 format!("${:06x}", e.size),
@@ -157,6 +161,17 @@ fn render(info: &read::CartInfo) -> String {
         }
     ));
     out
+}
+
+/// Replace anything that would drive the terminal rather than print on it.
+///
+/// A `.crt` is untrusted input, and its 32-byte header name is free-form host-encoded text. Left
+/// alone, a name holding `\x1b[2J` clears the screen the listing was just written to, so what the
+/// reader believes they inspected is not what the file holds.
+fn printable(s: &str) -> String {
+    s.chars()
+        .map(|c| if c.is_control() { '.' } else { c })
+        .collect()
 }
 
 /// The menu name a program gets when the request does not give one: the file name with its

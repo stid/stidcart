@@ -12,8 +12,8 @@
 - **Goal:** Expose the existing read path through a `stidcart list <file>` command that prints the
   cartridge name, one line per directory entry (index, name, type, bank, offset, size) and a
   free-space summary.
-- **Next action:** open the PR (`gh pr create`); the audit passed and the gate is green.
-- **Branch:** feat/list-command  ·  **Updated:** 2026-08-11 22:52
+- **Next action:** push the review fixes to PR #12 and confirm the checks stay green.
+- **Branch:** feat/list-command  ·  **Updated:** 2026-08-11 23:31
 
 ## STEPS
 - [x] S1 — `README.md` State section: it still says "no reading"; the read path landed. Docs-only.
@@ -24,9 +24,33 @@
 - [x] S5 — test first: `list` on a non-cartridge, and `list` with no path (AC-4, AC-5).
 - [x] S6 — implement the CLI command and its usage text.
 - [x] S7 — gate green (108 tests, fmt + clippy clean); audit PASS (`audit.md`).
-- [ ] S8 — open the PR.  ← next
+- [x] S8 — open the PR (#12).
+- [x] S9 — fixed all seven review findings (D-011 records the design change).
+      - [x] a) walk refuses half-confined kinds (0x02/0x03); `render`'s PRG-L/PRG-H arms dropped
+      - [x] b) `free_space` from the entries' real extents, via new `Placer::occupy`
+      - [x] c) `printable()` filters control bytes out of the container header name
+      - [x] d) hidden entries decode as programs; only `load` refuses them, `list` marks them `H`
+      - [x] e) `verify_regions` moved into `load`; `inspect` no longer runs it
+      - [x] f) AC-1 compares parsed columns whole, not `contains`
+      - [x] g) `README.md` + `MAP.md` current-state sentences
+- [ ] S10 — re-run the audit and push the fixes to the PR.  ← next
 
 ## DECISIONS (this work-item)
+- **Strictness splits between the two views; the walk stays shared.** The design note said `load`
+  and `inspect` "cannot disagree about what an image contains **or about which images they
+  refuse**". The second half was wrong, and a code review found it twice: a refusal justified by
+  "the builder cannot express this" is a *rebuild* precondition, and importing it into a read-only
+  listing makes `list` fail on the images a user most wants to inspect. So the walk describes, and
+  `load` alone refuses what it cannot reproduce. What an image *contains* is still one walk, which
+  was the property worth having.
+- **Half-confined entries (types 0x02/0x03) are refused, not modelled.** The bug is real — nothing
+  consulted `DirEntry.kind`, so those entries were read with the interleaved progression and would
+  round-trip corrupted. The fix is refusal rather than a correct reader: this tool cannot produce
+  them, and the vault format spec is the authority on how they are laid out. Inventing a bounds
+  walk from the C is exactly the "inherit a quirk by accident" the constitution forbids.
+- **Cartridge entries stay refused in the walk**, unlike hidden entries. Not the same case: a
+  hidden entry is a `DirEntry` with a flag already in the struct, so describing it costs nothing,
+  while a cartridge entry would need the xbank type modelling that `CartInfo` does not have.
 - **`list` reports the file's own positions, not regenerated ones.** `load()` returns a
   `CartBuilder`, which deliberately drops bank/offset — a rebuild re-places from scratch. Printing
   those regenerated positions under the heading "what is in this file" would be silently wrong in
@@ -43,6 +67,10 @@
 - `README.md`
 - `crates/stidcart-core/src/read.rs`
 - `crates/stidcart-core/src/lib.rs`
+- `crates/stidcart-core/src/place.rs`
+- `crates/stidcart-core/src/directory.rs`
+- `docs/lcd/MAP.md`
+- `docs/lcd/DECISIONS.md`
 - `crates/stidcart-core/tests/read.rs`
 - `crates/stidcart-cli/src/main.rs`
 - `crates/stidcart-cli/tests/cli.rs`
@@ -80,6 +108,18 @@ would regenerate.
 
 - 2026-08-11 22:19 — triaged `LCD → Standard (3 signals)`: 3–4 files, one CLI surface, one-commit
   revert; no hard trigger, no risk signal. Work-item opened on `feat/list-command`.
+- 2026-08-11 23:31 — a high-effort multi-agent review found seven defects, all now fixed; 114 tests
+  green. Two are worth carrying forward as lessons rather than just as diffs.
+  **(1) The audit passed and the code was still wrong.** Every AC had a passing test, and the two
+  most severe findings — half-confined entries read with the wrong layout, and a free-space figure
+  computed off the wrong base — sat in code no AC described. Test-presence measures whether the
+  criteria are covered, never whether the criteria were the right ones.
+  **(2) I asserted `Placer::new().free_space()` was "the honest capacity" and it is not** — it is
+  `top().2`, the contiguous run at the top, which merely *equals* capacity for a fresh placer.
+  Subtracting entry sizes from it silently assumed the file's entries were top-packed, which is the
+  exact assumption `inspect` exists to stop making. A reviewer reproduced it on this work-item's own
+  AC-6 fixture: 1032188 reported against 385020 actually placeable. Reading a function's return
+  value at one call site is not reading its contract.
 - 2026-08-11 22:58 — **first Standard-lane item in this repo**, so the CI `audit` check had never
   met a `work/<slug>/` without `spec.md` + `plan.md` — and D-009 made it required with
   `enforce_admins`, so an unexpected red would have blocked the merge with no bypass. Checked rather

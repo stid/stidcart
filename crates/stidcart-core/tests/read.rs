@@ -362,10 +362,136 @@ fn ac_6_inspect_agrees_with_the_reference_images() {
     );
 }
 
-/// Free space is the capacity less what the entries occupy — not a fragmentation model.
+/// Free space on a top-packed image is the capacity less what the entries occupy.
 #[test]
-fn free_space_is_capacity_less_the_entries() {
+fn free_space_on_a_top_packed_image_is_capacity_less_the_entries() {
     let empty = read::inspect(&fixture("single.crt")).expect("single.crt inspects");
     let occupied: usize = empty.entries.iter().map(|e| e.size as usize).sum();
     assert_eq!(empty.free_space(), 63 * 8192 * 2 - occupied);
+}
+
+/// A half-confined entry is refused rather than read with the interleaved layout.
+///
+/// Types 0x02 and 0x03 confine an entry to one half of a bank, and nothing here consults
+/// `DirEntry.kind` — so before this was refused, such an entry was read by stepping ROML -> ROMH ->
+/// next bank and came back as part its own bytes and part whatever occupied the other half, then
+/// rebuilt as a plain interleaved program. Silently corrupt in both directions. It is refused
+/// rather than implemented because this tool cannot produce one, and the layout rule for them
+/// belongs to the format spec rather than to a guess made here.
+#[test]
+fn a_half_confined_entry_is_refused_rather_than_read_with_the_wrong_layout() {
+    for kind in [EntryType::PrgRomL, EntryType::PrgRomH] {
+        let mut confined = an_entry();
+        confined.kind = kind;
+        confined.size = 0x3000;
+        let cart = cart_with_slots(&[directory::encode(&confined), directory::end_marker()]);
+
+        assert!(
+            matches!(
+                read::load(&cart),
+                Err(ReadError::Unsupported(Unsupported::ConfinedEntry { .. }))
+            ),
+            "{kind:?} must be refused, not read with the interleaved progression"
+        );
+        assert!(
+            matches!(
+                read::inspect(&cart),
+                Err(ReadError::Unsupported(Unsupported::ConfinedEntry { .. }))
+            ),
+            "{kind:?} is not describable either — listing it would advertise support that the \
+             read path does not have"
+        );
+    }
+}
+
+/// A hidden entry is listed, and refused only by the path that would rebuild it.
+#[test]
+fn inspect_lists_a_hidden_entry_that_load_refuses() {
+    let mut hidden = an_entry();
+    hidden.name = "easyloader ocm".into();
+    hidden.hidden = true;
+    let mut visible = an_entry();
+    visible.name = "visible".into();
+    visible.bank = 2;
+
+    // The hidden entry sits first, so a walk that aborts on it loses the visible one behind it.
+    let cart = cart_with_slots(&[
+        directory::encode(&hidden),
+        directory::encode(&visible),
+        directory::end_marker(),
+    ]);
+
+    let info = read::inspect(&cart).expect("a hidden entry is describable, so it is described");
+    assert_eq!(
+        info.entries
+            .iter()
+            .map(|e| e.name.as_str())
+            .collect::<Vec<_>>(),
+        ["easyloader ocm", "visible"],
+        "the entries behind a hidden one must not be lost with it"
+    );
+    assert!(info.entries[0].hidden, "the flag is reported, not dropped");
+    assert!(!info.entries[1].hidden);
+
+    assert!(
+        matches!(
+            read::load(&cart),
+            Err(ReadError::Unsupported(Unsupported::HiddenEntry { .. }))
+        ),
+        "rebuilding would silently drop the flag, so loading still refuses — the refusal belongs \
+         to the path that rebuilds, not to the one that describes"
+    );
+}
+
+/// Listing does not require the image to carry the firmware this tool embeds.
+#[test]
+fn inspect_does_not_require_the_firmware_this_tool_embeds() {
+    let mut img = CartBuilder::new()
+        .build_image()
+        .expect("an empty image builds");
+    img.write_at(reserved::EAPI_OFFSET, &[0x00; 32]);
+    let tampered = crt::write(&img, "probe");
+
+    assert!(
+        read::inspect(&tampered).is_ok(),
+        "the region check exists so a rebuild cannot silently change firmware; a listing rebuilds \
+         nothing, and refusing it there means no cart built by another tool can be inspected"
+    );
+    assert!(
+        matches!(
+            read::load(&tampered),
+            Err(ReadError::Unsupported(
+                Unsupported::ReservedRegionMismatch { .. }
+            ))
+        ),
+        "the rebuild path keeps the check"
+    );
+}
+
+/// Free space is the run a further entry could actually use, given where the entries really sit.
+#[test]
+fn free_space_is_the_run_above_the_entries_not_the_unused_total() {
+    // The AC-6 layout: one small entry parked high, with everything below it empty. Subtracting
+    // sizes from the capacity would call almost the whole cartridge free, when a placer packing
+    // from the top can only offer what lies above bank 40.
+    let mut planted = an_entry();
+    planted.bank = 40;
+    planted.offset = 0x2000;
+    planted.size = 4;
+    let cart = cart_with_slots(&[directory::encode(&planted), directory::end_marker()]);
+
+    let info = read::inspect(&cart).expect("it inspects");
+    let above = (63 - 40) * 8192 * 2 + (8192 - 4);
+    assert_eq!(
+        info.free_space(),
+        above,
+        "the figure a user sizes a program against has to be the contiguous run above the \
+         occupied banks, not the total of every unused byte"
+    );
+
+    // And the top-packed case still reports what it always did, so this is a fix rather than a
+    // different arbitrary number.
+    let single = read::inspect(&fixture("single.crt")).expect("single.crt inspects");
+    let occupied: usize = single.entries.iter().map(|e| e.size as usize).sum();
+    assert_eq!(single.free_space(), 63 * 8192 * 2 - occupied);
 }

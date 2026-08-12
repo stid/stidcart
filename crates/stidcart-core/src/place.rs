@@ -93,6 +93,31 @@ impl Placer {
         })
     }
 
+    /// Record an entry that already exists at a known position, rather than choosing one.
+    ///
+    /// [`Placer::mark`] fills from each half's current watermark, which is right when this placer
+    /// chose the position itself. An entry read out of a file may start above the watermark — its
+    /// image was laid out by something else, or has gaps — so each half is raised to the entry's
+    /// own end instead. `offset` carries the format's bit-13 ROMH selector.
+    pub fn occupy(&mut self, bank: u16, offset: u16, size: u32) {
+        let mut b = bank as usize;
+        let mut h = usize::from(offset & 0x2000 != 0);
+        let mut pos = (offset & 0x1fff) as usize;
+        let mut rest = size as usize;
+
+        while rest > 0 && b < N_BANKS {
+            let len = (BANK_SIZE - pos).min(rest);
+            self.used[h][b] = self.used[h][b].max(pos + len);
+            rest -= len;
+            pos = 0;
+
+            h ^= 1;
+            if h == 0 {
+                b += 1;
+            }
+        }
+    }
+
     fn mark(&mut self, bank: usize, half: usize, size: usize) {
         let (mut b, mut h, mut rest) = (bank, half, size);
         let mut room = BANK_SIZE - self.used[h][b];
