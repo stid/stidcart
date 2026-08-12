@@ -8,9 +8,40 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-012 -->
+<!-- Next id: D-013 -->
 
 ---
+
+## D-012 · 2026-08-11 · A Claude review gates `main`, and it blocks only on high-severity findings
+- **Context:** `gate` and `audit` check that the suite is green and that every AC has a test. Neither
+  reads the code. The list-command work-item made the gap concrete: the audit passed, and a review of
+  the same branch then found seven defects, two of them severe — both in code no AC described, which a
+  test-presence check cannot reach by construction.
+- **Decision:** `.github/workflows/claude-review.yml` reviews every PR and fails the job **only** when
+  the review returns a blocking finding: a defect it is confident is real and that would produce wrong
+  behaviour, corrupt output, or a panic. Style, structure, naming, and anything uncertain are posted as
+  comments with `blocking: false` and do not fail the check. The threshold is the whole point — a gate
+  that goes red on nits is one that gets routinely overridden, and an overridden gate is not a gate.
+  The prompt points the review at this project's own invariants first (byte parity, format-spec
+  provenance, no global state in the core, the `firmware/` licence boundary), because a finding that
+  contradicts a recorded decision is noise.
+- **An empty result fails the check, and that guard is load-bearing.** Verified on the first run:
+  with no `CLAUDE_CODE_OAUTH_TOKEN` secret, `claude-code-action` **exits successfully** having done
+  nothing — `claude_code_oauth_token: ""` in its own logs, no review, empty `structured_output`. Had
+  the workflow simply forwarded that step's status, the check would have been **green while reviewing
+  nothing**: a vacuous gate that looks like coverage. Never treat this action's exit status as evidence
+  a review happened; check that it produced a result.
+- **Sequencing was the risk, not the workflow.** D-009 put `enforce_admins: true` on `main`, so a
+  required check that cannot authenticate blocks every PR *including the one that fixes it*. The check
+  is therefore added unrequired, run green on a real PR first, and promoted only after — the same
+  ordering the `paths:` trap in D-009 taught, arrived at from a different direction.
+- **Alternatives rejected:** Block on any finding at all — the strictest reading of the ask, and the
+  fastest route to a check nobody trusts, with no owner bypass to clear a false positive. Report
+  findings without ever failing — makes the check a comment bot, and "blocking" was the actual
+  requirement. Require it immediately on merge — the deadlock above. `paths:`-filter it to source
+  files — the D-009 `Expected`-forever trap.
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-011 · 2026-08-11 · Describing an image and rebuilding it are held to different standards
 - **Context:** `list` was built on a single directory walk shared by `load` and the new `inspect`, and
