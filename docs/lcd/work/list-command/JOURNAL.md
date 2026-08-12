@@ -80,6 +80,17 @@ would regenerate.
 
 - 2026-08-11 22:19 — triaged `LCD → Standard (3 signals)`: 3–4 files, one CLI surface, one-commit
   revert; no hard trigger, no risk signal. Work-item opened on `feat/list-command`.
+- 2026-08-11 22:58 — **first Standard-lane item in this repo**, so the CI `audit` check had never
+  met a `work/<slug>/` without `spec.md` + `plan.md` — and D-009 made it required with
+  `enforce_admins`, so an unexpected red would have blocked the merge with no bypass. Checked rather
+  than assumed: `lcd-audit.yml` already skips an item missing either file (`::notice::… not a
+  Deep-lane item, skipping`) and exits 0. Running `audit-crosspath.sh` directly *does* exit 1 on the
+  missing `spec.md`, but the workflow never calls it for such a slug. No CI change needed; both
+  checks passed.
+- 2026-08-11 22:58 — kept `audit.md` even though the skill's Standard exception says to record the
+  result in the LOG and write no file. Nothing in `lcd-audit.yml` keys on its presence or its
+  `Result:` line, so it cannot affect the gate, and the token-ambiguity finding deserves a place a
+  future audit will actually look.
 - 2026-08-11 22:52 — audit PASS (test-presence; the cross-path script does not apply to a Standard
   item, which has no `plan.md` matrix). Recorded in `audit.md`, including the finding that a bare
   `AC-N (SURFACE)` grep now matches three other work-items and would pass this slug even with no
