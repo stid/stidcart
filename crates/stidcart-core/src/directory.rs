@@ -26,7 +26,7 @@ pub enum EntryType {
     End = 0x1f,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DirEntry {
     pub name: String,
     pub kind: EntryType,
@@ -37,9 +37,70 @@ pub struct DirEntry {
     pub hidden: bool,
 }
 
+/// Bit 4 of the type value is the "this entry is a cartridge" discriminator.
+pub const CARTRIDGE_BIT: u8 = 0x10;
+
+/// What a directory slot turns out to hold. Only [`Slot::Program`] is representable as part of a
+/// [`crate::CartBuilder`]; the rest exist so the loader can refuse precisely rather than guess.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Slot {
+    /// The end-of-directory marker. Erased flash decodes to this, which is the format's intent.
+    End,
+    Program(DirEntry),
+    /// A cartridge rather than a program — well-formed, but not something this tool can represent.
+    Cartridge {
+        type_value: u8,
+    },
+    /// A program the menu hides. The builder has no way to express hiding, so loading it would
+    /// silently drop the flag and rebuild to different bytes.
+    Hidden {
+        name: String,
+    },
+    /// A type value the format does not define. Malformed, not merely unsupported.
+    Unknown {
+        type_value: u8,
+    },
+}
+
 /// A slot of erased flash, which reads back as the end-marker type.
 pub fn end_marker() -> [u8; ENTRY_LEN] {
     [crate::image::ERASED; ENTRY_LEN]
+}
+
+/// The inverse of [`encode`].
+///
+/// The reserved flag bits are deliberately not checked: a past bug in the reference implementation
+/// wrote them clear, so carts in the wild carry both, and the format spec says to tolerate either
+/// on read while always setting them on write.
+pub fn decode(raw: &[u8; ENTRY_LEN]) -> Slot {
+    let flags = raw[16];
+    let type_value = flags & TYPE_MASK;
+
+    if type_value == EntryType::End as u8 {
+        return Slot::End;
+    }
+
+    let kind = match type_value {
+        v if v == EntryType::Prg as u8 => EntryType::Prg,
+        v if v == EntryType::PrgRomL as u8 => EntryType::PrgRomL,
+        v if v == EntryType::PrgRomH as u8 => EntryType::PrgRomH,
+        v if v & CARTRIDGE_BIT != 0 => return Slot::Cartridge { type_value: v },
+        v => return Slot::Unknown { type_value: v },
+    };
+
+    let name = petscii::petscii_to_ascii(&raw[..NAME_LEN]);
+    if flags & HIDDEN_FLAG != 0 {
+        return Slot::Hidden { name };
+    }
+
+    Slot::Program(DirEntry {
+        name,
+        kind,
+        bank: u16::from_le_bytes([raw[17], raw[18]]),
+        offset: u16::from_le_bytes([raw[19], raw[20]]),
+        size: u32::from_le_bytes([raw[21], raw[22], raw[23], 0]),
+        hidden: false,
+    })
 }
 
 pub fn encode(entry: &DirEntry) -> [u8; ENTRY_LEN] {
@@ -126,5 +187,67 @@ mod tests {
     #[test]
     fn the_end_marker_reads_back_as_the_end_type() {
         assert_eq!(end_marker()[16] & TYPE_MASK, EntryType::End as u8);
+    }
+
+    #[test]
+    fn decode_inverts_encode() {
+        let e = an_entry();
+        let Slot::Program(back) = decode(&encode(&e)) else {
+            panic!("a plain program entry should decode as one");
+        };
+        assert_eq!(back.name, e.name);
+        assert_eq!(back.kind, e.kind);
+        assert_eq!(back.bank, e.bank);
+        assert_eq!(back.offset, e.offset);
+        assert_eq!(back.size, e.size);
+        assert!(!back.hidden);
+    }
+
+    #[test]
+    fn decode_recovers_the_full_24_bit_size_and_the_half_selector() {
+        let mut e = an_entry();
+        e.size = 0x123456;
+        e.offset = 0x2002;
+        let Slot::Program(back) = decode(&encode(&e)) else {
+            panic!("should decode as a program");
+        };
+        assert_eq!(back.size, 0x123456);
+        assert_eq!(back.offset, 0x2002, "bit 13 selects ROMH and must survive");
+    }
+
+    #[test]
+    fn the_end_marker_decodes_as_end() {
+        assert_eq!(decode(&end_marker()), Slot::End);
+    }
+
+    #[test]
+    fn a_hidden_entry_decodes_as_hidden_rather_than_as_a_program() {
+        let mut e = an_entry();
+        e.hidden = true;
+        assert!(matches!(decode(&encode(&e)), Slot::Hidden { .. }));
+    }
+
+    #[test]
+    fn a_cartridge_type_decodes_as_a_cartridge() {
+        let mut raw = encode(&an_entry());
+        // 0x11 is a 16k cartridge; every cartridge type carries bit 4.
+        raw[16] = 0x11 | RESERVED_FLAG_BITS;
+        assert_eq!(decode(&raw), Slot::Cartridge { type_value: 0x11 });
+    }
+
+    #[test]
+    fn an_undefined_type_decodes_as_unknown_not_as_a_cartridge() {
+        let mut raw = encode(&an_entry());
+        raw[16] = 0x07 | RESERVED_FLAG_BITS;
+        assert_eq!(decode(&raw), Slot::Unknown { type_value: 0x07 });
+    }
+
+    #[test]
+    fn decode_tolerates_the_reserved_bits_being_clear() {
+        // The reference implementation had a bug that wrote these as zero, so carts in the wild
+        // carry both spellings; anything reading them must accept either.
+        let mut raw = encode(&an_entry());
+        raw[16] &= !RESERVED_FLAG_BITS;
+        assert!(matches!(decode(&raw), Slot::Program(_)));
     }
 }
