@@ -22,10 +22,16 @@
   from `.github/workflows/ci.yml`, which mirrors the `gate:` key in `lcd-conventions.md` step for step
   — CI and the local pre-commit check must not drift. `strict: true`, plus `allow_update_branch`, so a
   branch must be current with `main` before it merges. Auto-merge and delete-branch-on-merge on.
-- **Alternatives rejected:** Require `lcd-audit` instead of adding a CI workflow — **it cannot serve as
-  a required check.** It is `paths:`-filtered to `docs/lcd/work/**`, so on any PR outside that
-  directory the job never runs, never reports, and the required check sits in `Expected` forever,
-  blocking the PR with no way to clear it. It stays an unrequired advisory gate. Protection with no
+  `lcd-audit`'s `audit` job is required too, after dropping its `paths:` filter (see below).
+- **The `paths:` trap, stated once so it is not re-derived:** a `paths:`-filtered job never reports on a
+  PR outside the filter, and a required check that never reports sits in `Expected` forever — blocking
+  the PR with no way to clear it. `lcd-audit.yml` was filtered to `docs/lcd/work/**`, which is why it
+  could not be required *as written*. That is a property of the filter, not of the workflow: its script
+  already exits 0 when no work-item changed, so the filter was redundant and removing it made `audit`
+  requirable. Any future required check must report on every PR — filter inside the job, not in `on:`.
+- **Alternatives rejected:** Require `lcd-audit` as it stood, keeping the filter — the `Expected`
+  deadlock above. Leave it advisory — its own header claims it enforces the Deep-lane audit for every
+  contributor and agent, and that was simply false while nothing blocked a failing audit. Protection with no
   required check at all — auto-merge would be decorative, since GitHub only offers the button when
   something is actually pending. Require 1 review — deadlocks a solo repo. `required_linear_history` —
   would conflict with merge commits, which are still an allowed merge method here.
