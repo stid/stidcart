@@ -11,7 +11,7 @@
 - **Lane:** Standard
 - **Goal:** Refuse an old-format (EasyFS1) directory with a typed `Unsupported` error instead of
   misreading it as EasyFS2 — closing the gap between D-007's decision and `SPEC.md:58`.
-- **Next action:** S7 — run `/lcd:audit easyfs1-refusal`, reconcile `SPEC.md:58`, open the PR.
+- **Next action:** open the PR. Audit passed, SPEC folded; nothing else outstanding.
 - **Branch:** feat/easyfs1-refusal  ·  **Updated:** 2026-08-12
 
 ## STEPS
@@ -29,7 +29,8 @@
 - [x] S5 — AC-13: `list` exits non-zero with the reason on stderr. Verified on a real cart built by
       the tool, not only in-process.
 - [x] S6 — AC-16 regression guard: the four frozen fixtures still round-trip byte-identically.
-- [ ] S7 — Gate green (it is), `/lcd:audit easyfs1-refusal`, reconcile `SPEC.md:58`, PR.  ← next
+- [x] S7 — Gate green, audit PASS (test-presence, first run), SPEC folded, closeout logged.
+- [ ] S8 — Open the PR.  ← next
 
 ## DECISIONS (this work-item)
 - The reserved bits are the version discriminator; "tolerate both on read" was unsatisfiable —
@@ -119,6 +120,15 @@ directory, whose slots all carry the bits set, is unaffected by the new check.
   alone, confirming it is not riding on AC-14's coverage. Note that `cargo test` fails fast at target
   granularity, so the first mutation run reported only the lib target until each target was run
   individually — a mutation check here has to name the target, or it under-reports.
+- 2026-08-12 — reconciled: folded AC-13 → SPEC.md/CLI, AC-14..AC-16 → SPEC.md/Internal. The
+  EasyFS1 row was a `D-015 (backfill)` seed asserting the opposite behaviour; it decays into an
+  AC-pinned row citing D-017. No supersede entry — D-017 implements what D-007 decided rather than
+  overturning it, so D-007 stays active.
+- 2026-08-12 — **Audit PASS (test-presence, first run).** Standard lane has no `spec.md`/`plan.md`,
+  so the cross-path script does not apply; the test-presence half ran instead. `AC-13 (CLI)` →
+  `crates/stidcart-cli/tests/list.rs:250`, `AC-14 (none)` → `crates/stidcart-core/tests/read.rs:505`,
+  `AC-15 (none)` → `:540`, `AC-16 (none)` → `:564`; all four pass and the suite is green across 13
+  targets. `closeout-evaluator: off`, so no independent evaluator was dispatched.
 - 2026-08-12 — Drove the real binary end to end: built a cart with `build`, cleared the reserved bits
   of slot 0 in its bank-0 ROMH packet, and confirmed `list` prints
   `stidcart: the directory is in the old EasyFS format (slot 0 …)` and exits 1, while the untouched

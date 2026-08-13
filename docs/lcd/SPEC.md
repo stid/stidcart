@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-08-12
+**Last compacted:** 2026-08-12 (easyfs1-refusal)
 
 ---
 
@@ -32,6 +32,7 @@
 | A `build` request naming no input programs succeeds and writes nothing, matching the reference tool rather than erroring | — | D-015 (backfill) · D-002 |
 | `list` prints what a `.crt` contains, with positions taken from the image as stored rather than from a rebuild that would re-place every entry | — | D-015 (backfill) · D-011 |
 | Failures print `stidcart: <reason>` on stderr and exit non-zero; an unknown command or option prints usage | — | D-015 (backfill) |
+| `list` refuses an old-format (EasyFS1) cartridge, naming the format on stderr, rather than printing entries decoded under the wrong layout | AC-13 | D-017 (easyfs1-refusal) |
 
 ### RENDER
 
@@ -55,7 +56,8 @@
 | Names cross the PETSCII boundary in both directions | — | D-015 (backfill) |
 | `inspect` describes any image it can walk; `load` layers the rebuild preconditions on top and refuses what it could not reproduce byte-identically, including hidden entries and mismatched firmware regions | — | D-015 (backfill) · D-011, D-007 |
 | Both read paths refuse what the builder cannot represent: cartridge entries (bit 4 of the type value) and entries confined to one half of a bank (types `0x02`/`0x03`) | — | D-015 (backfill) |
-| Old-format (EasyFS1) directories are **not detected**: every directory is walked as EasyFS2, so such an image is misread or fails incidentally, never refused for being old | — | D-015 (backfill) · D-007 |
+| Old-format (EasyFS1) directories are refused by both read paths with a typed `Unsupported` error — the reserved flag bits `0x60` of the first non-end slot are the format's only version signal — while well-formed EasyFS2 directories are unaffected | AC-14, AC-16 | D-017 (easyfs1-refusal) · D-007 |
+| A directory whose slots disagree about the format is refused as malformed rather than as old-format: the first non-end slot settles the format for all of them, so a later slot contradicting it is corruption | AC-15 | D-017 (easyfs1-refusal) |
 | Build fails with a typed error — not a panic — when the entry count exceeds the directory or the image runs out of space, naming the program and the shortfall | — | D-015 (backfill) |
 | Produced bytes match the frozen `ndeft` fixtures for every case the parity test covers, and each covered case's originating command line is asserted present in `fixtures/MANIFEST.md` (the converse is not checked — a manifest image with no case is not caught) | — | D-015 (backfill) · D-002 |
 
