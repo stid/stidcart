@@ -11,23 +11,25 @@
 - **Lane:** Standard
 - **Goal:** Refuse an old-format (EasyFS1) directory with a typed `Unsupported` error instead of
   misreading it as EasyFS2 — closing the gap between D-007's decision and `SPEC.md:58`.
-- **Next action:** S1 — correct the reserved-flag-bits bullet in the vault format spec.
+- **Next action:** S7 — run `/lcd:audit easyfs1-refusal`, reconcile `SPEC.md:58`, open the PR.
 - **Branch:** feat/easyfs1-refusal  ·  **Updated:** 2026-08-12
 
 ## STEPS
-- [ ] S1 — Correct `reference/easyflash-cart-format.md` (vault): the reserved bits `0x60` are the
-      EasyFS1/EasyFS2 version discriminator, not a tolerate-both quirk. Fix the misattribution
-      (Draco Cart Maker, `README:82` — not an ndefpack bug, not `NEWS`), keep the writer guidance,
-      add the single-byte-bank difference. Log D-017 in the same commit.  ← next
-- [ ] S2 — Failing test for AC-14: `inspect`/`load` refuse a first entry with the bits clear.
-- [ ] S3 — `directory::is_old_format()` + `Unsupported::OldFormatDirectory`; make S2 pass.
-      Replace `decode_tolerates_the_reserved_bits_being_clear` (directory.rs:250) — it asserts the
-      behaviour being changed — and fix the wrong claim in the doc comments at directory.rs:12,67.
-- [ ] S4 — Failing test + code for AC-15: slots disagreeing on the reserved bits are malformed,
-      not old-format. Thread `was_old` state through `read_directory`'s walk.
-- [ ] S5 — Failing test for AC-13: `list` on such a cart exits non-zero with the message on stderr.
-- [ ] S6 — AC-16 regression guard: the four frozen fixtures still round-trip unchanged.
-- [ ] S7 — Gate green, `/lcd:audit easyfs1-refusal`, reconcile `SPEC.md:58`, PR.
+- [x] S1 — Corrected `reference/easyflash-cart-format.md` (vault): the reserved bits `0x60` are the
+      EasyFS1/EasyFS2 version discriminator, not a tolerate-both quirk. Misattribution fixed (Draco
+      Cart Maker, `README:82` — not an ndefpack bug, not `NEWS`), writer guidance kept, single-byte
+      bank added. D-017 logged. The vault is not a git repo, so that edit is not in any commit.
+- [x] S2 — Failing test for AC-14: `inspect`/`load` refuse a first entry with the bits clear.
+- [x] S3 — `directory::is_old_format()` + `Unsupported::OldFormatDirectory`. Replaced
+      `decode_tolerates_the_reserved_bits_being_clear` and fixed the doc comments that had copied
+      the wrong claim in from the format spec.
+- [x] S4 — AC-15: slots disagreeing are `ReadError::DirectoryFormatDisagrees`, a malformed variant
+      of its own. `read_directory` carries a `seen_easyfs2` flag; `BadEntry` was rejected for this
+      because its message names an undefined *type value*, which is not the fault here.
+- [x] S5 — AC-13: `list` exits non-zero with the reason on stderr. Verified on a real cart built by
+      the tool, not only in-process.
+- [x] S6 — AC-16 regression guard: the four frozen fixtures still round-trip byte-identically.
+- [ ] S7 — Gate green (it is), `/lcd:audit easyfs1-refusal`, reconcile `SPEC.md:58`, PR.  ← next
 
 ## DECISIONS (this work-item)
 - The reserved bits are the version discriminator; "tolerate both on read" was unsatisfiable —
@@ -102,3 +104,22 @@ directory, whose slots all carry the bits set, is unaffected by the new check.
   (`directory.rs:107`) and must keep doing so.
 - 2026-08-12 — `SPEC.md:58` ("Old-format (EasyFS1) directories are **not detected**") is the row this
   work-item makes false. It is what `lcd:reconcile` rewrites at closeout.
+- 2026-08-12 — **The conventions file was wrong about AC-id collisions, and it would have produced a
+  false green.** `.claude/rules/lcd-conventions.md` claimed the orphan `ac_N_*` tests "cannot
+  false-green a coverage check" because the old *function names* lack the literal `AC-N (SURFACE)`.
+  Their doc comments carry it verbatim — `grep -rn "AC-[0-9]* (" crates/` lists `AC-1..AC-12 (none)`
+  and `AC-1..AC-5 (CLI)` across six files. Had this work-item numbered from AC-1 as that note
+  advised, the audit's test-presence check would have passed against unrelated pre-existing tests.
+  Corrected the note, recorded the next free id, and numbered this item AC-13..AC-16. Renaming the
+  orphans was rejected as a six-file sweep for no behaviour change, which the note itself advises
+  against.
+- 2026-08-12 — Tests validated by mutation rather than by trusting a green run, per the project's own
+  standard. Forcing `is_old_format` to always report EasyFS2 fails AC-13, AC-14 and the unit test
+  while AC-16 correctly stays green; separately forcing `seen_easyfs2` to stay false fails AC-15
+  alone, confirming it is not riding on AC-14's coverage. Note that `cargo test` fails fast at target
+  granularity, so the first mutation run reported only the lib target until each target was run
+  individually — a mutation check here has to name the target, or it under-reports.
+- 2026-08-12 — Drove the real binary end to end: built a cart with `build`, cleared the reserved bits
+  of slot 0 in its bank-0 ROMH packet, and confirmed `list` prints
+  `stidcart: the directory is in the old EasyFS format (slot 0 …)` and exits 1, while the untouched
+  cart still lists normally.
