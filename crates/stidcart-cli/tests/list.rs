@@ -246,3 +246,44 @@ fn list_does_not_let_a_crafted_header_name_drive_the_terminal() {
         "the printable part is still reported — this is filtering, not discarding: {stdout}"
     );
 }
+
+/// AC-13 (CLI): an old-format cartridge is refused, and the refusal says which format it is.
+///
+/// The failure this guards is a quiet one. Nothing distinguishes EasyFS1 from EasyFS2 except the
+/// reserved flag bits (D-017), so before they were read this cart listed successfully, with entries
+/// whose bank numbers came from decoding a one-byte field as two. A wrong listing presented as a
+/// right one is worse than no listing, which is why this is the surface half of the refusal.
+#[test]
+fn ac_13_cli_list_refuses_an_old_format_cartridge() {
+    let dir = scratch("oldformat");
+    let cart = dir.join("easyfs1.crt");
+
+    let mut img = CartBuilder::new().build_image().unwrap();
+    let mut slot = directory::encode(&DirEntry {
+        name: "ancient".into(),
+        kind: EntryType::Prg,
+        bank: 1,
+        offset: 0,
+        size: 2,
+        hidden: false,
+    });
+    slot[16] &= !directory::RESERVED_FLAG_BITS;
+    img.write_at(reserved::DIRECTORY_OFFSET, &slot);
+    std::fs::write(&cart, crt::write(&img, "probe")).unwrap();
+
+    let result = stidcart().arg("list").arg(&cart).output().unwrap();
+
+    assert!(
+        !result.status.success(),
+        "an EasyFS1 directory cannot be read correctly, so listing it must fail"
+    );
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        stderr.contains("old EasyFS"),
+        "the reason should name the format rather than a symptom of misreading it, got: {stderr}"
+    );
+    assert!(
+        String::from_utf8_lossy(&result.stdout).trim().is_empty(),
+        "no entry decoded under the wrong format may be printed"
+    );
+}
