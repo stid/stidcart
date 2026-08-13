@@ -15,7 +15,11 @@
 //!   do;
 //! - a directory with no end marker in any slot stays **refused**, which the format does mandate;
 //! - cartridge entries, hidden entries and unrecognised reserved firmware are **refused as
-//!   unsupported**, distinguishably from malformed input, rather than misparsed.
+//!   unsupported**, distinguishably from malformed input, rather than misparsed;
+//! - an old-format (EasyFS1) directory is **refused rather than converted** (D-017). The reserved
+//!   flag bits are what identify it, and unlike the refusals above this one applies to describing
+//!   as well as rebuilding — read as EasyFS2 an EasyFS1 entry's bank field is decoded at the wrong
+//!   width, so there is no accurate description to give.
 
 use crate::directory::{self, DirEntry, EntryType, Slot, ENTRY_LEN};
 use crate::image::{BANK_SIZE, N_BANKS};
@@ -319,6 +323,11 @@ fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
 /// Deliberately does **not** check the reserved firmware regions. That check exists so a rebuild
 /// cannot silently swap the firmware an image carries; describing an image rebuilds nothing, and
 /// running it here would refuse every cart produced by any other tool or version.
+///
+/// It does refuse an old-format directory, which is the one refusal here that is not about
+/// rebuilding. That is not the conflation D-011 was written against: the strictness split turns on
+/// whether an image can be *described*, and an EasyFS1 directory read as EasyFS2 decodes its bank
+/// field at the wrong width, so every position this would report is wrong.
 pub fn inspect(bytes: &[u8]) -> Result<CartInfo, ReadError> {
     read_directory(&crt::parse(bytes)?)
 }
