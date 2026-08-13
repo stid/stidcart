@@ -11,7 +11,8 @@
 - **Lane:** Standard
 - **Goal:** Refuse an old-format (EasyFS1) directory with a typed `Unsupported` error instead of
   misreading it as EasyFS2 — closing the gap between D-007's decision and `SPEC.md:58`.
-- **Next action:** open the PR. Audit passed, SPEC folded; nothing else outstanding.
+- **Next action:** done — PR #20 is open with `gate`, `audit` and `claude-review` all green. Merge
+  is the maintainer's call.
 - **Branch:** feat/easyfs1-refusal  ·  **Updated:** 2026-08-12
 
 ## STEPS
@@ -30,7 +31,7 @@
       the tool, not only in-process.
 - [x] S6 — AC-16 regression guard: the four frozen fixtures still round-trip byte-identically.
 - [x] S7 — Gate green, audit PASS (test-presence, first run), SPEC folded, closeout logged.
-- [ ] S8 — Open the PR.  ← next
+- [x] S8 — PR #20 open; `gate`, `audit` and `claude-review` all pass, no review findings.
 
 ## DECISIONS (this work-item)
 - The reserved bits are the version discriminator; "tolerate both on read" was unsatisfiable —
