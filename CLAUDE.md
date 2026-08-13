@@ -1,6 +1,6 @@
 # stidcart
 
-C64 cartridge tooling in Rust. See `README.md` for orientation and `docs/lcd/MAP.md` for structure.
+C64 cartridge tooling in Rust. See `README.md` for orientation and `docs/MAP.md` for structure.
 
 ## Knowledge vault references
 
@@ -21,10 +21,27 @@ cmake --build build -j`). It is **not** a dependency: it produced the frozen car
 once, and the test suite never invokes it. You need it only to add a new fixture — record the exact
 request in `fixtures/MANIFEST.md` when you do.
 
-## Lean Context Development (LCD)
-Non-trivial new work (new feature, ≥3 files, or any architecture change) → invoke
-`lcd:triage`, which picks a lane (Quick / Standard / Deep) and states it in one line.
-Trivial work (typo, one-liner, dep bump, known-cause fix) → go direct, no triage.
-Artifacts live under `docs/lcd/` (see `.claude/rules/lcd-conventions.md`).
-Project map: `docs/lcd/MAP.md` · Decisions: `docs/lcd/DECISIONS.md`
-Resume any work-item after a context reset: `/lcd:resume <slug>`.
+## How to work here
+
+Read `docs/MAP.md` first on a cold start — it says where things live and lists the invariants that
+hold across all work here. Just build the thing; there is no planning pipeline to run first.
+
+**The gate**, green before every commit, and the same step CI requires on `main`:
+
+```bash
+cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace
+```
+
+The compiler that runs it is pinned by `rust-toolchain.toml`, and the pin binds only through
+rustup's shims — a Homebrew `cargo` ignores the file silently (D-010).
+
+- **Tests first.** Cargo collects `crates/*/tests/*.rs` and inline `#[cfg(test)]` modules
+  automatically; nothing needs registering. (Not true of ndefpack, where a test missing from
+  `NDEFPACK_UNIT_TESTS` compiles into nothing and reports a false green — don't carry that habit over.)
+- **Never commit to `main`.** Branch, PR, conventional commits (`feat:`/`fix:`/`refactor:`/`chore:`/
+  `test:`/`docs:`). Required checks: `gate` and `claude-review`.
+- **Log a decision when a real fork gets decided** — append to `docs/DECISIONS.md`, newest at top,
+  including the alternatives rejected and why. Write it when the decision is made, not at the end.
+  This is the one durable artifact; keep entries tight.
+
+`docs/` holds exactly `MAP.md` and `DECISIONS.md`. Don't add a planning-artifact tree (D-013).

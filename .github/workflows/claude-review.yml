@@ -58,9 +58,9 @@ jobs:
             Do not post a second comment for an issue you have already commented on in this
             pull request; comment only on issues that are new or still unaddressed.
 
-            This project keeps its constitution in `CLAUDE.md`, its conventions in
-            `.claude/rules/lcd-conventions.md`, and its settled decisions in
-            `docs/lcd/DECISIONS.md`. Read the decisions log before flagging anything that
+            This project keeps its constitution and conventions in `CLAUDE.md`, its structure
+            and invariants in `docs/MAP.md`, and its settled decisions in
+            `docs/DECISIONS.md`. Read the decisions log before flagging anything that
             looks like a deliberate choice — a finding that contradicts a recorded decision is
             noise, and the log explains what was already considered and rejected.
 
