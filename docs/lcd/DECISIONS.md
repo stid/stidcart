@@ -8,9 +8,34 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-016 -->
+<!-- Next id: D-017 -->
 
 ---
+
+## D-016 · 2026-08-12 · A PR that edits `claude-review.yml` cannot pass its own review gate
+- **Context:** PR #18 moved the artifact root and rewrote the doc paths inside the reviewer prompt
+  in `.github/workflows/claude-review.yml`. The action then refused to run: *"the workflow file
+  must exist and have identical content to the version on the repository's default branch."* That
+  is a deliberate guard — without it a pull request could rewrite the prompt of the reviewer
+  judging it — but the step produces no verdict, and D-012's gate step fails closed on an empty
+  verdict. `claude-review` is a required check with `enforce_admins: true`, so the PR could not
+  merge, including by the repository owner.
+- **This is unavoidable, not a bug to fix.** Any change to `claude-review.yml` fails that PR's own
+  `claude-review`. There is no ordering that escapes it: a follow-up PR touching the same file hits
+  the identical wall. The action says so itself — the workflow starts working once the PR merges.
+- **Decision:** when a PR must change `claude-review.yml`, expect one red required check and clear
+  it manually — temporarily drop `claude-review` from the required contexts (or `enforce_admins`),
+  merge, restore immediately. Restoring is the load-bearing half; an unprotected `main` left that
+  way is a worse outcome than the stale prompt this was fixing.
+- **Consequence worth weighing before editing that file:** batch reviewer-prompt changes rather
+  than dribbling them across PRs, since each one costs a protection round-trip. The alternative —
+  making the prompt reference documents indirectly, through `CLAUDE.md`, so paths never appear in
+  the workflow — was offered and declined for now; it remains the way to stop paying this.
+- **Alternatives rejected:** revert the path fix to keep the PR green — the reviewer would then be
+  pointed at `docs/MAP.md` and `docs/DECISIONS.md`, which no longer exist, degrading quietly on
+  every subsequent PR to buy one green check.
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-015 · 2026-08-12 · `SPEC.md` is canonical for current behaviour; the MAP stops restating it
 - **Context:** turning on the living spec adds a third place that describes what the tool does now,
