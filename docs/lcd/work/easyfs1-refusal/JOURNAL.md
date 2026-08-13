@@ -19,14 +19,14 @@
       EasyFS1/EasyFS2 version discriminator, not a tolerate-both quirk. Fix the misattribution
       (Draco Cart Maker, `README:82` — not an ndefpack bug, not `NEWS`), keep the writer guidance,
       add the single-byte-bank difference. Log D-017 in the same commit.  ← next
-- [ ] S2 — Failing test for AC-2: `inspect`/`load` refuse a first entry with the bits clear.
+- [ ] S2 — Failing test for AC-14: `inspect`/`load` refuse a first entry with the bits clear.
 - [ ] S3 — `directory::is_old_format()` + `Unsupported::OldFormatDirectory`; make S2 pass.
       Replace `decode_tolerates_the_reserved_bits_being_clear` (directory.rs:250) — it asserts the
       behaviour being changed — and fix the wrong claim in the doc comments at directory.rs:12,67.
-- [ ] S4 — Failing test + code for AC-3: slots disagreeing on the reserved bits are malformed,
+- [ ] S4 — Failing test + code for AC-15: slots disagreeing on the reserved bits are malformed,
       not old-format. Thread `was_old` state through `read_directory`'s walk.
-- [ ] S5 — Failing test for AC-1: `list` on such a cart exits non-zero with the message on stderr.
-- [ ] S6 — AC-4 regression guard: the four frozen fixtures still round-trip unchanged.
+- [ ] S5 — Failing test for AC-13: `list` on such a cart exits non-zero with the message on stderr.
+- [ ] S6 — AC-16 regression guard: the four frozen fixtures still round-trip unchanged.
 - [ ] S7 — Gate green, `/lcd:audit easyfs1-refusal`, reconcile `SPEC.md:58`, PR.
 
 ## DECISIONS (this work-item)
@@ -55,19 +55,24 @@
 
 ## Acceptance criteria
 
-**AC-1** (surfaces: CLI): `list` on a `.crt` whose first directory entry carries the reserved flag
+> **Numbered from AC-13, not AC-1.** `AC-1..AC-12 (none)` and `AC-1..AC-5 (CLI)` are already live
+> tokens in this workspace's test comments, left over from the pre-D-013 pipeline. Reusing one would
+> let the audit's test-presence check pass against an unrelated orphan test. See the corrected note
+> in `.claude/rules/lcd-conventions.md`.
+
+**AC-13** (surfaces: CLI): `list` on a `.crt` whose first directory entry carries the reserved flag
 bits clear exits non-zero and prints the old-format refusal on stderr, instead of printing a
 listing decoded under the wrong format.
 
-**AC-2** (surfaces: none): both `inspect` and `load` refuse such an image with
+**AC-14** (surfaces: none): both `inspect` and `load` refuse such an image with
 `ReadError::Unsupported(Unsupported::OldFormatDirectory { .. })`. Refusing to *describe* it is
 consistent with D-011 rather than an exception to it: the bytes cannot be decoded correctly at all
 under EasyFS2, so there is no accurate description to give.
 
-**AC-3** (surfaces: none): a directory whose slots disagree — a first entry with the reserved bits
+**AC-15** (surfaces: none): a directory whose slots disagree — a first entry with the reserved bits
 set followed by one with them clear — is refused as malformed, not as old-format.
 
-**AC-4** (surfaces: none): every frozen fixture still round-trips byte-identically. An EasyFS2
+**AC-16** (surfaces: none): every frozen fixture still round-trips byte-identically. An EasyFS2
 directory, whose slots all carry the bits set, is unaffected by the new check.
 
 ## LOG (append-only; not read on resume)

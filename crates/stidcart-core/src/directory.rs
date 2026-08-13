@@ -9,8 +9,9 @@ pub const NAME_LEN: usize = 16;
 pub const MAX_ENTRIES: usize = 255;
 
 pub const TYPE_MASK: u8 = 0x1f;
-/// Bits 5-6 are reserved and must be set. A past bug in the reference implementation wrote them
-/// as zero, which makes this format-relevant rather than cosmetic.
+/// Bits 5-6 are reserved and must be set. They are also the EasyFS1/EasyFS2 version discriminator
+/// on read — the format carries no version field, so these two bits are the whole signal (D-017).
+/// See [`is_old_format`].
 pub const RESERVED_FLAG_BITS: u8 = 0x60;
 pub const HIDDEN_FLAG: u8 = 0x80;
 
@@ -62,11 +63,25 @@ pub fn end_marker() -> [u8; ENTRY_LEN] {
     [crate::image::ERASED; ENTRY_LEN]
 }
 
+/// Does this slot belong to an old-format (EasyFS1) directory?
+///
+/// The reserved bits not both being set is what says so — the format has no version field, so this
+/// is the only signal there is (D-017). It is unambiguous for anything the reference implementation
+/// wrote, which sets the bits unconditionally.
+///
+/// Only meaningful for a non-end slot. An end marker is `0xFF`-filled, so its reserved bits are set
+/// and it never classifies a directory either way; [`read`](crate::read) consults this after
+/// [`decode`] has ruled the slot out as [`Slot::End`].
+pub fn is_old_format(raw: &[u8; ENTRY_LEN]) -> bool {
+    raw[16] & RESERVED_FLAG_BITS != RESERVED_FLAG_BITS
+}
+
 /// The inverse of [`encode`].
 ///
-/// The reserved flag bits are deliberately not checked: a past bug in the reference implementation
-/// wrote them clear, so carts in the wild carry both, and the format spec says to tolerate either
-/// on read while always setting them on write.
+/// Deliberately blind to the reserved flag bits, which say which *format* the directory is in
+/// rather than anything about this entry — one slot cannot answer that, since the first non-end
+/// slot settles it for all of them. The walk in [`read`](crate::read) owns that state and calls
+/// [`is_old_format`]; keeping it out of here leaves `decode` a true inverse of [`encode`].
 pub fn decode(raw: &[u8; ENTRY_LEN]) -> Slot {
     let flags = raw[16];
     let type_value = flags & TYPE_MASK;
@@ -247,11 +262,29 @@ mod tests {
     }
 
     #[test]
-    fn decode_tolerates_the_reserved_bits_being_clear() {
-        // The reference implementation had a bug that wrote these as zero, so carts in the wild
-        // carry both spellings; anything reading them must accept either.
+    fn the_reserved_bits_classify_the_format_and_do_not_reach_decode() {
+        // These two bits are the EasyFS1/EasyFS2 discriminator (D-017). This module answers only
+        // "which format is this slot spelled in"; deciding what to do about it needs the whole
+        // directory, so it belongs to the walk in `read` and `decode` stays blind to it.
         let mut raw = encode(&an_entry());
+        assert!(!is_old_format(&raw), "encode always sets the reserved bits");
+
         raw[16] &= !RESERVED_FLAG_BITS;
-        assert!(matches!(decode(&raw), Slot::Program(_)));
+        assert!(
+            is_old_format(&raw),
+            "clear reserved bits mean the old format"
+        );
+        assert!(
+            matches!(decode(&raw), Slot::Program(_)),
+            "decode reports the entry the bytes spell and leaves the format question alone — one \
+             slot cannot answer it, since the first non-end slot settles it for all of them"
+        );
+    }
+
+    #[test]
+    fn an_end_marker_never_reads_as_the_old_format() {
+        // Erased flash is 0xFF, so the reserved bits are set in every end marker. If this were not
+        // so, every empty trailing slot would classify the directory as EasyFS1.
+        assert!(!is_old_format(&end_marker()));
     }
 }

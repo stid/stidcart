@@ -495,3 +495,88 @@ fn free_space_is_the_run_above_the_entries_not_the_unused_total() {
     let occupied: usize = single.entries.iter().map(|e| e.size as usize).sum();
     assert_eq!(single.free_space(), 63 * 8192 * 2 - occupied);
 }
+
+/// Clear the reserved flag bits on an encoded slot, which is what makes it an old-format entry.
+fn as_old_format(mut slot: [u8; directory::ENTRY_LEN]) -> [u8; directory::ENTRY_LEN] {
+    slot[16] &= !directory::RESERVED_FLAG_BITS;
+    slot
+}
+
+/// AC-14 (none): an old-format (EasyFS1) directory is refused by both read paths.
+///
+/// Bits 5-6 of the flags byte are the only thing distinguishing EasyFS1 from EasyFS2 — the format
+/// carries no version field (D-017). Read as EasyFS2, an EasyFS1 entry's bank comes back corrupt,
+/// because that field is one byte there and two here. So this is not a D-011 exception: there is no
+/// accurate description to give, which is a different situation from a hidden entry the walk
+/// describes perfectly well and only `load` has cause to refuse.
+#[test]
+fn an_old_format_directory_is_refused_rather_than_read_as_easyfs2() {
+    let cart = cart_with_slots(&[
+        as_old_format(directory::encode(&an_entry())),
+        directory::end_marker(),
+    ]);
+
+    assert!(
+        matches!(
+            read::inspect(&cart),
+            Err(ReadError::Unsupported(
+                Unsupported::OldFormatDirectory { .. }
+            ))
+        ),
+        "inspecting an EasyFS1 directory must refuse it as old-format, not report entries whose \
+         bank number was decoded under the wrong layout"
+    );
+    assert!(
+        matches!(
+            read::load(&cart),
+            Err(ReadError::Unsupported(
+                Unsupported::OldFormatDirectory { .. }
+            ))
+        ),
+        "loading one must refuse for the same reason"
+    );
+}
+
+/// AC-15 (none): slots that disagree about the format are malformed, not old.
+///
+/// The first non-end slot decides for the whole directory; a later slot contradicting it is a
+/// corrupt image rather than a second opinion. Reporting it as old-format would name the wrong
+/// problem, and would do so on the images least likely to deserve the benefit of the doubt.
+#[test]
+fn slots_disagreeing_about_the_format_are_refused_as_malformed() {
+    let cart = cart_with_slots(&[
+        directory::encode(&an_entry()),
+        as_old_format(directory::encode(&an_entry())),
+        directory::end_marker(),
+    ]);
+
+    let err = read::inspect(&cart).expect_err("a directory that contradicts itself cannot be read");
+    assert!(
+        !matches!(
+            err,
+            ReadError::Unsupported(Unsupported::OldFormatDirectory { .. })
+        ),
+        "an EasyFS2 first entry settles the format, so a later slot with the bits clear is \
+         corruption — calling it old-format would report the wrong fault: {err}"
+    );
+}
+
+/// AC-16 (none): the check does not disturb a well-formed EasyFS2 directory.
+///
+/// The regression half of AC-14. `encode` sets the reserved bits and always has, so every fixture
+/// and everything this tool writes must be entirely unaffected by the new refusal.
+#[test]
+fn well_formed_easyfs2_directories_are_untouched_by_the_old_format_check() {
+    for name in ["single.crt", "named.crt", "two.crt", "spill.crt"] {
+        let bytes = fixture(name);
+        read::inspect(&bytes).unwrap_or_else(|e| panic!("{name} must still inspect: {e}"));
+        let rebuilt = read::load(&bytes)
+            .unwrap_or_else(|e| panic!("{name} must still load: {e}"))
+            .build()
+            .unwrap_or_else(|e| panic!("{name} must still rebuild: {e}"));
+        assert_eq!(
+            rebuilt, bytes,
+            "{name} must still round-trip byte-identically"
+        );
+    }
+}

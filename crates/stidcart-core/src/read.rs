@@ -56,6 +56,16 @@ pub enum Unsupported {
     ReservedRegionMismatch {
         region: &'static str,
     },
+    /// The directory is in the older EasyFS1 format, which this tool reads nothing of. Refused
+    /// rather than converted: its cart types are guessed from size in the only implementation that
+    /// does read it, and there is no fixture here to check a reader against (D-007, D-017).
+    ///
+    /// Unlike the other variants this one refuses to *describe* as well as to rebuild. That is not
+    /// a D-011 exception — an EasyFS1 entry's bank is one byte where EasyFS2's is two, so read as
+    /// EasyFS2 there is no correct description to give.
+    OldFormatDirectory {
+        slot: usize,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -85,6 +95,12 @@ pub enum ReadError {
     /// Every slot held an entry and none was the end marker. Accepting this would read as an empty
     /// cartridge and destroy the directory on the next save.
     DirectoryUnterminated,
+    /// A slot disagreed with the format an earlier slot established. Malformed rather than
+    /// unsupported: the format is a property of the whole directory, so one entry claiming a
+    /// different one is corruption, not a cartridge this tool cannot open yet.
+    DirectoryFormatDisagrees {
+        slot: usize,
+    },
     Unsupported(Unsupported),
 }
 
@@ -115,6 +131,11 @@ impl std::fmt::Display for ReadError {
             ReadError::DirectoryUnterminated => {
                 write!(f, "the directory has no end marker in any slot")
             }
+            ReadError::DirectoryFormatDisagrees { slot } => write!(
+                f,
+                "directory slot {slot} has the reserved flag bits clear while earlier slots have \
+                 them set, so the directory contradicts itself about its own format"
+            ),
             ReadError::Unsupported(u) => match u {
                 Unsupported::CartridgeEntry { type_value } => write!(
                     f,
@@ -132,6 +153,11 @@ impl std::fmt::Display for ReadError {
                 Unsupported::ReservedRegionMismatch { region } => write!(
                     f,
                     "the {region} region does not match the firmware this tool embeds, so the image could not be rebuilt unchanged"
+                ),
+                Unsupported::OldFormatDirectory { slot } => write!(
+                    f,
+                    "the directory is in the old EasyFS format (slot {slot} has the reserved flag \
+                     bits clear), which is not supported yet"
                 ),
             },
         }
@@ -230,6 +256,9 @@ impl CartInfo {
 /// Everything else is described, and [`load`] applies the narrower rebuild rules on top.
 fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
     let mut entries = Vec::new();
+    // Whether any slot has already established the directory as EasyFS2. Only that direction needs
+    // remembering: an EasyFS1 slot returns immediately, so the walk never continues under it.
+    let mut seen_easyfs2 = false;
 
     for slot in 0..reserved::DIRECTORY_SLOTS {
         let at = reserved::DIRECTORY_OFFSET + slot * ENTRY_LEN;
@@ -237,7 +266,26 @@ fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
             .try_into()
             .expect("a directory slot is exactly one entry wide");
 
-        match directory::decode(&raw) {
+        let decoded = directory::decode(&raw);
+
+        // The reserved flag bits carry the format version, so they are read before the type is
+        // acted on: under EasyFS1 the type values mean something else, and refusing by a type
+        // decoded under the wrong format would name a fault the image does not have. End markers
+        // are `0xFF`-filled, so their reserved bits are set and they never classify a directory.
+        if !matches!(decoded, Slot::End) {
+            if directory::is_old_format(&raw) {
+                return Err(if seen_easyfs2 {
+                    // An earlier slot already said EasyFS2, so this one contradicts it. That is
+                    // corruption, not a second opinion about the format.
+                    ReadError::DirectoryFormatDisagrees { slot }
+                } else {
+                    Unsupported::OldFormatDirectory { slot }.into()
+                });
+            }
+            seen_easyfs2 = true;
+        }
+
+        match decoded {
             Slot::End => {
                 return Ok(CartInfo {
                     header_name: container.header_name.clone(),
