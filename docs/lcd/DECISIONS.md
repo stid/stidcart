@@ -8,9 +8,46 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-017 -->
+<!-- Next id: D-018 -->
 
 ---
+
+## D-017 · 2026-08-12 · The reserved flag bits are the EasyFS version discriminator, not a quirk to tolerate
+- **Context:** D-007 decided an EasyFS1 directory returns a typed `Unsupported` error, and the code
+  never implemented it — `SPEC.md:58` records that every directory is walked as EasyFS2 and misread.
+  It looked blocked: the vault format spec documents EasyFS2 only, and the format-facts invariant
+  forbids deriving the missing fact straight out of ndefpack's C into code. The research was cheap
+  and the blocker dissolved.
+- **The discriminator is bits 5–6 (`0x60`) of the flags byte at offset 16.** Not both set means old
+  EasyFS (`efs_check_entry`, `easyfs.c:371-389`). The first non-end slot decides for the whole
+  directory; a later slot disagreeing is a hard error, not a reclassification. The end marker is
+  `0xFF`-filled, so its bits are set and it never classifies.
+- **The vault spec was wrong about these bits, and the error had been copied into this repo.** It
+  read "A past ndefpack bug wrote them as 0 (`NEWS`); anything reading these carts should tolerate
+  both" — wrong tool, wrong citation, and a prescription that cannot be satisfied. `README:82` is a
+  2012 comparison against **Draco Cart Maker**, a different tool; `NEWS` says nothing about reserved
+  bits; and ndefpack's writer ORs `EFS_RESERVED_MASK` unconditionally (`easyfs.c:581`), so clear bits
+  are unambiguously not its output. A reader cannot both ignore these bits and detect the version —
+  tolerating a clear pair as EasyFS2 gives up the only signal the format has. `directory.rs:12,67`
+  repeated the claim and `decode_tolerates_the_reserved_bits_being_clear` pinned it as a test.
+- **Decision:** the vault spec is corrected first (the invariant's point), then the read path checks
+  the bits. An old-format directory is refused with a typed `Unsupported`, and slots that disagree
+  are refused as malformed rather than as old. The **writer guidance is unchanged and still
+  load-bearing**: `encode` sets the bits, and correcting the reader must not take that with it.
+- **Refusing to *describe* an EasyFS1 cart is consistent with D-011, not an exception.** That
+  decision drew the line at describability: EasyFS1's bank is a single byte at offset 17
+  (`easyfs.c:255-260`), so read as EasyFS2 every entry gets a corrupted bank. There is no accurate
+  description to give, which is a different situation from a hidden entry the walk can describe
+  perfectly well and only `load` needs to refuse.
+- **Alternatives rejected:** keep tolerating clear bits and detect EasyFS1 some other way — there is
+  no other way; the format carries no version field, which is why these bits are it. Implement the
+  EasyFS1 reader rather than refusing — D-007 already decided against, its cart types are guessed
+  from size (the source carries two `WARNING: assumes …` comments), and there is no fixture to check
+  a reader against. Treat a Draco-written cart as EasyFS2 by special case — nothing distinguishes it
+  from a genuine EasyFS1 cart, so the special case would have to be a guess.
+- **Scope:** project-wide (supersedes nothing; it implements what D-007 decided and corrects the
+  format-spec fact D-007 relied on)
+- **Status:** active
 
 ## D-016 · 2026-08-12 · A PR that edits `claude-review.yml` cannot pass its own review gate
 - **Context:** PR #18 moved the artifact root and rewrote the doc paths inside the reviewer prompt
