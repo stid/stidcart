@@ -45,13 +45,19 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
   cannot hang on these commands.
 - **`single-test` filters by substring** on the test function name. Append `-- --exact` only when
   you have the fully-qualified name and a substring would over-match.
-- **Existing `ac_N_*` test names are orphans.** `ac_2_every_reference_image_loads…`,
-  `ac_4_…`, `ac_9_…`, `ac_11_…` and friends are left over from the pre-D-013 pipeline; the specs
-  that numbered them were deleted, so those ids reference nothing. The first Deep work-item here
-  starts again at AC-1 and will land new tests in the same files — expect an `AC-2 (CLI)` next to
-  `ac_2_every_reference_image_loads`, which is confusing but not a collision. The audit greps for
-  the literal `AC-N (SURFACE)` in a comment, which the old function names do not contain, so they
-  cannot false-green a coverage check. Rename them if you touch the file; don't do a sweep for it.
+- **Existing `ac_N_*` tests are orphans, and their doc comments DO carry the audit's token.**
+  `ac_2_every_reference_image_loads…`, `ac_4_…`, `ac_9_…`, `ac_11_…` and friends are left over from
+  the pre-D-013 pipeline; the specs that numbered them were deleted, so those ids reference nothing.
+  An earlier version of this note claimed they could not false-green a coverage check because the
+  old *function names* lack the literal `AC-N (SURFACE)`. That was wrong: the audit greps comments,
+  and the orphans' doc comments carry the tokens verbatim — `grep -rn "AC-[0-9]* (" crates/` lists
+  them. A new work-item reusing a live number would pass the test-presence check against somebody
+  else's test.
+- **Therefore: number a new work-item's ACs from the next free id, not from AC-1.** The tokens in
+  use are `AC-1..AC-12 (none)` and `AC-1..AC-5 (CLI)`, plus `AC-13..AC-16 (…)` taken by
+  `easyfs1-refusal`. **Next free: AC-17.** Bump this line when a work-item claims a range. Renaming
+  the orphans instead would be a sweep across six files for no behaviour change — rename them only
+  if you are already editing the file.
 - **`test-placement`**: `<area>` is `core` or `cli`. Inline `#[cfg(test)]` modules next to the code
   are equally valid and equally collected — prefer them for unit-level assertions on a private
   function, and `tests/<slug>.rs` for anything that drives the public API or the binary.
