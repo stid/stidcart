@@ -8,9 +8,33 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-013 -->
+<!-- Next id: D-014 -->
 
 ---
+
+## D-013 · 2026-08-12 · The planning pipeline is removed; this log and the MAP are what survive
+- **Context:** Measured on this repo: 1,855 lines of process docs against 1,978 lines of Rust, and
+  the twelve commits after the list-command feature merged — four PRs — touched `crates/` zero
+  times. 1,483 of those doc lines were per-work-item `spec`/`plan`/`tasks`/`JOURNAL`/`audit`, five
+  documents for each of three finished items, whose purpose was surviving a context reset *during*
+  work that is now done.
+- **Decision:** Delete `docs/lcd/work/` and the triage/lane machinery with it. Keep `DECISIONS.md`
+  and `MAP.md`, promoted to `docs/`. The gate command and branch discipline move into `CLAUDE.md`,
+  which is where a session already looks. New work starts by writing a failing test.
+- **`audit` is dropped as a required check** and `lcd-audit.yml` deleted: it verified that every
+  acceptance criterion had a test, and acceptance criteria only existed because the pipeline
+  produced them. Without that, it is a no-op check that still has to be maintained — and D-009
+  records what a required check that stops reporting does to a PR. `gate` and `claude-review` stay.
+- **`claude-review` is the piece that earned its keep**, which is the honest counterweight here:
+  the audit passed on list-command and the review then found seven defects, two severe, in code no
+  acceptance criterion described. Process that reads the code paid; process that counted documents
+  did not.
+- **Alternatives rejected:** Remove everything including this log — D-006 alone (CRT header name vs
+  EF-Name) saves a future session from a parity failure that reads like a deep bug, and D-007/D-011
+  encode read-path policy that is genuinely hard to re-derive. Keep the pipeline but raise the
+  threshold — it is a judgment call every session, and it had lost all three times.
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-012 · 2026-08-11 · A Claude review gates `main`, and it blocks only on high-severity findings
 - **Context:** `gate` and `audit` check that the suite is green and that every AC has a test. Neither

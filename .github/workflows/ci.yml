@@ -1,6 +1,6 @@
-# The quality gate from .claude/rules/lcd-conventions.md, run on every PR and on main.
-# Keep the steps identical to that `gate:` key — CI and the local pre-commit check
-# must not drift, or a green local run can still fail the required check.
+# The quality gate from CLAUDE.md ("How to work here"), run on every PR and on main.
+# Keep the steps identical to the command documented there — CI and the local pre-commit
+# check must not drift, or a green local run can still fail the required check.
 
 name: CI
 
