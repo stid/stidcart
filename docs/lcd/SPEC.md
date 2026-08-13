@@ -50,13 +50,14 @@
 |---|---|---|
 | The whole library API is one owned value: `CartBuilder` accumulates programs and returns bytes, touching no filesystem and holding no global state | — | D-015 (backfill) · D-001 |
 | Placement fills largest-first and interleaved across banks, while the directory keeps the caller's input order | — | D-015 (backfill) |
-| Every build writes bank 0's reserved regions — EAPI, boot, loader, EF-Name — from the zlib firmware blobs embedded as-is | — | D-015 (backfill) · D-005 |
+| Every build rewrites bank 0's reserved regions: EAPI, boot and the menu loader from the zlib blobs embedded as-is (normal-mode variants only — the OCM blobs are embedded but unused here), plus the `ef-nAME:` magic and the caller's cartridge name, which are not blobs | — | D-015 (backfill) · D-005 |
 | The CRT container header name and the EF-Name are separate caller-supplied fields at different offsets; the header defaults to `stidcart <crate-version>` | — | D-015 (backfill) · D-006, D-008 |
 | Names cross the PETSCII boundary in both directions | — | D-015 (backfill) |
 | `inspect` describes any image it can walk; `load` layers the rebuild preconditions on top and refuses what it could not reproduce byte-identically, including hidden entries and mismatched firmware regions | — | D-015 (backfill) · D-011, D-007 |
-| Neither path supports cartridge entries, entries confined to one half of a bank, or the older directory format | — | D-015 (backfill) |
+| Both read paths refuse what the builder cannot represent: cartridge entries (bit 4 of the type value) and entries confined to one half of a bank (types `0x02`/`0x03`) | — | D-015 (backfill) |
+| Old-format (EasyFS1) directories are **not detected**: every directory is walked as EasyFS2, so such an image is misread or fails incidentally, never refused for being old | — | D-015 (backfill) · D-007 |
 | Build fails with a typed error — not a panic — when the entry count exceeds the directory or the image runs out of space, naming the program and the shortfall | — | D-015 (backfill) |
-| Produced bytes match the frozen `ndeft` fixtures for every recorded command line | — | D-015 (backfill) · D-002 |
+| Produced bytes match the frozen `ndeft` fixtures for every case the parity test covers, and each covered case's originating command line is asserted present in `fixtures/MANIFEST.md` (the converse is not checked — a manifest image with no case is not caught) | — | D-015 (backfill) · D-002 |
 
 <!--
 What this file is FOR (and what it is NOT):
