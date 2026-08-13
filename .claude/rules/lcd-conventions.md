@@ -11,13 +11,13 @@
 
 <!-- lcd-conventions:v1 -->
 
-artifact-root: docs
-map: docs/MAP.md
-decisions: docs/DECISIONS.md
-spec: docs/SPEC.md
+artifact-root: docs/lcd
+map: docs/lcd/MAP.md
+decisions: docs/lcd/DECISIONS.md
+spec: docs/lcd/SPEC.md
 living-spec: on
 closeout-evaluator: off
-work-item-dir: docs/work/<slug>
+work-item-dir: docs/lcd/work/<slug>
 test-placement: crates/stidcart-<area>/tests/<slug>.rs
 test-discovery-glob: crates/*/tests/*.rs + inline `#[cfg(test)]` modules (both collected by cargo, no registration)
 scoped-test: cargo test --workspace --test {path}
@@ -62,11 +62,11 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
 >
 > **The project's invariants are not copied here.** The bundled template restates them so they
 > survive on a fresh clone, which is the right default when they live in a maintainer's global
-> rules — but this project's invariants live in `docs/MAP.md`, which *is* in the clone. A second
+> rules — but this project's invariants live in `docs/lcd/MAP.md`, which *is* in the clone. A second
 > copy would go stale the first time one is edited on one side only, and D-015 just spent this
 > branch removing exactly that kind of duplicate.
 
-- **Honor every invariant in the `Invariants` section of `docs/MAP.md`** — byte parity against the
+- **Honor every invariant in the `Invariants` section of `docs/lcd/MAP.md`** — byte parity against the
   fixtures, the decaying oracle, the vault as the source of format facts, the zlib/GPL boundary at
   `firmware/`, no global state or I/O policy in the core, the crate version reaching produced bytes,
   describing versus rebuilding (D-011), and per-behaviour read-path divergence (D-007). Read that
@@ -88,6 +88,6 @@ Sanity checks before trusting this file:
   - `scoped-test`/`bail`/`single-test` do NOT enter watch mode. ✓ cargo has no watch mode built in.
   - `gate` runs lint + typecheck + the full suite. ✓ fmt + clippy -D warnings + test --workspace,
     identical to `.github/workflows/ci.yml` and to the command in CLAUDE.md.
-  - `artifact-root` exists and matches the CLAUDE.md pointer. ✓ `docs/`.
+  - `artifact-root` exists and matches the CLAUDE.md pointer. ✓ `docs/lcd/`.
   - No leftover <PLACEHOLDER> tokens remain. ✓
 -->

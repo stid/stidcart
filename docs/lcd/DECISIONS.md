@@ -16,7 +16,7 @@
 - **Context:** turning on the living spec adds a third place that describes what the tool does now,
   alongside `MAP.md`'s "Current state" paragraph and `README.md`'s State section — which said
   nearly the same thing in nearly the same words. Three copies drift in three directions.
-- **Decision:** `living-spec: on`. `docs/SPEC.md` is the capability index and the canonical answer
+- **Decision:** `living-spec: on`. `docs/lcd/SPEC.md` is the capability index and the canonical answer
   to "what does this do now". `MAP.md`'s Current-state paragraph is deleted and replaced by a
   pointer — the MAP is structural, and behaviour was never its job. `README.md` keeps its State
   section: it is the public front door, and a README that does not say what the tool does is worse
@@ -37,32 +37,44 @@
 - **Scope:** project-wide
 - **Status:** active
 
-## D-014 · 2026-08-12 · LCD returns at plugin 0.15.0, rooted at `docs/` rather than `docs/lcd/`
+## D-014 · 2026-08-12 · LCD returns at plugin 0.15.0, rooted at the default `docs/lcd/`
 - **Context:** D-013 removed the pipeline earlier the same day, on a real measurement: 1,855 lines
   of process docs against 1,978 lines of Rust. What changed is the tooling, not the measurement —
   the plugin is now at 0.15.0, which is not the version D-013 was written against, and the
   re-evaluation is deliberate rather than a walk-back of the reasoning.
-- **Decision:** re-onboard. `artifact-root: docs`, **not** the plugin default `docs/lcd/`:
-  `MAP.md` and `DECISIONS.md` already sit at `docs/` because D-013 promoted them there, and taking
-  the default would have written a second, empty MAP + DECISIONS pair under `docs/lcd/` while
-  D-001…D-013 stayed behind — with the new `CLAUDE.md` pointer aimed at the empty one. Work-items
-  land at `docs/work/<slug>/`.
+- **Decision:** re-onboard at `artifact-root: docs/lcd`, the plugin's default. `MAP.md` and
+  `DECISIONS.md` were `git mv`d back under it from `docs/`, where D-013 had promoted them, so this
+  log keeps its history instead of being reborn empty beside itself. Work-items land at
+  `docs/lcd/work/<slug>/`.
+- **A shallower root was tried first and rejected in review.** This entry originally chose
+  `artifact-root: docs` — reasoning that MAP and DECISIONS already lived there, and that the default
+  would strand D-001…D-013 behind a freshly written empty pair. The stranding risk is real; the
+  remedy is a `git mv`, not a shallower root. The shallow root breaks an assumption no config key
+  states: `audit-crosspath.sh` derives the artifact tree it must exclude from its test-hit search as
+  `${specs_dir%/*}` — the *parent* of `<root>/work`. At `docs/work` that resolves to `docs/`, which
+  silently excludes every match anywhere under `docs/` rather than just the work-item tree; at
+  `docs/lcd/work` it resolves to `docs/lcd`, which is what the script means. `claude-review` caught
+  it on PR #18, before any work-item existed to be mis-audited. Corrected on the same branch, before
+  merge — nothing was rewritten that had ever reached `main`.
+- **The lesson generalizes past that one script.** A non-default `artifact-root` is not a free
+  parameter: the suite carries assumptions about the *shape* of the tree that the machine block does
+  not express. Prefer the default and move the files.
 - **What returns:** triage and lane routing, per-work-item folders, the conventions adapter at
-  `.claude/rules/lcd-conventions.md`, a project-local `ac-convention.md` (its `paths:` globs must
-  match the non-default root or the rule never auto-loads), the three script permissions in
-  `.claude/settings.json`, and `lcd-audit.yml` as a PR check.
+  `.claude/rules/lcd-conventions.md`, the three script permissions in `.claude/settings.json`, and
+  `lcd-audit.yml` as a PR check. At the default root the bundled `ac-convention.md` auto-loads as
+  shipped, so no project-local override is carried.
 - **Why the audit gate comes back:** D-013 dropped it because it had degenerated into a no-op — it
   verifies every acceptance criterion has a test, and no acceptance criteria exist without the
   pipeline that produces them. With the pipeline back, that reason is void. D-009's caution about a
   check that stops reporting still applies, which is why the workflow is scoped to PRs touching
-  `docs/work/**` and skips any work-item without both `spec.md` and `plan.md`.
+  `docs/lcd/work/**` and skips any work-item without both `spec.md` and `plan.md`.
 - **What D-013 got right is kept.** `claude-review` is the check that reads the code, and it is the
   one that found seven defects — two severe — that the audit passed over. Nothing here demotes it,
   and the audit is not being sold as a substitute. The doc-to-code measurement stands as the test:
   if the ratio goes the same way again, this is the decision to revisit.
 - **Alternatives rejected:** stay removed — reasonable, but the cost of re-evaluating at a new
-  version is one branch, and the decision is reversible by deleting the same files again. Default
-  `docs/lcd/` root — splits the decision log, as above.
+  version is one branch, and the decision is reversible by deleting the same files again. Shallow
+  `docs/` root — see above; it survived one round of review and then didn't.
 - **Supersedes:** D-013
 - **Scope:** project-wide
 - **Status:** active
@@ -80,7 +92,7 @@
   acceptance criterion had a test, and acceptance criteria only existed because the pipeline
   produced them. Without that, it is a no-op check that still has to be maintained — and D-009
   records what a required check that stops reporting does to a PR. `gate` and `claude-review` stay.
-  *(D-014 reinstates it, scoped to PRs that touch `docs/work/**`.)*
+  *(D-014 reinstates it, scoped to PRs that touch `docs/lcd/work/**`.)*
 - **`claude-review` is the piece that earned its keep**, which is the honest counterweight here:
   the audit passed on list-command and the review then found seven defects, two severe, in code no
   acceptance criterion described. Process that reads the code paid; process that counted documents

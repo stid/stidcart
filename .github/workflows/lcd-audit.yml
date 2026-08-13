@@ -5,7 +5,7 @@
 # have every (AC × surface) pair backed by an existing handler and a test carrying
 # the literal `AC-N (SURFACE)`.
 #
-# The scripts are VENDORED at docs/ci/ (CI can't assume the plugin is
+# The scripts are VENDORED at docs/lcd/ci/ (CI can't assume the plugin is
 # installed). Re-run /lcd:onboard to refresh them after a plugin update.
 #
 # D-013 deleted an earlier copy of this workflow because it had become a no-op with
@@ -18,7 +18,7 @@ name: LCD audit gate
 on:
   pull_request:
     paths:
-      - "docs/work/**"
+      - "docs/lcd/work/**"
 
 jobs:
   audit:
@@ -42,21 +42,21 @@ jobs:
           set -euo pipefail
           git fetch -q origin "$BASE_REF"
           slugs="$(git diff --name-only "origin/$BASE_REF"...HEAD \
-            | sed -n 's|^docs/work/\([^/]*\)/.*|\1|p' | sort -u)"
+            | sed -n 's|^docs/lcd/work/\([^/]*\)/.*|\1|p' | sort -u)"
           [ -n "$slugs" ] || { echo "no work-items touched"; exit 0; }
           rc=0
           # Newline-safe: an unquoted `for` would word-split a slug containing a
           # space into fragments that all skip as "not Deep-lane" — silent bypass.
           while IFS= read -r slug; do
             [ -n "$slug" ] || continue
-            dir="docs/work/$slug"
+            dir="docs/lcd/work/$slug"
             # Only Deep-lane items (spec + plan) carry the cross-path contract.
             if [ ! -f "$dir/spec.md" ] || [ ! -f "$dir/plan.md" ]; then
               echo "::notice::$slug: no spec.md + plan.md — not a Deep-lane item, skipping"
               continue
             fi
             echo "## auditing $slug"
-            if ! LCD_SPECS_DIR="docs/work" bash "docs/ci/audit-crosspath.sh" "$slug"; then
+            if ! LCD_SPECS_DIR="docs/lcd/work" bash "docs/lcd/ci/audit-crosspath.sh" "$slug"; then
               echo "::error::LCD audit BLOCKED for work-item '$slug' — see table above"
               rc=1
             fi

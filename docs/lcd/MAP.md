@@ -31,7 +31,7 @@ this MAP is structural. Read `SPEC.md`'s surface section before scoping a change
 | firmware | `firmware/` | zlib-licensed C64-side blobs, embedded as data | Any Rust source, anything GPL. The licence boundary runs through this directory |
 | fixtures | `fixtures/` | Frozen `ndeft`-built carts, their input PRGs, and the exact command line that produced each | Generated output, scratch carts, anything not reproducible from a recorded command |
 | tests | `crates/*/tests/` + inline `#[cfg(test)]` | Cargo collects both automatically; no registration step | — |
-| docs | `docs/` | The LCD artifact root (D-014): this MAP, DECISIONS, the SPEC capability index, per-work-item folders under `work/<slug>/`, and the vendored audit scripts in `ci/` | Format documentation (lives in the vault spec — see Invariants); prose that duplicates `README.md` or `SPEC.md` |
+| docs | `docs/lcd/` | The LCD artifact root (D-014): this MAP, DECISIONS, the SPEC capability index, per-work-item folders under `work/<slug>/`, and the vendored audit scripts in `ci/` | Format documentation (lives in the vault spec — see Invariants); prose that duplicates `README.md` or `SPEC.md`; anything non-LCD directly in `docs/` — the tree is the artifact root, not a general docs folder |
 
 ## Entry points
 
