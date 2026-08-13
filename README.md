@@ -14,6 +14,9 @@ Write, read and list, all for PRG entries only. It builds a cart from PRG files,
 into the same builder state byte-identically, and shows what one contains. It does not edit a cart,
 and it has no GUI. The order — write first — was deliberate; see below.
 
+This section is the narrative; `docs/SPEC.md` is the enumerated capability index, with each row
+citing the decision that put it there.
+
 Describing a cart and rebuilding it are held to different standards, because they need to be:
 `list` shows anything it can describe, including hidden entries, while loading additionally refuses
 whatever it could not reproduce unchanged (a hidden entry, or an image whose firmware regions

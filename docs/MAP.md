@@ -17,11 +17,8 @@ decisions, which is what keeps a future GUI (toolkit undecided) a matter of addi
 than restructuring. Successor to ndefpack; no code is shared, and the binary format was extracted
 to a written spec before this repo existed.
 
-Current state: **write, read and list**, all for PRG entries only. It builds a cart from PRG files,
-loads one back into the same builder state byte-identically, and prints what one contains. It does
-not edit a cart. Describing and rebuilding have deliberately different strictness (see Invariants):
-listing shows anything describable, loading also refuses what it could not reproduce. Neither
-supports cartridge entries, half-confined entries or the older directory format.
+What it does *now* is not restated here — `SPEC.md` is the current-state capability index, and
+this MAP is structural. Read `SPEC.md`'s surface section before scoping a change to that surface.
 
 ## Zones / Components
 
@@ -34,7 +31,7 @@ supports cartridge entries, half-confined entries or the older directory format.
 | firmware | `firmware/` | zlib-licensed C64-side blobs, embedded as data | Any Rust source, anything GPL. The licence boundary runs through this directory |
 | fixtures | `fixtures/` | Frozen `ndeft`-built carts, their input PRGs, and the exact command line that produced each | Generated output, scratch carts, anything not reproducible from a recorded command |
 | tests | `crates/*/tests/` + inline `#[cfg(test)]` | Cargo collects both automatically; no registration step | — |
-| docs | `docs/` | Exactly two files: this MAP and DECISIONS | Format documentation (lives in the vault spec — see Invariants); per-work-item planning artifacts (D-013) |
+| docs | `docs/` | The LCD artifact root (D-014): this MAP, DECISIONS, the SPEC capability index, per-work-item folders under `work/<slug>/`, and the vendored audit scripts in `ci/` | Format documentation (lives in the vault spec — see Invariants); prose that duplicates `README.md` or `SPEC.md` |
 
 ## Entry points
 
@@ -45,9 +42,10 @@ supports cartridge entries, half-confined entries or the older directory format.
 
 ## Surfaces in use
 
-`CLI` — the `stidcart` binary. `RENDER` is expected later when a GUI crate lands; it is not
-exposed today. No HTTP, MCP, or DB surface. `EVAL` is `n/a`: output is byte-exact images compared
-against frozen fixtures, never scored.
+`CLI` — the `stidcart` binary. `RENDER` — the `list` formatter (`render()` in
+`crates/stidcart-cli/src/main.rs`), deliberately split from the printing so tests assert on the
+string; a GUI crate would widen this surface, not open it. No HTTP, MCP, or DB surface. `EVAL` is
+`n/a`: output is byte-exact images compared against frozen fixtures, never scored.
 
 ## Invariants (always-true rules for THIS project)
 
@@ -77,6 +75,10 @@ against frozen fixtures, never scored.
 
 ## Conventions pointer
 
-Toolchain, test discovery, the gate command and branch/commit discipline live in `CLAUDE.md`.
-Decisions log: `DECISIONS.md`. This MAP is *structural* — where things live and what is always
-true; it is not a spec of current behaviour, which `README.md`'s State section carries.
+Toolchain, the gate command and branch/commit discipline live in `CLAUDE.md`. The machine-readable
+adapter the LCD suite reads — artifact root, test placement and discovery, scoped/bail/single-test
+commands, constitution notes — is `.claude/rules/lcd-conventions.md`. Decisions log:
+`DECISIONS.md`. Current behaviour: `SPEC.md`.
+
+This MAP is *structural* — where things live and what is always true. It is not a spec of current
+behaviour (`SPEC.md`) and not the human-facing introduction (`README.md`).

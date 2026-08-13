@@ -24,7 +24,8 @@ request in `fixtures/MANIFEST.md` when you do.
 ## How to work here
 
 Read `docs/MAP.md` first on a cold start — it says where things live and lists the invariants that
-hold across all work here. Just build the thing; there is no planning pipeline to run first.
+hold across all work here. `docs/SPEC.md` says what the tool currently does; read the surface
+section you're about to touch. Non-trivial work routes through triage first (see below).
 
 **The gate**, green before every commit, and the same step CI requires on `main`:
 
@@ -44,4 +45,15 @@ rustup's shims — a Homebrew `cargo` ignores the file silently (D-010).
   including the alternatives rejected and why. Write it when the decision is made, not at the end.
   This is the one durable artifact; keep entries tight.
 
-`docs/` holds exactly `MAP.md` and `DECISIONS.md`. Don't add a planning-artifact tree (D-013).
+## Lean Context Development (LCD)
+
+Non-trivial new work (new feature, ≥3 files, or any architecture change) → invoke `lcd:triage`,
+which picks a lane (Quick / Standard / Deep) and states it in one line. Trivial work (typo,
+one-liner, dep bump, known-cause fix) → go direct, no triage.
+
+Artifacts live under `docs/` — the root is `docs/`, not the plugin default `docs/lcd/`, because the
+decision log already lives there (D-014). See `.claude/rules/lcd-conventions.md` for the machine
+block the suite reads.
+
+Project map: `docs/MAP.md` · Decisions: `docs/DECISIONS.md` · Current state: `docs/SPEC.md`
+Work-items: `docs/work/<slug>/`. Resume one after a context reset: `/lcd:resume <slug>`.

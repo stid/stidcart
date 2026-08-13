@@ -8,9 +8,64 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-014 -->
+<!-- Next id: D-016 -->
 
 ---
+
+## D-015 · 2026-08-12 · `SPEC.md` is canonical for current behaviour; the MAP stops restating it
+- **Context:** turning on the living spec adds a third place that describes what the tool does now,
+  alongside `MAP.md`'s "Current state" paragraph and `README.md`'s State section — which said
+  nearly the same thing in nearly the same words. Three copies drift in three directions.
+- **Decision:** `living-spec: on`. `docs/SPEC.md` is the capability index and the canonical answer
+  to "what does this do now". `MAP.md`'s Current-state paragraph is deleted and replaced by a
+  pointer — the MAP is structural, and behaviour was never its job. `README.md` keeps its State
+  section: it is the public front door, and a README that does not say what the tool does is worse
+  than one sentence of overlap. The division is narrative (README) versus enumerated capabilities
+  with provenance (SPEC).
+- **The initial rows are a lower-confidence tier.** They were derived from `MAP.md` and the code on
+  2026-08-12, not from acceptance criteria — no ACs existed for them and no cross-path audit has
+  run against them. They are cited `D-015 (backfill)` and carry a banner at the top of `SPEC.md`.
+  Each decays into an AC-pinned row the next time a work-item touches that capability.
+- **The same rule is applied to the conventions adapter.** The plugin's template restates a
+  project's invariants inside `Constitution notes` so they survive a fresh clone. Here they already
+  live in `MAP.md`, which is in the clone, so the adapter points at that section instead of copying
+  it — a deliberate deviation from the template, for the reason this decision exists. Keep it
+  across `/lcd:onboard` refreshes.
+- **Alternatives rejected:** leave `living-spec: off` — the whole point of the re-onboard was to
+  evaluate what 0.15.0 added, and this is the headline addition. Delete README's State section to
+  remove the overlap outright — that optimizes the agent's reading at the cost of the human's.
+- **Scope:** project-wide
+- **Status:** active
+
+## D-014 · 2026-08-12 · LCD returns at plugin 0.15.0, rooted at `docs/` rather than `docs/lcd/`
+- **Context:** D-013 removed the pipeline earlier the same day, on a real measurement: 1,855 lines
+  of process docs against 1,978 lines of Rust. What changed is the tooling, not the measurement —
+  the plugin is now at 0.15.0, which is not the version D-013 was written against, and the
+  re-evaluation is deliberate rather than a walk-back of the reasoning.
+- **Decision:** re-onboard. `artifact-root: docs`, **not** the plugin default `docs/lcd/`:
+  `MAP.md` and `DECISIONS.md` already sit at `docs/` because D-013 promoted them there, and taking
+  the default would have written a second, empty MAP + DECISIONS pair under `docs/lcd/` while
+  D-001…D-013 stayed behind — with the new `CLAUDE.md` pointer aimed at the empty one. Work-items
+  land at `docs/work/<slug>/`.
+- **What returns:** triage and lane routing, per-work-item folders, the conventions adapter at
+  `.claude/rules/lcd-conventions.md`, a project-local `ac-convention.md` (its `paths:` globs must
+  match the non-default root or the rule never auto-loads), the three script permissions in
+  `.claude/settings.json`, and `lcd-audit.yml` as a PR check.
+- **Why the audit gate comes back:** D-013 dropped it because it had degenerated into a no-op — it
+  verifies every acceptance criterion has a test, and no acceptance criteria exist without the
+  pipeline that produces them. With the pipeline back, that reason is void. D-009's caution about a
+  check that stops reporting still applies, which is why the workflow is scoped to PRs touching
+  `docs/work/**` and skips any work-item without both `spec.md` and `plan.md`.
+- **What D-013 got right is kept.** `claude-review` is the check that reads the code, and it is the
+  one that found seven defects — two severe — that the audit passed over. Nothing here demotes it,
+  and the audit is not being sold as a substitute. The doc-to-code measurement stands as the test:
+  if the ratio goes the same way again, this is the decision to revisit.
+- **Alternatives rejected:** stay removed — reasonable, but the cost of re-evaluating at a new
+  version is one branch, and the decision is reversible by deleting the same files again. Default
+  `docs/lcd/` root — splits the decision log, as above.
+- **Supersedes:** D-013
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-013 · 2026-08-12 · The planning pipeline is removed; this log and the MAP are what survive
 - **Context:** Measured on this repo: 1,855 lines of process docs against 1,978 lines of Rust, and
@@ -25,6 +80,7 @@
   acceptance criterion had a test, and acceptance criteria only existed because the pipeline
   produced them. Without that, it is a no-op check that still has to be maintained — and D-009
   records what a required check that stops reporting does to a PR. `gate` and `claude-review` stay.
+  *(D-014 reinstates it, scoped to PRs that touch `docs/work/**`.)*
 - **`claude-review` is the piece that earned its keep**, which is the honest counterweight here:
   the audit passed on list-command and the review then found seven defects, two severe, in code no
   acceptance criterion described. Process that reads the code paid; process that counted documents
@@ -34,7 +90,7 @@
   encode read-path policy that is genuinely hard to re-derive. Keep the pipeline but raise the
   threshold — it is a judgment call every session, and it had lost all three times.
 - **Scope:** project-wide
-- **Status:** active
+- **Status:** superseded by D-014
 
 ## D-012 · 2026-08-11 · A Claude review gates `main`, and it blocks only on high-severity findings
 - **Context:** `gate` and `audit` check that the suite is green and that every AC has a test. Neither
