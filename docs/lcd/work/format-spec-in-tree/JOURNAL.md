@@ -62,6 +62,18 @@ audit's test-presence check does not apply and no AC ids are claimed (next free 
 - 2026-08-14 — Triaged Standard (3 signals: 3–8 files, contained architecture impact, one-commit
   revert; no hard trigger, no risk signal). Work came from issue #21, filed 2026-08-13, the only
   open item on `stid/stidcart`; no open PRs.
+- 2026-08-14 — **The verbatim claim nearly shipped with unrunnable evidence.** The first PR body
+  offered a `diff` command against a path that does not exist — S4 had already overwritten the vault
+  original, and the vault is not versioned, so nothing on a reviewer's machine reproduces it.
+  Replaced with the actual diff output, captured before the overwrite, and a sentence saying why it
+  cannot be re-run. Reconstructed the pre-stub note from `dc7deec` plus the three exact edit strings
+  and kept it in the session scratchpad until #22 merges: reverting `docs/format/` is trivial,
+  restoring a destroyed vault note is not, and review could still move the file.
+- 2026-08-14 — Checked that a docs-only PR still trips the required checks — it is the first here
+  with nothing under `crates/`. Neither `ci.yml` nor `claude-review.yml` carries a `paths:` filter,
+  so `gate` and `audit` both ran and passed and `claude-review` queued normally. Had `gate` been
+  filtered, a required check with `enforce_admins: true` would have left the PR unmergeable by
+  anyone. Nothing to change; recording it so nobody re-derives it.
 - 2026-08-14 — Closeout. Gate green (fmt, clippy `-D warnings`, 13 test targets) on the pinned
   toolchain — `cargo 1.97.1` from `/opt/homebrew/opt/rustup/bin`, checked per D-010 before trusting
   it. No audit: no surface was declared, so the test-presence check has nothing to check.
