@@ -8,9 +8,54 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-019 -->
+<!-- Next id: D-021 -->
 
 ---
+
+## D-020 · 2026-08-14 · The entry model carries the hidden flag, retiring the hidden-entry rebuild refusal
+- **Context:** `read.rs:344` refuses any cart containing a hidden entry when reading it back for
+  rebuilding, with the message "cannot be rebuilt unchanged yet". The refusal is not a format fact —
+  the flag is bit 7 of the entry flags byte (`docs/format/easyflash-cart-format.md:119`) and
+  ndefpack round-trips it. It exists because the builder had nowhere to put the flag, so a load would
+  have silently dropped it. `cart-edit` adds toggling hidden as a user-facing operation, which means
+  the model has to carry the flag regardless.
+- **Decision:** the flag becomes part of the entry model, on both the write and read sides, and the
+  `HiddenEntry` refusal is removed. A cart with hidden entries loads, edits and saves; an untouched
+  load-and-save of such a cart is byte-identical (spec AC-29). Describing such a cart was never
+  refused (D-011), so this closes the gap in the other direction — the rebuild path stops being the
+  narrower of the two for a reason that no longer holds.
+- **`build` gains the marker too.** The alternative — hidden settable only by editing — keeps
+  `build`'s surface frozen, but produces a tool whose two write paths disagree about what a cart can
+  contain, and the fixture parity it protects is unaffected as long as nothing is marked (spec
+  AC-28).
+- **This is a lossy-model fix, not a read-path divergence decision.** D-007 governs which ndefpack
+  behaviours to reproduce; nothing here reproduces or diverges from one. The refusal was this repo's
+  own, and it is retired by removing the reason it existed.
+- **Scope:** `stidcart-core` read and write paths, `build` and `edit` CLI surfaces (narrows the
+  refusal set recorded in `SPEC.md`'s Internal section)
+- **Status:** active
+
+## D-019 · 2026-08-14 · An edit re-places the whole cart and saves in place by default
+- **Context:** `cart-edit` reads a cart into builder state, mutates the entry set and writes it back.
+  Two forks had to be settled before planning: whether entries the user did not touch keep their
+  stored bank and offset, and where the result lands.
+- **Decision — re-place everything.** Saving an edited cart produces exactly the bytes a fresh build
+  of the resulting entry set produces (spec AC-30). There is one placement path, the fixtures oracle
+  keeps applying to it, and the described-versus-rebuilt split (D-011) stays where it is: `list`
+  still reports positions as stored, and only the rebuild path re-places.
+- **Preserving placement was the alternative, and it costs a second placement mode.** Fitting
+  additions into the gaps left by removals would make an edited cart diffable against its input, but
+  it needs a fill-the-holes placer beside the largest-first interleaved one, no fixture can pin its
+  output, and it can refuse an addition that a rebuild would have fit. Not worth it for a diff nobody
+  asked for. The one byte-identity that does matter — reading a cart and saving it back with no
+  operations applied — holds anyway, and is pinned by AC-29.
+- **Decision — in place by default, a named destination redirects.** The reason to require a
+  destination is that a typo cannot then destroy a cart; the reason not to is that editing your own
+  cart is the common case and a two-file dance for every change is friction the tool would be adding
+  for itself. The safety this buys is bought instead by AC-24: a failed edit leaves every input
+  byte-identical, so the failure mode the read-only default guards against is closed directly.
+- **Scope:** the `edit` CLI surface and the rebuild path in `stidcart-core`
+- **Status:** active
 
 ## D-018 · 2026-08-14 · The format spec lives in the tree at `docs/format/`, not in the vault
 - **Context:** `reference/easyflash-cart-format.md` in the Obsidian vault was the source for every
