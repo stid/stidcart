@@ -11,17 +11,20 @@
 - **Lane:** Deep
 - **Goal:** Edit an existing cart — load it, add/remove/rename/replace entries, toggle hidden, set
   the container and menu names, and write the result back (in place by default, or to a destination).
-- **Next action:** run `/lcd:tasks cart-edit`
-- **Branch:** feat/cart-edit  ·  **Updated:** 2026-08-14 22:45
+- **Next action:** run `/lcd:test-gen cart-edit`
+- **Branch:** feat/cart-edit  ·  **Updated:** 2026-08-14 22:55
 
 ## STEPS
-- [x] S1 — triage → Deep (6 signals, hard:yes risk:yes); logged in `docs/lcd/triage-log.md`
-- [x] S2 — `/lcd:plan cart-edit` — mutators on `CartBuilder`, hidden in `Program`, one `edit`
-  command with repeatable op flags, atomic write in the CLI
-- [ ] S3 — `/lcd:tasks cart-edit` — TDD-ordered checklist  ← next
-- [ ] S4 — `/lcd:test-gen cart-edit` — one failing test per (AC × surface), AC-17..AC-30
-- [ ] S5 — `lcd:redgreen-loop` — per-fix commits until green
-- [ ] S6 — `/lcd:audit cart-edit`, then PR
+> Mirrors `tasks.md` (T1..T23 + T-audit/T-final); read that file for each task's detail.
+- [x] S1 — triage → Deep; `spec.md` (AC-17..AC-30); `plan.md` (approach, constitution, matrix)
+- [ ] S2 — T1: bump `Cargo.toml` 0.4.0 → 0.5.0 in the first implementation commit  ← next
+- [ ] S3 — T2..T4: hidden enters the model — `lib.rs` (`Program.hidden`, `build_image`), `read.rs`
+  (`load` carries it, `HiddenEntry` refusal deleted) · AC-29
+- [ ] S4 — T5..T6: `CartBuilder` mutators in `lib.rs` · AC-30
+- [ ] S5 — T7..T17: failing CLI tests in `tests/edit.rs` · AC-17..AC-27
+- [ ] S6 — T18..T20: `edit` in `main.rs` — grammar + bounds checks, three-phase apply, atomic write
+- [ ] S7 — T21..T22: `build --hide` + its test · AC-28
+- [ ] S8 — T23 README, then `/lcd:audit cart-edit` and the gate
 
 ## DECISIONS (this work-item)
 - Entries are addressed **by index only**, as shown in the listing — unambiguous when two entries
@@ -41,6 +44,7 @@
 - `crates/stidcart-core/src/lib.rs` — `Program.hidden`, `CartBuilder` mutators, `build_image` writes
   the flag
 - `crates/stidcart-core/src/read.rs` — `load` carries the flag; the `HiddenEntry` refusal is removed
+- `crates/stidcart-core/tests/read.rs` — :164 and :439 match that variant; they flip to "it loads"
 - `crates/stidcart-cli/src/main.rs` — the `edit` command + atomic write; `build --hide`; `USAGE`
 - `crates/stidcart-core/tests/mutate.rs` (new) — AC-29, AC-30
 - `crates/stidcart-cli/tests/edit.rs` (new) — AC-17..AC-27
@@ -60,6 +64,11 @@ See `spec.md` — **AC-17 … AC-30** (CLI: 17–28; none: 29–30). Numbering s
 work-item.
 
 ## LOG (append-only; not read on resume)
+
+- 2026-08-14 22:55 — tasks.md written: 25 tasks (23 + audit + final), one parallel-eligible. Two
+  checkpoint hazards recorded there rather than discovered later — `tests/read.rs:164,439` match on
+  `Unsupported::HiddenEntry` and stop compiling when T4 deletes it (they flip to "it loads", per
+  D-020), and `build_image` is parity-gated, so `--test parity` must stay green through T3.
 
 - 2026-08-14 22:45 — plan.md written. Core shape chosen with the user: mutators on `CartBuilder`,
   not an editable document type and not a raw `&mut Vec`. Two things the plan found by reading rather
@@ -84,7 +93,7 @@ work-item.
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
 
 <!--

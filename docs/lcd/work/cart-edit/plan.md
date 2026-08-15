@@ -175,6 +175,8 @@ crates/stidcart-cli/tests/edit.rs      AC-17..AC-27 — the edit command driven 
   `build_image` writes `program.hidden` instead of `false`
 - `crates/stidcart-core/src/read.rs` — `load` carries the hidden flag into each `Program`; the
   `Unsupported::HiddenEntry` variant, its refusal and its message are removed
+- `crates/stidcart-core/tests/read.rs` — lines 164 and 439 match on that variant, so they change in
+  the same commit: both flip to asserting that a hidden-carrying cart loads
 - `crates/stidcart-cli/src/main.rs` — the `edit` command, its parsing and its atomic write;
   `build` gains `--hide`; `USAGE` updated
 - `crates/stidcart-cli/tests/cli.rs` — AC-28 (a build marking one input hidden, and the unchanged
