@@ -8,9 +8,41 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-018 -->
+<!-- Next id: D-019 -->
 
 ---
+
+## D-018 · 2026-08-14 · The format spec lives in the tree at `docs/format/`, not in the vault
+- **Context:** `reference/easyflash-cart-format.md` in the Obsidian vault was the source for every
+  offset in `stidcart-core` — an invariant in `MAP.md` and an instruction in `CLAUDE.md`. The vault
+  is not a git repo. PR #20 turned that from a tidiness question into a concrete failure: D-017
+  rests on a correction to that spec, the correction landed as a plain file edit, and the reviewer
+  saw a citation to a change absent from the diff. `gate`, `audit` and `claude-review` all ran
+  against a tree that did not contain the document their subject depends on, and the wrong claim had
+  already been copied into `directory.rs:12,67` with a test pinning it — drift a reviewer could not
+  see, because the copy and the original were not diffable.
+- **Decision:** the spec moves to `docs/format/easyflash-cart-format.md` and the vault keeps a stub
+  pointing at it. A format fact is now corrected there first, in the same PR as the code it
+  justifies. **Supersedes the vault clause of the format-facts invariant** (`MAP.md`); the
+  invariant itself — facts come from the spec, never re-derived from ndefpack's C — is unchanged and
+  is the whole reason the document has to be reviewable. `projects/ndefpack.md` stays in the vault:
+  it is the predecessor's decision log, not a spec this codebase owns.
+- **`docs/format/` over the alternatives.** `spec/` at the root would leave D-014's docs zone
+  untouched but adds a top-level directory for one file. Dropping the file into `docs/` directly
+  would mean deleting the zone's anti-sprawl clause outright. Splitting the zone in two keeps the
+  guardrail and moves it down a level: nothing non-LCD directly in `docs/lcd/`.
+- **The licence question is settled, not assumed.** The spec was written by reading ndefpack's GPL
+  C, so it is a derivative work by exactly D-004's argument and GPL-2.0-or-later is where it already
+  belonged. Publishing the repo changes nothing — the obligation travels with the licence. The
+  moved file says so in its own header.
+- **The move is verbatim.** Only the Obsidian frontmatter, the two `[[wikilinks]]` and the closing
+  "Related" line changed, plus an added header and licence note; `diff` against the vault original
+  shows nothing else. Correcting what the spec *says* is separate work needing its own `file:line`
+  evidence — the point of this change is that such a correction is now reviewable, not that any
+  were made.
+- **Scope:** project-wide (supersedes the vault clause of the format-facts invariant in `MAP.md`;
+  D-014's `docs/lcd/` artifact root is unchanged)
+- **Status:** active
 
 ## D-017 · 2026-08-12 · The reserved flag bits are the EasyFS version discriminator, not a quirk to tolerate
 - **Context:** D-007 decided an EasyFS1 directory returns a typed `Unsupported` error, and the code
