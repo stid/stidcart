@@ -137,7 +137,11 @@ fn ac_6_a_directory_with_no_end_marker_anywhere_is_refused() {
     );
 }
 
-/// AC-7 (none): cartridge and hidden entries are refused as unsupported.
+/// AC-7 (none): cartridge entries are refused as unsupported.
+///
+/// A hidden entry was refused here too until D-020 gave the description somewhere to keep the flag.
+/// The two were never the same case: a cartridge entry is content this tool cannot represent at
+/// all, while hiding was representable everywhere except in the value `load` returns.
 #[test]
 fn ac_7_cartridge_and_hidden_entries_are_refused_as_unsupported() {
     // Type 0x11 is a 16k cartridge. `EntryType` deliberately enumerates only the program types, so
@@ -155,16 +159,15 @@ fn ac_7_cartridge_and_hidden_entries_are_refused_as_unsupported() {
 
     let mut hidden = an_entry();
     hidden.hidden = true;
+    let loaded = read::load(&cart_with_slots(&[
+        directory::encode(&hidden),
+        directory::end_marker(),
+    ]))
+    .expect("a hidden entry is representable now, so it loads (D-020)");
     assert!(
-        matches!(
-            read::load(&cart_with_slots(&[
-                directory::encode(&hidden),
-                directory::end_marker()
-            ])),
-            Err(ReadError::Unsupported(Unsupported::HiddenEntry { .. }))
-        ),
-        "the description has no way to express hiding, so loading it would silently drop the flag \
-         and rebuild to different bytes"
+        loaded.programs()[0].hidden,
+        "and the flag arrives with it — dropping it silently is the failure the old refusal existed \
+         to prevent"
     );
 
     // The distinguishability half of the criterion: a malformed image must not land in the same
@@ -404,9 +407,9 @@ fn a_half_confined_entry_is_refused_rather_than_read_with_the_wrong_layout() {
     }
 }
 
-/// A hidden entry is listed, and refused only by the path that would rebuild it.
+/// A hidden entry is listed, and loads — both paths carry the flag rather than dropping it.
 #[test]
-fn inspect_lists_a_hidden_entry_that_load_refuses() {
+fn inspect_and_load_both_carry_a_hidden_entrys_flag() {
     let mut hidden = an_entry();
     hidden.name = "easyloader ocm".into();
     hidden.hidden = true;
@@ -433,13 +436,16 @@ fn inspect_lists_a_hidden_entry_that_load_refuses() {
     assert!(info.entries[0].hidden, "the flag is reported, not dropped");
     assert!(!info.entries[1].hidden);
 
-    assert!(
-        matches!(
-            read::load(&cart),
-            Err(ReadError::Unsupported(Unsupported::HiddenEntry { .. }))
-        ),
-        "rebuilding would silently drop the flag, so loading still refuses — the refusal belongs \
-         to the path that rebuilds, not to the one that describes"
+    let loaded = read::load(&cart).expect("both entries are representable, so the cart loads");
+    assert_eq!(
+        loaded
+            .programs()
+            .iter()
+            .map(|p| (p.name.as_str(), p.hidden))
+            .collect::<Vec<_>>(),
+        [("easyloader ocm", true), ("visible", false)],
+        "the rebuild path carries the flag now (D-020); it refused only while it had nowhere to put \
+         it, which would have made a save drop the flag silently"
     );
 }
 
