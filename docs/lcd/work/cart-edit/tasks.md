@@ -89,7 +89,8 @@
 ### CLI: build learns the marker (AC-28)
 
 - [ ] **T21**: Write failing test named `AC-28 (CLI): build --hide marks that input hidden, and a
-  build marking nothing is byte-unchanged` in `crates/stidcart-cli/tests/cli.rs`.
+  build marking nothing is byte-unchanged` in `crates/stidcart-cli/tests/edit.rs` — this work-item's
+  own file rather than `cli.rs`, so phase 4 adds tests without editing an existing suite.
 - [ ] **T22**: Add `--hide INPUT.prg` to `build` in `crates/stidcart-cli/src/main.rs` — matched
   against the given input paths, erroring when it matches none — and extend `USAGE`.
 

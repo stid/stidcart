@@ -11,17 +11,19 @@
 - **Lane:** Deep
 - **Goal:** Edit an existing cart — load it, add/remove/rename/replace entries, toggle hidden, set
   the container and menu names, and write the result back (in place by default, or to a destination).
-- **Next action:** run `/lcd:test-gen cart-edit`
-- **Branch:** feat/cart-edit  ·  **Updated:** 2026-08-14 22:55
+- **Next action:** run `lcd:redgreen-loop` (14 tests red: `--test mutate` 2, `--test edit` 12)
+- **Branch:** feat/cart-edit  ·  **Updated:** 2026-08-14 23:10
 
 ## STEPS
 > Mirrors `tasks.md` (T1..T23 + T-audit/T-final); read that file for each task's detail.
 - [x] S1 — triage → Deep; `spec.md` (AC-17..AC-30); `plan.md` (approach, constitution, matrix)
+- [x] S5' — T2, T5, T7..T17, T21: the failing tests exist and are red — `tests/mutate.rs` (AC-29,
+  AC-30, red at compile: the mutators do not exist) and `tests/edit.rs` (AC-17..AC-28, red at run:
+  `unknown command 'edit'`)
 - [ ] S2 — T1: bump `Cargo.toml` 0.4.0 → 0.5.0 in the first implementation commit  ← next
-- [ ] S3 — T2..T4: hidden enters the model — `lib.rs` (`Program.hidden`, `build_image`), `read.rs`
+- [ ] S3 — T3..T4: hidden enters the model — `lib.rs` (`Program.hidden`, `build_image`), `read.rs`
   (`load` carries it, `HiddenEntry` refusal deleted) · AC-29
-- [ ] S4 — T5..T6: `CartBuilder` mutators in `lib.rs` · AC-30
-- [ ] S5 — T7..T17: failing CLI tests in `tests/edit.rs` · AC-17..AC-27
+- [ ] S4 — T6: `CartBuilder` mutators in `lib.rs` · AC-30
 - [ ] S6 — T18..T20: `edit` in `main.rs` — grammar + bounds checks, three-phase apply, atomic write
 - [ ] S7 — T21..T22: `build --hide` + its test · AC-28
 - [ ] S8 — T23 README, then `/lcd:audit cart-edit` and the gate
@@ -38,21 +40,28 @@
   (→ DECISIONS D-020).
 
 ## OPEN QUESTIONS
-- none blocking `/lcd:plan`
+- none blocking `/lcd:test-gen`
 
 ## EDIT BOUNDARY (paths this work may touch)
-- `crates/stidcart-core/src/lib.rs` — `Program.hidden`, `CartBuilder` mutators, `build_image` writes
-  the flag
-- `crates/stidcart-core/src/read.rs` — `load` carries the flag; the `HiddenEntry` refusal is removed
-- `crates/stidcart-core/tests/read.rs` — :164 and :439 match that variant; they flip to "it loads"
-- `crates/stidcart-cli/src/main.rs` — the `edit` command + atomic write; `build --hide`; `USAGE`
-- `crates/stidcart-core/tests/mutate.rs` (new) — AC-29, AC-30
-- `crates/stidcart-cli/tests/edit.rs` (new) — AC-17..AC-27
-- `crates/stidcart-cli/tests/cli.rs` — AC-28
-- `Cargo.toml` — 0.4.0 → 0.5.0 in the first implementation commit (`feat/` branch, versioning rule)
-- `README.md` — the State section still says "It does not edit a cart"
-- `docs/lcd/work/cart-edit/`, `docs/lcd/DECISIONS.md`, `docs/lcd/SPEC.md` (closeout only)
-- **Not touched:** `docs/format/` — no format fact changes; `directory.rs` already encodes bit 7
+> Bare paths only — the boundary hook matches each bullet as a path, so annotations go here, not on
+> the bullets. `lib.rs`: `Program.hidden`, mutators, `build_image` writes the flag. `read.rs`: `load`
+> carries it, the `HiddenEntry` refusal goes. `tests/read.rs`: :164 and :439 match that variant and
+> flip to "it loads". `main.rs`: the `edit` command, atomic write, `build --hide`, `USAGE`.
+> `mutate.rs` and `edit.rs` are new. `Cargo.toml`: 0.4.0 → 0.5.0 in the first implementation commit.
+> `README.md`: the State section still says the tool cannot edit. **Not touched:** `docs/format/` —
+> no format fact changes, and `directory.rs` already encodes bit 7.
+- `crates/stidcart-core/src/lib.rs`
+- `crates/stidcart-core/src/read.rs`
+- `crates/stidcart-core/tests/read.rs`
+- `crates/stidcart-core/tests/mutate.rs`
+- `crates/stidcart-cli/src/main.rs`
+- `crates/stidcart-cli/tests/edit.rs`
+- `crates/stidcart-cli/tests/cli.rs`
+- `Cargo.toml`
+- `README.md`
+- `docs/lcd/work/cart-edit`
+- `docs/lcd/DECISIONS.md`
+- `docs/lcd/SPEC.md`
 <!-- /lcd-resume -->
 
 ---
@@ -64,6 +73,12 @@ See `spec.md` — **AC-17 … AC-30** (CLI: 17–28; none: 29–30). Numbering s
 work-item.
 
 ## LOG (append-only; not read on resume)
+
+- 2026-08-14 23:10 — test-gen: 14 failing tests, one per AC. AC-28's test went into this
+  work-item's own `tests/edit.rs` rather than the existing `tests/cli.rs`, so phase 4 added files
+  without editing another suite; tasks T21 and the plan's file list follow. The EDIT BOUNDARY block
+  was rewritten to bare paths — the boundary hook parses each bullet as a path, so the trailing
+  `— what changes` prose made every entry unmatchable and blocked the first write.
 
 - 2026-08-14 22:55 — tasks.md written: 25 tasks (23 + audit + final), one parallel-eligible. Two
   checkpoint hazards recorded there rather than discovered later — `tests/read.rs:164,439` match on
@@ -93,7 +108,7 @@ work-item.
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
 
 <!--

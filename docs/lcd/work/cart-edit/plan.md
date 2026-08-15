@@ -166,7 +166,8 @@ mutations (last wins per index), removals descending, additions appended.
 ```
 crates/stidcart-core/tests/mutate.rs   AC-29, AC-30 — the round trip through the mutating API and
                                        the equality with a fresh build of the resulting set
-crates/stidcart-cli/tests/edit.rs      AC-17..AC-27 — the edit command driven as a binary
+crates/stidcart-cli/tests/edit.rs      AC-17..AC-28 — the edit command driven as a binary, and the
+                                       marker `build` gains beside it
 ```
 
 ### Modified files
@@ -179,8 +180,6 @@ crates/stidcart-cli/tests/edit.rs      AC-17..AC-27 — the edit command driven 
   the same commit: both flip to asserting that a hidden-carrying cart loads
 - `crates/stidcart-cli/src/main.rs` — the `edit` command, its parsing and its atomic write;
   `build` gains `--hide`; `USAGE` updated
-- `crates/stidcart-cli/tests/cli.rs` — AC-28 (a build marking one input hidden, and the unchanged
-  bytes when nothing is marked)
 - `Cargo.toml` — version `0.4.0` → `0.5.0` (first implementation commit)
 - `README.md` — the State section currently says "It does not edit a cart"
 - `docs/lcd/work/cart-edit/` — JOURNAL upkeep as the work proceeds
