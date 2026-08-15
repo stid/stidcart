@@ -4,7 +4,7 @@
 > you) don't re-derive the project's shape every session — and don't reinvent a place that already
 > exists. Update it in the same commit as any change that makes it wrong. Keep under ~150 lines.
 
-**Generated:** 2026-08-10 · **Last refined:** 2026-08-12
+**Generated:** 2026-08-10 · **Last refined:** 2026-08-14
 
 ---
 
@@ -31,7 +31,8 @@ this MAP is structural. Read `SPEC.md`'s surface section before scoping a change
 | firmware | `firmware/` | zlib-licensed C64-side blobs, embedded as data | Any Rust source, anything GPL. The licence boundary runs through this directory |
 | fixtures | `fixtures/` | Frozen `ndeft`-built carts, their input PRGs, and the exact command line that produced each | Generated output, scratch carts, anything not reproducible from a recorded command |
 | tests | `crates/*/tests/` + inline `#[cfg(test)]` | Cargo collects both automatically; no registration step | — |
-| docs | `docs/lcd/` | The LCD artifact root (D-014): this MAP, DECISIONS, the SPEC capability index, per-work-item folders under `work/<slug>/`, and the vendored audit scripts in `ci/` | Format documentation (lives in the vault spec — see Invariants); prose that duplicates `README.md` or `SPEC.md`; anything non-LCD directly in `docs/` — the tree is the artifact root, not a general docs folder |
+| docs | `docs/lcd/` | The LCD artifact root (D-014): this MAP, DECISIONS, the SPEC capability index, per-work-item folders under `work/<slug>/`, and the vendored audit scripts in `ci/` | Format documentation (that's `docs/format/`); prose that duplicates `README.md` or `SPEC.md`; anything non-LCD directly in `docs/lcd/` — the tree is the artifact root, not a general docs folder |
+| format | `docs/format/` | The EasyFlash binary format spec (D-018) — the source for every offset in `stidcart-core`, and the only place a format fact is stated | Anything about *this tool's* behaviour or decisions (`SPEC.md`, `DECISIONS.md`); prose that isn't the format itself. `docs/` holds these two subtrees and nothing loose |
 
 ## Entry points
 
@@ -61,14 +62,15 @@ string; a GUI crate would widen this surface, not open it. No HTTP, MCP, or DB s
   made ndefpack's core unreusable; it is not being reproduced.
 - **The crate version is written into every cart** as the default CRT header name, so a version
   bump changes produced bytes.
-- **Format facts come from `reference/easyflash-cart-format.md`** in the Obsidian vault, which
-  records which ndefpack behaviours are format-mandated and which are implementation artifacts.
-  Re-deriving from the C risks inheriting a quirk by accident.
+- **Format facts come from `docs/format/easyflash-cart-format.md`** (D-018), which records which
+  ndefpack behaviours are format-mandated and which are implementation artifacts. Re-deriving from
+  the C risks inheriting a quirk by accident. A correction lands in that file first, in the same PR
+  as the code it justifies — the point of it being in the tree is that a reviewer can see both.
 - **Describing an image and rebuilding it are held to different standards** (D-011). One directory
   walk, two views: it refuses only what it cannot *describe*, and `load` layers the rebuild
   preconditions on top. A refusal justified by "the builder cannot express this" belongs to the
   rebuild path alone — applied to a listing, it fails on exactly the carts worth inspecting.
-- **Read-path divergence is decided per behaviour, never by a blanket rule** (D-007). The vault
+- **Read-path divergence is decided per behaviour, never by a blanket rule** (D-007). The format
   spec's "behaviours to decide on" list classifies each one; follow that classification rather than
   reproducing or fixing the set wholesale. A quirk the spec calls an implementation artifact gets
   fixed; one it calls format-mandated stays.

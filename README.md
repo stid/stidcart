@@ -5,8 +5,8 @@ EasyFlash 3.
 
 Successor to [ndefpack](https://github.com/stid/ndefpack) (Hannu Nuotio, 2012), which is a
 knowledge base here rather than an upstream. No code is shared. The binary format was extracted
-from ndefpack's C sources into a written spec before this repo existed — that spec is the
-reference for everything in `stidcart-core`.
+from ndefpack's C sources into a written spec before this repo existed — that spec is
+`docs/format/easyflash-cart-format.md`, and it is the reference for everything in `stidcart-core`.
 
 ## State
 
@@ -21,8 +21,9 @@ Describing a cart and rebuilding it are held to different standards, because the
 `list` shows anything it can describe, including hidden entries, while loading additionally refuses
 whatever it could not reproduce unchanged (a hidden entry, or an image whose firmware regions
 differ from the blobs embedded here). Both refuse what neither can represent: cartridge entries and
-entries confined to one half of a bank. Directories in the older EasyFS1 format are a different
-case — nothing detects them, so they are walked as EasyFS2 and misread rather than refused.
+entries confined to one half of a bank. Directories in the older EasyFS1 format are refused by both
+paths: read as EasyFS2 every entry gets a corrupted bank, so there is no accurate description to
+give (D-017).
 
 ## Layout
 

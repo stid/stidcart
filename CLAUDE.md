@@ -2,17 +2,21 @@
 
 C64 cartridge tooling in Rust. See `README.md` for orientation and `docs/lcd/MAP.md` for structure.
 
+## The format spec
+
+`docs/format/easyflash-cart-format.md` — the binary format: CRT container, EasyFS2 directory,
+bank-0 reserved map, placement rules, and which ndefpack behaviours are format-mandated versus
+implementation artifacts. **Read it before touching anything in `stidcart-core`.** It is the source
+for every offset in this repo; the format is documented nowhere in ndefpack's own tree, so
+re-deriving it from that C risks inheriting a quirk by accident. A format fact changes there first,
+in a reviewable commit, and only then in code (D-018).
+
 ## Knowledge vault references
 
 Pointers only — read the note, never copy its content here.
 
-- `reference/easyflash-cart-format.md` (Obsidian vault at `~/Documents/obsidian/stid`) — the binary
-  format: CRT container, EasyFS2 directory, bank-0 reserved map, placement rules, and which
-  ndefpack behaviours are format-mandated versus implementation artifacts. **Read it before
-  touching anything in `stidcart-core`.** It is the source for every offset in this repo; the
-  format is documented nowhere in ndefpack's own tree, so re-deriving it from that C risks
-  inheriting a quirk by accident.
-- `projects/ndefpack.md` — the predecessor's decision log, including why this repo exists.
+- `projects/ndefpack.md` (Obsidian vault at `~/Documents/obsidian/stid`) — the predecessor's
+  decision log, including why this repo exists.
 
 ## The reference implementation
 

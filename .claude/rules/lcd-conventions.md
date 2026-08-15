@@ -73,7 +73,7 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
 > branch removing exactly that kind of duplicate.
 
 - **Honor every invariant in the `Invariants` section of `docs/lcd/MAP.md`** — byte parity against the
-  fixtures, the decaying oracle, the vault as the source of format facts, the zlib/GPL boundary at
+  fixtures, the decaying oracle, `docs/format/` as the source of format facts, the zlib/GPL boundary at
   `firmware/`, no global state or I/O policy in the core, the crate version reaching produced bytes,
   describing versus rebuilding (D-011), and per-behaviour read-path divergence (D-007). Read that
   section, not a paraphrase of it.
