@@ -11,8 +11,8 @@
 - **Lane:** Deep
 - **Goal:** Edit an existing cart — load it, add/remove/rename/replace entries, toggle hidden, set
   the container and menu names, and write the result back (in place by default, or to a destination).
-- **Next action:** run `lcd:redgreen-loop` (14 tests red: `--test mutate` 2, `--test edit` 12)
-- **Branch:** feat/cart-edit  ·  **Updated:** 2026-08-14 23:10
+- **Next action:** run `/lcd:audit cart-edit`, then open the PR
+- **Branch:** feat/cart-edit  ·  **Updated:** 2026-08-14 23:35
 
 ## STEPS
 > Mirrors `tasks.md` (T1..T23 + T-audit/T-final); read that file for each task's detail.
@@ -20,13 +20,14 @@
 - [x] S5' — T2, T5, T7..T17, T21: the failing tests exist and are red — `tests/mutate.rs` (AC-29,
   AC-30, red at compile: the mutators do not exist) and `tests/edit.rs` (AC-17..AC-28, red at run:
   `unknown command 'edit'`)
-- [ ] S2 — T1: bump `Cargo.toml` 0.4.0 → 0.5.0 in the first implementation commit  ← next
-- [ ] S3 — T3..T4: hidden enters the model — `lib.rs` (`Program.hidden`, `build_image`), `read.rs`
-  (`load` carries it, `HiddenEntry` refusal deleted) · AC-29
-- [ ] S4 — T6: `CartBuilder` mutators in `lib.rs` · AC-30
-- [ ] S6 — T18..T20: `edit` in `main.rs` — grammar + bounds checks, three-phase apply, atomic write
-- [ ] S7 — T21..T22: `build --hide` + its test · AC-28
-- [ ] S8 — T23 README, then `/lcd:audit cart-edit` and the gate
+- [x] S2 — T1: `Cargo.toml` 0.4.0 → 0.5.0, in the first implementation commit
+- [x] S3 — T3..T4: hidden in the model — `lib.rs` (`Program.hidden`, `build_image`), `read.rs`
+  (`load` carries it, `HiddenEntry` deleted), `tests/read.rs` flipped to "it loads" · AC-29
+- [x] S4 — T6: `CartBuilder` mutators in `lib.rs` · AC-30
+- [x] S6 — T18..T20: `edit` in `main.rs` — grammar + bounds checks, three-phase apply, atomic write
+- [x] S7 — T22: `build --hide`, addressed by input path · AC-28
+- [x] S8a — T23: README State section and usage block
+- [ ] S8b — T-audit `/lcd:audit cart-edit`, then the PR  ← next
 
 ## DECISIONS (this work-item)
 - Entries are addressed **by index only**, as shown in the listing — unambiguous when two entries
@@ -74,6 +75,12 @@ work-item.
 
 ## LOG (append-only; not read on resume)
 
+- 2026-08-14 23:35 — red-green: green in 2 iterations, 0 reverts, 0 interventions. Iteration 1 took
+  the core (hidden in the model + mutators, `tests/read.rs` flipped) — the two flipped tests are the
+  behaviour change D-020 authorised, not collateral. Iteration 2 was the `edit` command; AC-25 and
+  AC-26 passed without a line of refusal code, because `read::load`'s preconditions already are
+  those refusals. Full gate green: fmt, clippy `-D warnings`, `cargo test --workspace`.
+
 - 2026-08-14 23:10 — test-gen: 14 failing tests, one per AC. AC-28's test went into this
   work-item's own `tests/edit.rs` rather than the existing `tests/cli.rs`, so phase 4 added files
   without editing another suite; tasks T21 and the plan's file list follow. The EDIT BOUNDARY block
@@ -108,7 +115,7 @@ work-item.
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
 
 <!--

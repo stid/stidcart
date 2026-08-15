@@ -10,9 +10,14 @@ from ndefpack's C sources into a written spec before this repo existed — that 
 
 ## State
 
-Write, read and list, all for PRG entries only. It builds a cart from PRG files, loads one back
-into the same builder state byte-identically, and shows what one contains. It does not edit a cart,
-and it has no GUI. The order — write first — was deliberate; see below.
+Write, read, list and edit, all for PRG entries only. It builds a cart from PRG files, loads one
+back into the same builder state byte-identically, shows what one contains, and changes one in
+place — adding, removing, renaming and replacing entries, hiding them, and setting either name. It
+has no GUI. The order — write first — was deliberate; see below.
+
+Editing saves through the same placement the build path uses, so an edited cart is the cart a fresh
+build of the resulting entries would have produced, not a patch of the file that arrived: entries
+the request never mentioned can move.
 
 This section is the narrative; `docs/lcd/SPEC.md` is the enumerated capability index, with each row
 citing the decision that put it there.
@@ -53,6 +58,7 @@ Building the write path first defers that decision instead of pre-empting it.
 cargo test --workspace
 cargo run -p stidcart-cli -- build -e "name" -o out.crt some.prg
 cargo run -p stidcart-cli -- list out.crt
+cargo run -p stidcart-cli -- edit out.crt --rename 0 "new name" --add another.prg
 ```
 
 The parity test needs only the checked-in fixtures; `ndeft` does not have to be installed.
