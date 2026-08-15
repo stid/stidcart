@@ -39,7 +39,8 @@
 - `crates/stidcart-core/src/read.rs` — the hidden-entry refusal is retired
 - `crates/stidcart-core/src/directory.rs` — hidden flag on the write side
 - `crates/stidcart-cli/src/main.rs` — the `edit` command; `build` gains the hidden marker
-- `crates/stidcart-core/tests/cart-edit.rs`, `crates/stidcart-cli/tests/edit.rs` — AC tests
+- `crates/stidcart-core/tests/mutate.rs`, `crates/stidcart-cli/tests/edit.rs` — AC tests (single-word
+  target stems, unique across both crates, so `--test <stem>` resolves without `-p`)
 - `docs/lcd/work/cart-edit/`, `docs/lcd/DECISIONS.md`, `docs/lcd/SPEC.md`, `.claude/rules/lcd-conventions.md`
 <!-- /lcd-resume -->
 
@@ -55,6 +56,12 @@ work-item.
 
 - 2026-08-14 22:20 — triage: Deep (6 signals, hard:yes risk:yes). Scope confirmed with the user as
   the full edit suite; the minimal add-only variant would have been Standard.
+- 2026-08-14 22:35 — spec review caught AC-29 claiming byte-identity for *any* hidden-carrying cart,
+  which AC-30 (re-place everything) makes false for a cart laid out differently from this tool's
+  placer — and every fixture is placer-compatible, so the test would have passed and hidden it.
+  AC-29 narrowed to the entry-set round trip, byte-identity kept only where the stored layout already
+  matches a rebuild. D-020 gained the clause separating the hidden refusal (model gap) from the
+  firmware refusal (a save genuinely rewrites bank 0).
 - 2026-08-14 22:26 — spec.md written. Five forks resolved with the user: re-place everything on save,
   in place by default, retire the hidden-entry refusal, address entries by index only, include
   program-data replacement, and let `build` mark entries hidden. → DECISIONS D-019, D-020.

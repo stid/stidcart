@@ -28,6 +28,11 @@
   `build`'s surface frozen, but produces a tool whose two write paths disagree about what a cart can
   contain, and the fixture parity it protects is unaffected as long as nothing is marked (spec
   AC-28).
+- **The firmware refusal is not the same kind of thing and stays.** A cart whose reserved regions
+  differ from the embedded blobs is still refused for rebuilding, and this entry is not an argument
+  against that: the hidden refusal was a gap in the model, closed by widening the model, while a save
+  genuinely rewrites bank 0 from the blobs it carries. Retiring the firmware refusal would silently
+  replace a user's firmware, not preserve it.
 - **This is a lossy-model fix, not a read-path divergence decision.** D-007 governs which ndefpack
   behaviours to reproduce; nothing here reproduces or diverges from one. The refusal was this repo's
   own, and it is retired by removing the reason it existed.

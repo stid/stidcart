@@ -88,8 +88,10 @@ one of them hidden, then the built cart reports that entry as hidden; and a buil
 hidden produces the same bytes it produced before this capability existed.
 
 **AC-29** (surfaces: none): Given a cart containing hidden entries, when it is read into editable
-state and saved back with no operations applied, then the saved bytes are identical to the original
-— the hidden flag survives the round trip, and the former refusal of such carts is retired.
+state and saved back with no operations applied, then the entry set survives unchanged — every
+name, the entry order, the hidden flags and each entry's program data — and for a cart whose stored
+layout is already what a rebuild would place, the saved bytes are identical to the original. The
+former refusal of such carts is retired.
 
 **AC-30** (surfaces: none): Given any completed edit, when the result is saved, then its bytes are
 exactly those a fresh build of the resulting entry set would produce — entries the user did not
@@ -100,8 +102,9 @@ touch may sit at different positions than they did in the input.
 - **Reordering entries.** The order is what the input cart had, with additions appended; there is no
   operation to move an entry within it.
 - **Preserving the input cart's placement.** AC-30 settles this deliberately: an edit re-places
-  everything, so an edited cart is not byte-comparable to its input outside the untouched round trip
-  of AC-29.
+  everything, so an edited cart is not byte-comparable to its input. This bounds AC-29 too — a cart
+  laid out differently from how this tool places entries survives a read-and-save with its entry set
+  intact but not its bytes, and no byte-identity is claimed for it.
 - **Converting an old-format cart.** EasyFS1 carts are refused (AC-26), not upgraded.
 - **Editing entry kinds the tool cannot represent** — cartridge entries and entries confined to one
   half of a bank. A cart containing them is refused whole (AC-25); there is no partial edit that
