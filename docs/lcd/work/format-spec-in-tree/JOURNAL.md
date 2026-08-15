@@ -12,7 +12,7 @@
 - **Goal:** Move the EasyFlash cart format spec from the Obsidian vault into this repo at
   `docs/format/easyflash-cart-format.md`, so the document every offset in `stidcart-core` derives
   from is reviewable, gateable and blameable (GitHub issue #21).
-- **Next action:** S4 — replace the vault note with a stub pointing at the repo copy.
+- **Next action:** done — PR open against `main`, closes #21.
 - **Branch:** docs/format-spec-in-tree  ·  **Updated:** 2026-08-14
 
 ## STEPS
@@ -23,9 +23,9 @@
       `.claude/rules/lcd-conventions.md:76`, and `README.md` (path + one stale EasyFS1 claim).
 - [x] S3 — Confirm the licence question the issue raises: the spec is a derivative work of
       ndefpack's GPL C by the same argument as D-004, so record that in the moved file.
-- [ ] S4 — Replace the vault note with a stub pointing at the repo copy (no second source of truth).  ← next
-- [ ] S5 — Log D-018 (supersedes the format-facts invariant's vault clause).
-- [ ] S6 — Gate green, close the JOURNAL, PR (closes #21).
+- [x] S4 — Replace the vault note with a stub pointing at the repo copy (no second source of truth).
+- [x] S5 — Log D-018 (supersedes the format-facts invariant's vault clause).
+- [x] S6 — Gate green, close the JOURNAL, PR (closes #21).
 
 ## DECISIONS (this work-item)
 - **`docs/format/`, not `spec/` or bare `docs/`** — chosen by the user at triage. Keeps prose under
@@ -62,6 +62,20 @@ audit's test-presence check does not apply and no AC ids are claimed (next free 
 - 2026-08-14 — Triaged Standard (3 signals: 3–8 files, contained architecture impact, one-commit
   revert; no hard trigger, no risk signal). Work came from issue #21, filed 2026-08-13, the only
   open item on `stid/stidcart`; no open PRs.
+- 2026-08-14 — Closeout. Gate green (fmt, clippy `-D warnings`, 13 test targets) on the pinned
+  toolchain — `cargo 1.97.1` from `/opt/homebrew/opt/rustup/bin`, checked per D-010 before trusting
+  it. No audit: no surface was declared, so the test-presence check has nothing to check.
+- 2026-08-14 — **`lcd:reconcile` deliberately not run, though `living-spec: on`.** `SPEC.md` says
+  what the *tool does*, and this work-item changes no behaviour — folding "the format spec lives in
+  `docs/format/`" into a capability index would put a fact about the repo's layout in the one file
+  whose whole discipline is that it holds behaviour only. The move's durable record is D-018 and the
+  MAP zone row, which is where a layout fact belongs. A grep confirmed no `SPEC.md` row cites the
+  vault. (The stale `README.md:25` claim this item fixed was never a `SPEC.md` row — `SPEC.md:59`
+  had been folded correctly by the easyfs1-refusal closeout; only the README's prose copy lagged.)
+- 2026-08-14 — S4 + S5. The vault note is kept as a stub rather than deleted: `projects/ndefpack.md`
+  links to it twice (`:41`, `:191`), and deleting the file would break both while removing the one
+  place a vault reader is told where the spec went. The stub says explicitly not to restore the
+  content. D-018 logged; next id is now D-019.
 - 2026-08-14 — S2. Five pointers, not four: `README.md:8` also names the spec ("that spec is the
   reference for everything in `stidcart-core`") without a path, which is exactly the pointer this
   move has to make resolvable. Added to the EDIT BOUNDARY via refine before editing — the boundary
