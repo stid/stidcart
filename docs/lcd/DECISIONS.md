@@ -346,6 +346,9 @@
   is the one thing sharing the walk was for. Implement the half-confined layout now — it would commit
   to a bounds progression nobody has established, with no fixture to check it against, in a work-item
   about printing a listing.
+- **Amended by D-020** (2026-08-14): one item left the rebuild-precondition list — a hidden entry,
+  once `CartBuilder` could express the flag. The split itself is untouched, and so is the reason the
+  entry gave for it: the line is describability, and hiding stopped being on the wrong side of it.
 - **Scope:** project-wide
 - **Status:** active
 

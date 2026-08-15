@@ -7,7 +7,7 @@
 **Slug:** `cart-edit`
 **Spec:** [`spec.md`](./spec.md) • **Plan:** [`plan.md`](./plan.md) • **Journal:** [`JOURNAL.md`](./JOURNAL.md)
 **Created:** 2026-08-14
-**Status:** in_progress <!-- in_progress | completed | abandoned -->
+**Status:** completed <!-- in_progress | completed | abandoned -->
 
 ---
 
@@ -98,8 +98,8 @@
 
 - [x] **T23** [P]: Update the State section of `README.md`, which currently says the tool does not
   edit a cart.
-- [ ] **T-audit**: Run `/lcd:audit cart-edit`; resulting `audit.md` has zero MISSING/BLOCKED rows.
-- [ ] **T-final**: Run the project gate — `cargo fmt --all --check && cargo clippy --workspace
+- [x] **T-audit**: Run `/lcd:audit cart-edit`; resulting `audit.md` has zero MISSING/BLOCKED rows.
+- [x] **T-final**: Run the project gate — `cargo fmt --all --check && cargo clippy --workspace
   --all-targets --all-features -- -D warnings && cargo test --workspace` — all green.
 
 ## Checkpoint validation

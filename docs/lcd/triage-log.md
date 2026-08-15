@@ -7,3 +7,4 @@
 2026-08-14 · format-spec-in-tree · 3 signals · Standard · hard:no · risk:no
 2026-08-14 · format-spec-in-tree · closeout · Standard · audit: n/a (no surface) · re-routes: 0 · red-green iters: 0 · interventions: 2
 2026-08-14 · cart-edit · 6 signals · Deep · hard:yes · risk:yes
+2026-08-14 · cart-edit · closeout · Deep · audit: PASS (first run) · re-routes: 0 · red-green iters: 2 · interventions: 1

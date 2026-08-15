@@ -11,7 +11,7 @@
 - **Lane:** Deep
 - **Goal:** Edit an existing cart — load it, add/remove/rename/replace entries, toggle hidden, set
   the container and menu names, and write the result back (in place by default, or to a destination).
-- **Next action:** run `/lcd:audit cart-edit`, then open the PR
+- **Next action:** open the PR (`gh pr create`); audit PASSED and the gate is green
 - **Branch:** feat/cart-edit  ·  **Updated:** 2026-08-14 23:35
 
 ## STEPS
@@ -27,7 +27,8 @@
 - [x] S6 — T18..T20: `edit` in `main.rs` — grammar + bounds checks, three-phase apply, atomic write
 - [x] S7 — T22: `build --hide`, addressed by input path · AC-28
 - [x] S8a — T23: README State section and usage block
-- [ ] S8b — T-audit `/lcd:audit cart-edit`, then the PR  ← next
+- [x] S8b — T-audit: PASS first run (12/12 CLI rows); T-final: gate green; SPEC.md reconciled
+- [ ] S9 — open the PR  ← next
 
 ## DECISIONS (this work-item)
 - Entries are addressed **by index only**, as shown in the listing — unambiguous when two entries
@@ -75,6 +76,12 @@ work-item.
 
 ## LOG (append-only; not read on resume)
 
+- 2026-08-14 23:50 — audit: PASS, first run, 12/12 CLI rows OK (`audit.md`). Closeout logged in
+  `triage-log.md`. Reconciled: folded AC-17..AC-28 → SPEC.md/CLI (4 new rows, `build` rewritten for
+  `--hide`) and AC-29/AC-30 → SPEC.md/Internal (1 new row, 2 rewritten). The `load`-refuses row lost
+  its "including hidden entries" clause, which D-020 retired; D-011 gained an "Amended by D-020"
+  line, since its describe-versus-rebuild split stands and only one item left its precondition list.
+
 - 2026-08-14 23:35 — red-green: green in 2 iterations, 0 reverts, 0 interventions. Iteration 1 took
   the core (hidden in the model + mutators, `tests/read.rs` flipped) — the two flipped tests are the
   behaviour change D-020 authorised, not collateral. Iteration 2 was the `edit` command; AC-25 and
@@ -115,7 +122,7 @@ work-item.
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
 
 <!--
