@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-08-12 (easyfs1-refusal)
+**Last compacted:** 2026-08-14 (cart-edit)
 
 ---
 
@@ -28,11 +28,16 @@
 
 | Capability (current behaviour, one line) | ACs | Provenance |
 |---|---|---|
-| `build` writes a `.crt` from one or more PRG inputs; `-e` sets the menu name, `-o` the output path, and each entry name is the input's file stem with case and spacing preserved | — | D-015 (backfill) |
+| `build` writes a `.crt` from one or more PRG inputs; `-e` sets the menu name, `-o` the output path, `--hide INPUT` marks that input hidden, and each entry name is the input's file stem with case and spacing preserved. A build marking nothing hidden produces the bytes it produced before the marker existed | AC-28 | D-015 (backfill) · D-020 (cart-edit) |
 | A `build` request naming no input programs succeeds and writes nothing, matching the reference tool rather than erroring | — | D-015 (backfill) · D-002 |
 | `list` prints what a `.crt` contains, with positions taken from the image as stored rather than from a rebuild that would re-place every entry | — | D-015 (backfill) · D-011 |
 | Failures print `stidcart: <reason>` on stderr and exit non-zero; an unknown command or option prints usage | — | D-015 (backfill) |
 | `list` refuses an old-format (EasyFS1) cartridge, naming the format on stderr, rather than printing entries decoded under the wrong layout | AC-13 | D-017 (easyfs1-refusal) |
+| `edit` changes an existing cartridge: `--add` appends a program, `--remove` / `--rename` / `--replace` / `--hide` / `--show` act on the entry at the index `list` prints, and `-e` / `--header` set the menu and container names independently | AC-17..AC-22 | D-019 (cart-edit) |
+| An edit writes over the cartridge it was given unless `-o` names a destination, in which case the input is left byte-identical | AC-23 | D-019 (cart-edit) |
+| Every index in one invocation refers to the cartridge as given, not to the state a previous operation in the same invocation left | AC-27 | D-019 (cart-edit) |
+| A failed edit — a bad index, a set that does not fit, an unreadable program — reports the reason, exits non-zero and leaves every file it was given byte-identical, with no partial cartridge left behind | AC-24 | D-019 (cart-edit) |
+| `edit` refuses what it could not rebuild unchanged, naming the reason: an entry kind it cannot represent, firmware regions differing from the embedded blobs, or an old-format (EasyFS1) directory | AC-25, AC-26 | D-019 (cart-edit) · D-011, D-017 |
 
 ### RENDER
 
@@ -49,12 +54,14 @@
 
 | Capability (current behaviour, one line) | ACs | Provenance |
 |---|---|---|
-| The whole library API is one owned value: `CartBuilder` accumulates programs and returns bytes, touching no filesystem and holding no global state | — | D-015 (backfill) · D-001 |
+| The whole library API is one owned value: `CartBuilder` accumulates programs, mutates them in place by index, and returns bytes, touching no filesystem and holding no global state. The index-addressed mutators panic on an out-of-range index, as `Vec` indexing does | — | D-015 (backfill) · D-001, D-019 |
+| An edited cartridge is byte-for-byte a fresh build of the entry set the edits produced: saving runs the one placement path, so entries the edit never mentioned may land at different positions than the input had | AC-30 | D-019 (cart-edit) |
 | Placement fills largest-first and interleaved across banks, while the directory keeps the caller's input order | — | D-015 (backfill) |
 | Every build rewrites bank 0's reserved regions: EAPI, boot and the menu loader from the zlib blobs embedded as-is (normal-mode variants only — the OCM blobs are embedded but unused here), plus the `ef-nAME:` magic and the caller's cartridge name, which are not blobs | — | D-015 (backfill) · D-005 |
 | The CRT container header name and the EF-Name are separate caller-supplied fields at different offsets; the header defaults to `stidcart <crate-version>` | — | D-015 (backfill) · D-006, D-008 |
 | Names cross the PETSCII boundary in both directions | — | D-015 (backfill) |
-| `inspect` describes any image it can walk; `load` layers the rebuild preconditions on top and refuses what it could not reproduce byte-identically, including hidden entries and mismatched firmware regions | — | D-015 (backfill) · D-011, D-007 |
+| `inspect` describes any image it can walk; `load` layers the rebuild preconditions on top and refuses what it could not reproduce byte-identically — firmware regions differing from the embedded blobs, and entry kinds the builder cannot express | — | D-015 (backfill) · D-011, D-007 |
+| The hidden flag is part of the entry model on both sides, so a cartridge carrying hidden entries loads, edits and saves back with names, order, flags and program data intact — it was refused for rebuilding only while the description had nowhere to keep the flag | AC-29 | D-020 (cart-edit) · D-011 |
 | Both read paths refuse what the builder cannot represent: cartridge entries (bit 4 of the type value) and entries confined to one half of a bank (types `0x02`/`0x03`) | — | D-015 (backfill) |
 | Old-format (EasyFS1) directories are refused by both read paths with a typed `Unsupported` error — the reserved flag bits `0x60` of the first non-end slot are the format's only version signal — while well-formed EasyFS2 directories are unaffected | AC-14, AC-16 | D-017 (easyfs1-refusal) · D-007 |
 | A directory whose slots disagree about the format is refused as malformed rather than as old-format: the first non-end slot settles the format for all of them, so a later slot contradicting it is corruption | AC-15 | D-017 (easyfs1-refusal) |

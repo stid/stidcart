@@ -14,8 +14,9 @@
 //! - the packet marker and total-length field are **validated**, which that implementation does not
 //!   do;
 //! - a directory with no end marker in any slot stays **refused**, which the format does mandate;
-//! - cartridge entries, hidden entries and unrecognised reserved firmware are **refused as
-//!   unsupported**, distinguishably from malformed input, rather than misparsed;
+//! - cartridge entries and unrecognised reserved firmware are **refused as unsupported**,
+//!   distinguishably from malformed input, rather than misparsed. A hidden entry used to be refused
+//!   alongside them; it is not, since the description carries the flag (D-020);
 //! - an old-format (EasyFS1) directory is **refused rather than converted** (D-017). The reserved
 //!   flag bits are what identify it, and unlike the refusals above this one applies to describing
 //!   as well as rebuilding — read as EasyFS2 an EasyFS1 entry's bank field is decoded at the wrong
@@ -46,9 +47,6 @@ pub enum PacketProblem {
 pub enum Unsupported {
     CartridgeEntry {
         type_value: u8,
-    },
-    HiddenEntry {
-        name: String,
     },
     /// An entry confined to one half of a bank (type `0x02` or `0x03`). Refused rather than read:
     /// every reader here walks the interleaved progression, so reading one with this code would
@@ -144,10 +142,6 @@ impl std::fmt::Display for ReadError {
                 Unsupported::CartridgeEntry { type_value } => write!(
                     f,
                     "the cartridge holds a cartridge entry (type {type_value:#04x}), which is not supported yet"
-                ),
-                Unsupported::HiddenEntry { name } => write!(
-                    f,
-                    "the entry '{name}' is hidden, which cannot be rebuilt unchanged yet"
                 ),
                 Unsupported::ConfinedEntry { name, kind } => write!(
                     f,
@@ -341,13 +335,6 @@ pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
     reserved::verify_regions(&container.image)?;
     let info = read_directory(&container)?;
 
-    if let Some(hidden) = info.entries.iter().find(|e| e.hidden) {
-        return Err(Unsupported::HiddenEntry {
-            name: hidden.name.clone(),
-        }
-        .into());
-    }
-
     let mut builder = CartBuilder::new()
         .with_header_name(&info.header_name)
         .with_ef_name(&info.ef_name);
@@ -358,7 +345,7 @@ pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
             entry.offset as usize,
             entry.size as usize,
         );
-        builder = builder.with_program(Program::new(&entry.name, data));
+        builder = builder.with_program(Program::new(&entry.name, data).with_hidden(entry.hidden));
     }
 
     Ok(builder)
