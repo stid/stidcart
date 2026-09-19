@@ -6,7 +6,7 @@
 **Slug:** `cart-entries`
 **Created:** 2026-09-19
 **Related issue:** none
-**Status:** draft <!-- draft | approved | implemented | abandoned -->
+**Status:** approved <!-- draft | approved | implemented | abandoned -->
 
 ---
 
@@ -148,25 +148,24 @@ of that size could actually be placed.
 
 ## Open questions
 
-Each carries a recommendation; the spec is written as if it were taken. Confirm or overturn
-before `/lcd:plan`.
+All five answered 2026-09-19, each on its recommendation; the ACs stand as written.
 
-- [ ] **Ocean in this work-item, or a follow-up?** Ocean changes the whole image's firmware and
+- [x] **Ocean in this work-item, or a follow-up?** Ocean changes the whole image's firmware and
   loader position, so it is the largest single piece. *Recommended: in.* Leaving it out keeps a
   hole in the model that every read path has to refuse around, and the reference tool produces
   fixtures for it, so the oracle still applies.
-- [ ] **The wide-xbank bound: flash geometry, or the reference tool's flat 512 KiB?** *Recommended:
+- [x] **The wide-xbank bound: flash geometry, or the reference tool's flat 512 KiB?** *Recommended:
   flash geometry* (AC-38). The 512 KiB cap is a literal check the reference tool applies when it reads a directory, not a
   field width — the size field is 24 bits and the bank fields address all of flash. The oracle
   cannot cover this case (the reference tool refuses it), so its evidence is a round-trip here plus
   a boot in VICE, recorded when done.
-- [ ] **Is 64 KB alignment exposed on the command line, or only preserved?** *Recommended:
+- [x] **Is 64 KB alignment exposed on the command line, or only preserved?** *Recommended:
   exposed* (AC-42) — settable when adding and toggled by index when editing, matching the reference
   tool's `a` marker and its align/unalign operations. Preserve-only would make the tool unable to
   produce a cart it can read.
-- [ ] **May `replace` swap a program for a cartridge or vice versa?** *Recommended: yes* (AC-41);
+- [x] **May `replace` swap a program for a cartridge or vice versa?** *Recommended: yes* (AC-41);
   the entry's kind follows its data, and the name and position are what replace preserves.
-- [ ] **Cartridge input recognised by content or by extension?** *Recommended: content.* A program
+- [x] **Cartridge input recognised by content or by extension?** *Recommended: content.* A program
   starts with a two-byte load address and an image with a fixed sixteen-byte signature; the two
   cannot collide, and file names lie.
 
@@ -182,3 +181,4 @@ Quality checks before approving this spec:
   - Out-of-scope is filled in, even if just one bullet
   - Open questions either all answered, or explicitly flagged for /lcd:plan to resolve
 -->
+

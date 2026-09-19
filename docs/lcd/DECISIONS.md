@@ -8,9 +8,30 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-022 -->
+<!-- Next id: D-023 -->
 
 ---
+
+## D-022 · 2026-09-19 · A cartridge entry is bounded by flash geometry, not by a flat 512 KiB
+- **Context:** The reference tool refuses any directory entry larger than `0x80000` when it reads a
+  directory (`easyfs.c:432`), which makes a 16k xbank wider than 32 banks unreadable there. The format
+  spec carried the bound as an open question — per-type or a flat 1 MB — because the size field is
+  24 bits and the bank fields address all 64 banks, so nothing in the encoding imposes the cap. The
+  `cart-entries` work-item had to settle it before placement could be specified.
+- **Decision:** an entry is accepted whenever the banks it describes fit in flash outside the
+  reserved bank, in both halves. That is the same geometry check every entry needs for memory
+  safety (the bank-run bounds the spec records as a real heap overflow in the reference tool), so
+  it adds no second rule. Reading follows the same bound: an image the reference tool refuses on
+  size alone is described and loaded here.
+- **Alternatives rejected:** reproduce the flat `0x80000` — it is a literal check in that reader,
+  not a field width, and D-007 says a quirk the spec classifies as an implementation artifact gets
+  fixed, not inherited. Per-type bounds (8k vs 16k xbank) — a second table to keep right for no
+  case the geometry check does not already refuse.
+- **Evidence:** the oracle cannot cover this case, since the reference tool refuses it (D-002
+  decay). A round-trip test here plus a boot in VICE, to be recorded in the work-item JOURNAL when
+  done.
+- **Scope:** `stidcart-core` model, placement and both read paths
+- **Status:** active
 
 ## D-021 · 2026-09-19 · The CRT header length field is honoured on read, not assumed
 - **Context:** The container spec defines the field at `0x10` as the offset of the first CHIP packet
