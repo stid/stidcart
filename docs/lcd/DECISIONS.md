@@ -8,9 +8,28 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-021 -->
+<!-- Next id: D-022 -->
 
 ---
+
+## D-021 · 2026-09-19 · The CRT header length field is honoured on read, not assumed
+- **Context:** The container spec defines the field at `0x10` as the offset of the first CHIP packet
+  and allows it to exceed `0x40`. ndefpack writes `0x40` and then ignores the field on load, starting
+  the walk at `0x40` unconditionally. `crt::parse` inherited that: it read the magic and CRT ID from
+  the header and never looked at the length. The format spec's "behaviours to decide on" list
+  carried this as the last undecided pure-container item; the other two (an empty directory
+  accepted, the packet marker and total length validated) were decided and built with the read path.
+- **Decision:** the packet walk starts at the offset the field states. A value below `0x40` is refused
+  as malformed — the fields the reader has already used live above that offset, so a smaller header
+  cannot be one — and a value past the end of the file is the same truncation as any other. The
+  writer is unchanged and keeps writing `0x40`, so produced bytes and fixture parity are unaffected.
+- **Alternatives rejected:** keep assuming `0x40` — reproduces a quirk the spec classifies as an
+  implementation artifact, for no gain. Validate the field equals `0x40` and refuse anything else —
+  stricter than the container spec, and would refuse a well-formed cart from a writer that pads the
+  header. Ignore a bad value and fall back to `0x40` — silently reading a file the writer described
+  differently is exactly the class of leniency D-007 argues against.
+- **Scope:** `stidcart-core` read path only (`crt::parse`); `docs/format/` corrected in the same PR
+- **Status:** active
 
 ## D-020 · 2026-08-14 · The entry model carries the hidden flag, retiring the hidden-entry rebuild refusal
 - **Context:** `read.rs:344` refuses any cart containing a hidden entry when reading it back for

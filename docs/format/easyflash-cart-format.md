@@ -41,7 +41,7 @@ ROML is seen by the C64 at `$8000`, ROMH at `$A000` (or `$E000` in Ultimax mode)
 | Offset | Size | Content |
 |---|---|---|
 | `0x00` | 16 | `"C64 CARTRIDGE   "` (trailing spaces to 16) |
-| `0x10` | 4 | header length, big-endian; written as `0x00000040` |
+| `0x10` | 4 | header length, big-endian: the offset of the first CHIP packet; written as `0x00000040`, never less on read |
 | `0x14` | 2 | version; written as `0x0100` |
 | `0x16` | 2 | CRT ID, big-endian |
 | `0x18` | 1 | EXROM |
@@ -265,8 +265,12 @@ listing them is that the choice should be deliberate.
   address and length and ignores both the `"CHIP"` string and the total-length field at `0x04`,
   reading exactly the data length instead. Implementation artifact. Tightening it changes
   accept/reject behaviour on malformed input.
-- **The CRT header length field is written but never validated.** Loading assumes a 64-byte
-  header (`cart.c:171`). Fine for every cart in the wild, wrong per the container spec.
+- **The CRT header length field is written but never read.** Loading assumes a 64-byte header
+  (`cart.c:171`) and starts the packet walk at `0x40` whatever the field says. Fine for every cart
+  in the wild, wrong per the container spec, which defines the field as the offset of the first
+  packet and permits it to exceed `0x40`. Implementation artifact. A reader that honours it starts
+  the walk where the field points and refuses a value below `0x40`, since the fields above end
+  there.
 - **An empty new-format directory is rejected.** With an end marker in slot 0, `efs_parse_all`
   reports "no EasyFS detected". This is a bug in ndefpack (a `break` ordering slip), not the
   format saying anything. A new implementation should accept it.

@@ -77,6 +77,11 @@ pub enum ReadError {
         need: usize,
         have: usize,
     },
+    /// The header length field at `0x10` named an offset below the fixed header fields, which the
+    /// reader has already used by the time it looks at the field (D-021).
+    BadHeaderLength {
+        stated: usize,
+    },
     /// A malformed container packet. `at` is an offset **into the file**.
     BadPacket {
         at: usize,
@@ -112,6 +117,12 @@ impl std::fmt::Display for ReadError {
             ReadError::NotACartridge => write!(f, "not an EasyFlash cartridge image"),
             ReadError::Truncated { need, have } => {
                 write!(f, "image ends early: needed {need} bytes, {have} remain")
+            }
+            ReadError::BadHeaderLength { stated } => {
+                write!(
+                    f,
+                    "the header says it is {stated:#x} bytes long, less than its fixed fields"
+                )
             }
             ReadError::BadPacket { at, problem } => {
                 let what = match problem {
