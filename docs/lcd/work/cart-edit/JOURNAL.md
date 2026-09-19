@@ -11,8 +11,8 @@
 - **Lane:** Deep
 - **Goal:** Edit an existing cart — load it, add/remove/rename/replace entries, toggle hidden, set
   the container and menu names, and write the result back (in place by default, or to a destination).
-- **Next action:** open the PR (`gh pr create`); audit PASSED and the gate is green
-- **Branch:** feat/cart-edit  ·  **Updated:** 2026-08-14 23:35
+- **Next action:** PR #24 open; merge when `gate` and `claude-review` are green
+- **Branch:** feat/cart-edit  ·  **Updated:** 2026-09-19
 
 ## STEPS
 > Mirrors `tasks.md` (T1..T23 + T-audit/T-final); read that file for each task's detail.
@@ -28,7 +28,7 @@
 - [x] S7 — T22: `build --hide`, addressed by input path · AC-28
 - [x] S8a — T23: README State section and usage block
 - [x] S8b — T-audit: PASS first run (12/12 CLI rows); T-final: gate green; SPEC.md reconciled
-- [ ] S9 — open the PR  ← next
+- [x] S9 — PR #24 opened 2026-09-19, after a clean rebase onto `main` post-#23
 
 ## DECISIONS (this work-item)
 - Entries are addressed **by index only**, as shown in the listing — unambiguous when two entries
