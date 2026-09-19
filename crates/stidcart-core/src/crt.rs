@@ -43,7 +43,8 @@ pub struct Container {
 /// The inverse of [`write`]: validate the header, then replay every packet into an erased image.
 ///
 /// Both the packet marker and the total-length field are checked, unlike the reference
-/// implementation, which reads neither (see D-007). Every file-supplied length and bank is bounds-
+/// implementation, which reads neither (see D-007), and the header length field is honoured rather
+/// than assumed to be `0x40` (D-021). Every file-supplied length and bank is bounds-
 /// checked before it reaches an index — the format spec records an unsigned underflow in the
 /// equivalent path there that was a real memory-safety bug.
 pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
@@ -67,8 +68,21 @@ pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
     let end = field.iter().position(|&b| b == 0).unwrap_or(NAME_LEN);
     let header_name = String::from_utf8_lossy(&field[..end]).into_owned();
 
+    // The field is the offset of the first packet, and the container spec lets it exceed 0x40.
+    // The reference implementation writes 0x40 and then never reads the field (D-021).
+    let header_len = u32::from_be_bytes(bytes[0x10..0x14].try_into().expect("4 bytes")) as usize;
+    if header_len < HEADER_LEN {
+        return Err(ReadError::BadHeaderLength { stated: header_len });
+    }
+    if header_len > bytes.len() {
+        return Err(ReadError::Truncated {
+            need: header_len,
+            have: bytes.len(),
+        });
+    }
+
     let mut image = FlashImage::erased();
-    let mut p = HEADER_LEN;
+    let mut p = header_len;
     while p < bytes.len() {
         let rest = bytes.len() - p;
         if rest < CHIP_HEADER_LEN {

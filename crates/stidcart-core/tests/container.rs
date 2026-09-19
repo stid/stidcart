@@ -5,6 +5,7 @@
 
 use stidcart_core::crt;
 use stidcart_core::image::BANK_SIZE;
+use stidcart_core::read::ReadError;
 use stidcart_core::{CartBuilder, Program};
 
 fn a_cart() -> Vec<u8> {
@@ -129,5 +130,56 @@ fn ac_2_cli_packets_are_ordered_by_bank_then_half() {
     assert_eq!(
         order, sorted,
         "packets must be in bank, then ROML-before-ROMH order"
+    );
+}
+
+/// Pad the header so the first packet starts at `header_len`, and say so in the field (D-021).
+fn with_header_len(cart: &[u8], header_len: usize) -> Vec<u8> {
+    let mut out = cart[..crt::HEADER_LEN].to_vec();
+    out[0x10..0x14].copy_from_slice(&(header_len as u32).to_be_bytes());
+    out.resize(header_len, 0);
+    out.extend_from_slice(&cart[crt::HEADER_LEN..]);
+    out
+}
+
+/// The header length field is the offset of the first packet, not a constant to assume (D-021).
+#[test]
+fn a_longer_header_is_walked_from_where_the_field_says_the_packets_start() {
+    let cart = a_cart();
+    let padded = with_header_len(&cart, 0x48);
+    assert_ne!(
+        cart, padded,
+        "the padded file must differ, or the test proves nothing"
+    );
+
+    let want = crt::parse(&cart).expect("the reference layout parses");
+    let got = crt::parse(&padded).expect("a 0x48-byte header is legal per the container spec");
+    assert_eq!(got.image.as_bytes(), want.image.as_bytes());
+    assert_eq!(got.header_name, want.header_name);
+}
+
+/// The fields the reader has already used end at 0x40, so a smaller header is malformed (D-021).
+#[test]
+fn a_header_length_below_the_fixed_fields_is_refused() {
+    let mut cart = a_cart();
+    cart[0x10..0x14].copy_from_slice(&0x20u32.to_be_bytes());
+    assert_eq!(
+        crt::parse(&cart).err(),
+        Some(ReadError::BadHeaderLength { stated: 0x20 })
+    );
+}
+
+/// A header length past the end of the file is a truncation like any other (D-021).
+#[test]
+fn a_header_length_past_the_end_of_the_file_is_a_truncation() {
+    let mut cart = a_cart();
+    let beyond = cart.len() + 1;
+    cart[0x10..0x14].copy_from_slice(&(beyond as u32).to_be_bytes());
+    assert_eq!(
+        crt::parse(&cart).err(),
+        Some(ReadError::Truncated {
+            need: beyond,
+            have: cart.len()
+        })
     );
 }

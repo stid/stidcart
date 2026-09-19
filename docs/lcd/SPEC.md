@@ -66,6 +66,9 @@
 | Old-format (EasyFS1) directories are refused by both read paths with a typed `Unsupported` error — the reserved flag bits `0x60` of the first non-end slot are the format's only version signal — while well-formed EasyFS2 directories are unaffected | AC-14, AC-16 | D-017 (easyfs1-refusal) · D-007 |
 | A directory whose slots disagree about the format is refused as malformed rather than as old-format: the first non-end slot settles the format for all of them, so a later slot contradicting it is corruption | AC-15 | D-017 (easyfs1-refusal) |
 | Build fails with a typed error — not a panic — when the entry count exceeds the directory or the image runs out of space, naming the program and the shortfall | — | D-015 (backfill) |
+| An empty EasyFS2 directory (end marker in slot 0) loads as a cartridge with no programs, since the tool writes exactly that from an empty request; the reference tool refuses it by a bug the format spec classifies as an implementation artifact | — | D-015 (backfill) · D-007 |
+| Every CHIP packet's marker and total-length field are validated on read, and a packet whose bank, geometry or length the format does not allow is refused as malformed at its file offset; the reference tool checks none of these | — | D-015 (backfill) · D-007 |
+| The CRT header length field is honoured on read: the packet walk starts at the offset it states, a value below the fixed `0x40` header is refused as malformed, and one past the end of the file is a truncation. The writer still emits `0x40` | — | D-021 (crt-header-length) |
 | Produced bytes match the frozen `ndeft` fixtures for every case the parity test covers, and each covered case's originating command line is asserted present in `fixtures/MANIFEST.md` (the converse is not checked — a manifest image with no case is not caught) | — | D-015 (backfill) · D-002 |
 
 <!--
