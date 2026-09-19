@@ -22,9 +22,9 @@
 
 ### Foundation
 
-- [ ] **T1**: Bump `version` `0.5.0` → `0.6.0` in `Cargo.toml` — `feat/` branch, first implementation
+- [x] **T1**: Bump `version` `0.5.0` → `0.6.0` in `Cargo.toml` — `feat/` branch, first implementation
   commit (versioning rule). `parity.rs` pins its own header name, so no fixture moves.
-- [ ] **T2** [P]: Write `fixtures/make_inputs.py` — deterministic synthetic input images, one per kind:
+- [x] **T2** [P]: Write `fixtures/make_inputs.py` — deterministic synthetic input images, one per kind:
   `in_8k.crt` (id 0, one `0x2000` packet at `$8000`), `in_16k.crt` (id 0, `0x4000` at `$8000`),
   `in_ult8.crt` (id 0, `0x2000` at `$E000`), `in_ult16.crt` (id 0, `$8000` then `$E000`),
   `in_ocean.crt` (id 5, 16 banks at `$8000` + 16 at `$A000`, 256 KiB), `in_ocean512.crt` (id 5, 64
@@ -33,7 +33,7 @@
   `in_xbwide.crt` (id 33, mode 16k, banks 0–39 both halves — 640 KiB, over the reference cap). Byte
   ramps per bank, formula recorded in the script and in `MANIFEST.md`. Generate and check the
   inputs in.
-- [ ] **T3**: Build the reference images with `ndeft` (built from `stid/ndefpack@d77724b`) from inside
+- [x] **T3**: Build the reference images with `ndeft` (built from `stid/ndefpack@d77724b`) from inside
   `fixtures/`, one request per behaviour, and record every request in `fixtures/MANIFEST.md`:
   `c8k.crt` (`hello.prg in_8k.crt` — cart first, program into the ROMH gap as PRG-H), `c16k.crt`
   (`ramp.prg in_16k.crt`), `cult8.crt` (`hello.prg in_ult8.crt`), `cult16.crt` (`hello.prg
@@ -98,9 +98,12 @@
   xbank lands on a multiple of 8 banks with a gap below it (`cxb16a.crt`).
 - [ ] **T12**: Write failing test `AC-34 (none): programs fill gaps between cartridges as confined
   entries and the top interleaved otherwise` in `crates/stidcart-core/tests/cart_placement.rs` — the
-  `c8k.crt` set places `hello` as `PrgRomH` at bank 1; the `cxb16a.crt` set places `ramp` then
-  `hello` in the gap below bank 8 as `PrgRomL`/`PrgRomH` per the reference image; `big` in the
-  `cmixed` set goes to the top interleaved.
+  `cult8.crt` set places `hello` as `PrgRomL` at bank 1 (the Ultimax cart holds only ROMH); the
+  `cxb16a.crt` set places `ramp` at bank 1 ROML offset 0 then `hello` at offset `0xbba`, both
+  `PrgRomL`, below the aligned cart at bank 8; the `cmixed.crt` set puts `big`, `ramp`, `hello` into
+  the ROMH gap at banks 1–3 as `PrgRomH`; and the `c8k.crt` set places `hello` at the *top* (bank 1
+  ROMH, interleaved `Prg`) — gaps are searched only below the top bank, so bank 1 ROMH is top space,
+  not a gap. Each position equals the reference image's directory.
 - [ ] **T13**: Write failing test `AC-38 (none): an xbank wider than 32 banks is accepted, written and
   read back intact` in `crates/stidcart-core/tests/cart_placement.rs` — `in_xbwide.crt` + `hello`
   builds; `load` of the result returns the same cartridge bytes and runs; and an image whose only

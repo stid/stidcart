@@ -11,14 +11,14 @@
 - **Lane:** Deep
 - **Goal:** Model, place, build, read, list and edit the nine cartridge entry kinds (8k/16k, Ultimax, Ocean, xbank) plus the half-confined program entries the reference placement produces beside them; decide the wide-xbank bound.
 - **Next action:** run /lcd:test-gen cart-entries
-- **Branch:** feat/cart-entries  ·  **Updated:** 2026-09-19 13:20
+- **Branch:** feat/cart-entries  ·  **Updated:** 2026-09-19 13:45
 
 ## STEPS
 - [x] S1 — triage → Deep, spec.md (AC-31..AC-46), approved; D-022
 - [x] S2 — plan.md; D-023, D-024
 - [x] S3 — tasks.md (T1..T34 + audit/final)
-- [ ] S4 — T1–T3 foundation: version bump, fixtures/make_inputs.py + inputs, ndeft reference images + MANIFEST  ← next
-- [ ] S5 — T4–T7 directory: cart kinds, CrtUsage, geometry (AC-31, AC-32)
+- [x] S4 — T1–T3 foundation: 0.6.0, make_inputs.py + 10 inputs, 11 ndeft images + MANIFEST
+- [ ] S5 — T4–T7 directory: cart kinds, CrtUsage, geometry (AC-31, AC-32)  ← next (after test-gen)
 - [ ] S6 — T8–T10 cartridge.rs from_crt + crt::packets (AC-39)
 - [ ] S7 — T11–T16 placement + Entry model + image helpers (AC-33, AC-34, AC-38)
 - [ ] S8 — T17–T18 read path describes/loads every kind (AC-35)
@@ -53,6 +53,18 @@ See `spec.md` (AC-31..AC-46).
 
 ## LOG (append-only; not read on resume)
 
+- 2026-09-19 13:45 — T1–T3 done. `ndeft list` of every new image (Type / Bank / Offs / Size), input order preserved in every directory:
+  - c8k: hello PRG $01 $2000 $66 · in_8k 8k $01 $0000 $2000 — **gap search stops below the top bank**, so bank 1 ROMH is top space and hello is interleaved there, not confined (T12 corrected)
+  - c16k: ramp PRG $02 $0000 · in_16k 16k $01 $4000
+  - cult8: hello PRG(ROML) $01 $0000 · in_ult8 Ultimax 8k $01 $2000
+  - cult16: hello PRG $02 $0000 · in_ult16 Ultimax 16k $01 $4000
+  - cocean (mode Ocean, loader bank 1 ROMH): big PRG(ROML) $10 $0000 · in_ocean Ocean $00 size $40000, ROMH run at +16 (banks 16–31)
+  - cocean512 (mode Ocean): hello PRG(ROMH) $02 $2000 · in_ocean512 Ocean 512k $00 size $80000 (all 64 ROML banks)
+  - cxb16: hello PRG $05 $0000 · in_xb16 xbank 16k $01 size $10000
+  - cxb16a: aligned xbank 16k $08 (A flag) · hello PRG(ROML) $01 $0bba · ramp PRG(ROML) $01 $0000
+  - cxbult: hello PRG $03 $0000 · in_xbult xbank Ult. $01 size $8000
+  - cmixed: in_8k 8k $07 · in_16k 16k $05 · in_ult16 Ultimax 16k $06 · in_xb8 xbank 8k $01 (size $8000) · hello PRG(ROMH) $03 $39dc · ramp PRG(ROMH) $03 $2e22 · big PRG(ROMH) $01 $2000 — weight ties (16k vs ult16) keep input order; find_free_gap's bank cursor persists across rounds
+  - cxbwide: written by ndeft (681328 bytes), `ndeft list` refuses it: `size $0a0000 > $80000` (D-022 write-side pin)
 - 2026-09-19 13:20 — tasks.md: 34 tasks + audit/final, fixtures first (T2/T3) since every placement AC is pinned by them.
 - 2026-09-19 13:00 — plan.md written: Entry enum + two-run Cartridge model, reference placement reproduced in the one Placer, Ocean as derived mode, CLI grammar, 10 new ndeft fixtures with a checked-in input generator. Decisions → D-023, D-024.
 - 2026-09-19 12:30 — spec approved: Ocean in, xbank bounded by flash geometry (→ D-022), alignment exposed on the CLI, replace may swap kinds, cartridge inputs recognised by content.
