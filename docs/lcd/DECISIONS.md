@@ -8,9 +8,46 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-023 -->
+<!-- Next id: D-025 -->
 
 ---
+
+## D-024 · 2026-09-19 · Ocean mode is derived from the entry set, never declared
+- **Context:** An Ocean cartridge must own bank 0 ROML, which is where the normal-mode menu loader
+  lives. The reference tool answers this by switching the whole image into "Ocean mode": the loader
+  moves to bank 1 ROMH, a different launcher blob goes in the boot region, and placement reserves
+  bank 1 ROMH instead of bank 0 ROML (`loader.c:37-41`, `place.c:670-685`). `cart-entries` needed a
+  home for that switch in a builder that had only ever known one mode.
+- **Decision:** the mode is a function of the entries — Ocean if any entry is an Ocean kind, normal
+  otherwise — computed at build time and at load time (from the directory, before the firmware
+  regions are verified against the blobs that mode implies). Nothing on the builder or the command
+  line declares it. A second Ocean entry is a typed build error naming it, not a placement failure.
+- **Alternatives rejected:** a `with_mode` on the builder — a declared mode that disagrees with the
+  entries is either an unbootable cart or a silent override, and no user need was named for
+  either. Verifying firmware before reading the directory (today's order) — it cannot know which
+  loader to expect, so `load` reorders instead.
+- **Scope:** `stidcart-core` reserved regions, placement init, `load`; no CLI surface
+- **Status:** active
+
+## D-023 · 2026-09-19 · Cartridge entries are one entry type with the reference derivation, and short packets are refused
+- **Context:** `cart-entries` widens the model from programs to the nine cartridge kinds. Three
+  shapes had to be fixed before planning: how a cartridge sits beside programs in the builder, what a
+  cartridge holds, and how an input image becomes one.
+- **Decision:** one `Entry` enum (`Program | Cartridge`) in one vector, so every index-addressed
+  operation applies to both. A `Cartridge` holds its kind, the alignment request, and two whole-bank
+  runs (ROML, ROMH) with each run's bank offset from the entry's start bank; the directory's CrtUsage
+  word and size are derived from those at encode time. A cartridge is only ever *derived* from an
+  image by the reference tool's rules (`cart.c:414-527, 628-800`): id 0 → generic kinds by packet
+  addresses, id 5 → Ocean kinds by size, id 33 → xbank kinds by header mode; any other id is refused.
+  Packets must be whole banks — the reference accepts a generic packet as short as `0x100` bytes and
+  then records a size its own reader decodes as zero primary banks, so that leniency is classified an
+  implementation artifact and not inherited (D-007).
+- **Alternatives rejected:** a second vector of cartridges (two index spaces, every mutator twice);
+  the reference tool's two storage layouts (a flat L-then-H buffer, or a full 1 MB image for xbank —
+  conveniences that write the same bank copies); a user-declared kind on the command line (the image
+  already says what it is, and a declaration that disagrees is a cart that does not boot).
+- **Scope:** `stidcart-core` model, directory, read path; CLI input handling
+- **Status:** active
 
 ## D-022 · 2026-09-19 · A cartridge entry is bounded by flash geometry, not by a flat 512 KiB
 - **Context:** The reference tool refuses any directory entry larger than `0x80000` when it reads a
