@@ -4,6 +4,7 @@
 //! All three are `surfaces: none`: library behaviour with no command-line surface of its own, so
 //! these tests are the coverage rather than the audit being it.
 
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 
 use stidcart_core::cartridge::{Cartridge, CartridgeError};
@@ -154,7 +155,7 @@ fn body(k: usize, b: usize, h: usize) -> Vec<u8> {
         .collect()
 }
 
-fn banks(k: usize, range: std::ops::Range<usize>, h: usize) -> Vec<u8> {
+fn banks(k: usize, range: Range<usize>, h: usize) -> Vec<u8> {
     range.flat_map(|b| body(k, b, h)).collect()
 }
 
@@ -185,15 +186,16 @@ fn crt(id: u16, exrom: u8, game: u8, packets: &[(u16, u16, Vec<u8>)]) -> Vec<u8>
 #[test]
 fn ac_39_a_cartridge_is_derived_from_its_image_or_refused_by_what_it_is() {
     // (input, generator index, kind, ROML run, ROML offset, ROMH run, ROMH offset)
-    let cases: [(
-        &str,
+    type Case = (
+        &'static str,
         usize,
         EntryType,
-        std::ops::Range<usize>,
+        Range<usize>,
         u8,
-        std::ops::Range<usize>,
+        Range<usize>,
         u8,
-    ); 10] = [
+    );
+    let cases: [Case; 10] = [
         ("in_8k.crt", 0, EntryType::K8, 0..1, 0, 0..0, 0),
         ("in_16k.crt", 1, EntryType::K16, 0..1, 0, 0..1, 0),
         ("in_ult8.crt", 2, EntryType::Ultimax8, 0..0, 0, 0..1, 0),

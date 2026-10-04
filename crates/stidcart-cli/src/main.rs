@@ -7,32 +7,38 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use stidcart_core::directory::EntryType;
+use stidcart_core::directory::{DirEntry, EntryType};
+use stidcart_core::image::Half;
 use stidcart_core::read;
-use stidcart_core::{CartBuilder, Program};
+use stidcart_core::{crt, CartBuilder, Cartridge, Entry, Program};
 
 const USAGE: &str = "\
-usage: stidcart build [-e NAME] [--hide INPUT.prg]... -o OUTPUT INPUT.prg...
+usage: stidcart build [-e NAME] [--hide INPUT]... [--align INPUT]... -o OUTPUT INPUT...
        stidcart list CART.crt
        stidcart edit CART.crt [-o OUTPUT] [OPERATION]...
 
-  build           create a cartridge image from program files
+  build           create a cartridge image from programs and cartridge images
   -e NAME         cartridge name shown by the menu (default: \"(no EF-Name)\")
   -o OUTPUT       where to write the image
   --hide INPUT    mark that input hidden in the built cartridge
-  INPUT.prg       programs to include; the entry name is the file stem
+  --align INPUT   request 64 KB alignment for that xbank cartridge input
+  INPUT           a .prg, or a cartridge image (recognised by content: generic 8k/16k/Ultimax,
+                  Ocean, EasyFlash xbank); the entry name is the file stem
 
   list            show what a cartridge image contains
   CART.crt        the image to read
 
   edit            change an existing image, writing over it unless -o is given
   -o OUTPUT       write the result here and leave CART.crt untouched
-  --add PRG       append a program, named after its file stem
+  --add FILE      append a program or a cartridge image, named after its file stem
+  --add-aligned FILE  append an xbank cartridge image with 64 KB alignment requested
   --remove N      drop the entry at index N
   --rename N NAME rename the entry at index N
-  --replace N PRG swap the program data at index N, keeping its name and place
+  --replace N FILE swap the data at index N, keeping its name and place; the kind follows the file
   --hide N        hide the entry at index N
   --show N        stop hiding the entry at index N
+  --align N       request 64 KB alignment for the xbank cartridge at index N
+  --unalign N     clear that request
   -e NAME         set the cartridge name shown by the menu
   --header NAME   set the container header name
 
@@ -74,6 +80,7 @@ fn build(args: &[String]) -> Result<Option<String>, String> {
     let mut inputs: Vec<String> = Vec::new();
     // Marked by input path: at build time there are no entries yet, so there is nothing to index.
     let mut hide: Vec<String> = Vec::new();
+    let mut align: Vec<String> = Vec::new();
 
     let mut it = args.iter();
     while let Some(arg) = it.next() {
@@ -81,6 +88,7 @@ fn build(args: &[String]) -> Result<Option<String>, String> {
             "-e" => ef_name = Some(it.next().ok_or("-e needs a name")?.clone()),
             "-o" => output = Some(it.next().ok_or("-o needs a path")?.clone()),
             "--hide" => hide.push(it.next().ok_or("--hide needs an input path")?.clone()),
+            "--align" => align.push(it.next().ok_or("--align needs an input path")?.clone()),
             "-h" | "--help" => return Err(USAGE.to_string()),
             other if other.starts_with('-') => return Err(format!("unknown option '{other}'")),
             other => inputs.push(other.to_string()),
@@ -89,7 +97,12 @@ fn build(args: &[String]) -> Result<Option<String>, String> {
 
     if let Some(unmatched) = hide.iter().find(|h| !inputs.contains(h)) {
         return Err(format!(
-            "--hide names '{unmatched}', which is not one of the programs being built"
+            "--hide names '{unmatched}', which is not one of the inputs being built"
+        ));
+    }
+    if let Some(unmatched) = align.iter().find(|a| !inputs.contains(a)) {
+        return Err(format!(
+            "--align names '{unmatched}', which is not one of the inputs being built"
         ));
     }
 
@@ -106,10 +119,9 @@ fn build(args: &[String]) -> Result<Option<String>, String> {
     if let Some(name) = &ef_name {
         builder = builder.with_ef_name(name);
     }
-    for path in &inputs {
-        let data = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
-        builder = builder
-            .with_program(Program::new(&entry_name(path), data).with_hidden(hide.contains(path)));
+    for (i, path) in inputs.iter().enumerate() {
+        builder = builder.with_entry(input_entry(path, align.contains(path))?);
+        builder.set_hidden(i, hide.contains(path));
     }
 
     let bytes = builder.build().map_err(|e| e.to_string())?;
@@ -121,11 +133,13 @@ fn build(args: &[String]) -> Result<Option<String>, String> {
 /// One requested change to an existing cartridge. Every index is the one `list` prints for the
 /// image as it was given — see [`edit`] for why they are all resolved before any of them apply.
 enum Op {
-    Add(String),
+    /// A file to append, and whether 64 KB alignment was requested for it.
+    Add(String, bool),
     Remove(usize),
     Rename(usize, String),
     Replace(usize, String),
     Hidden(usize, bool),
+    Align(usize, bool),
 }
 
 /// Change an existing image and write it back.
@@ -151,7 +165,16 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             "-o" => output = Some(it.next().ok_or("-o needs a path")?.clone()),
             "-e" => ef_name = Some(it.next().ok_or("-e needs a name")?.clone()),
             "--header" => header_name = Some(it.next().ok_or("--header needs a name")?.clone()),
-            "--add" => ops.push(Op::Add(it.next().ok_or("--add needs a program")?.clone())),
+            "--add" => ops.push(Op::Add(
+                it.next().ok_or("--add needs a file")?.clone(),
+                false,
+            )),
+            "--add-aligned" => ops.push(Op::Add(
+                it.next().ok_or("--add-aligned needs a file")?.clone(),
+                true,
+            )),
+            "--align" => ops.push(Op::Align(index(it.next(), "--align")?, true)),
+            "--unalign" => ops.push(Op::Align(index(it.next(), "--unalign")?, false)),
             "--remove" => ops.push(Op::Remove(index(it.next(), "--remove")?)),
             "--hide" => ops.push(Op::Hidden(index(it.next(), "--hide")?, true)),
             "--show" => ops.push(Op::Hidden(index(it.next(), "--show")?, false)),
@@ -166,7 +189,7 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
                 let at = index(it.next(), "--replace")?;
                 ops.push(Op::Replace(
                     at,
-                    it.next().ok_or("--replace needs a program")?.clone(),
+                    it.next().ok_or("--replace needs a file")?.clone(),
                 ));
             }
             "-h" | "--help" => return Err(USAGE.to_string()),
@@ -183,11 +206,15 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     // Every index is checked against the image as read, before anything is applied — so the two
     // halves of a request cannot disagree about what entry 1 is, and so a request that names an
     // entry the cart does not have fails without having half-changed it.
-    let held = builder.programs().len();
+    let held = builder.entries().len();
     for op in &ops {
         let at = match op {
-            Op::Remove(at) | Op::Rename(at, _) | Op::Replace(at, _) | Op::Hidden(at, _) => *at,
-            Op::Add(_) => continue,
+            Op::Remove(at)
+            | Op::Rename(at, _)
+            | Op::Replace(at, _)
+            | Op::Hidden(at, _)
+            | Op::Align(at, _) => *at,
+            Op::Add(..) => continue,
         };
         if at >= held {
             return Err(format!(
@@ -202,11 +229,19 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
         match op {
             Op::Rename(at, name) => builder.set_name(*at, name),
             Op::Hidden(at, hidden) => builder.set_hidden(*at, *hidden),
-            Op::Replace(at, path) => {
-                let data = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
-                builder.replace_data(*at, data);
+            Op::Replace(at, path) => builder.replace(*at, input_entry(path, false)?),
+            Op::Align(at, on) => {
+                let entry = &builder.entries()[*at];
+                if !entry.as_cartridge().is_some_and(|c| c.kind.is_xbank()) {
+                    return Err(format!(
+                        "entry {at} '{}' is not an xbank cartridge, so 64 KB alignment does not \
+                         apply to it",
+                        entry.name()
+                    ));
+                }
+                builder.set_align_64k(*at, *on);
             }
-            Op::Add(_) | Op::Remove(_) => {}
+            Op::Add(..) | Op::Remove(_) => {}
         }
     }
 
@@ -226,9 +261,8 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
 
     // Additions last: they append, so they cannot disturb an index anything else refers to.
     for op in &ops {
-        if let Op::Add(path) = op {
-            let data = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
-            builder.push(Program::new(&entry_name(path), data));
+        if let Op::Add(path, aligned) = op {
+            builder.push(input_entry(path, *aligned)?);
         }
     }
 
@@ -244,6 +278,31 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     write_replacing(&destination, &out_bytes)?;
 
     Ok(Some(destination))
+}
+
+/// Read an input file as the entry it is: a cartridge image if it starts with the CRT signature,
+/// a program otherwise. Content decides, not the file name — a program starts with a two-byte
+/// load address and an image with a fixed sixteen-byte signature, so the two cannot collide.
+fn input_entry(path: &str, aligned: bool) -> Result<Entry, String> {
+    let data = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
+    let name = entry_name(path);
+    if data.starts_with(crt::MAGIC) {
+        let cart = Cartridge::from_crt(&data)
+            .map_err(|e| format!("'{path}': {e}"))?
+            .with_name(&name);
+        if aligned && !cart.kind.is_xbank() {
+            return Err(format!(
+                "'{name}' is not an xbank cartridge, so 64 KB alignment does not apply to it"
+            ));
+        }
+        Ok(cart.with_align_64k(aligned).into())
+    } else if aligned {
+        Err(format!(
+            "'{name}' is a program, not an xbank cartridge, so 64 KB alignment does not apply to it"
+        ))
+    } else {
+        Ok(Program::new(&name, data).into())
+    }
 }
 
 /// An entry index from the command line, with the option that wanted it named in the error.
@@ -310,22 +369,26 @@ fn render(info: &read::CartInfo) -> String {
         out.push_str("  (no entries)\n");
     } else {
         out.push_str(&format!(
-            "  {:>3}  {:<16}  {:<5}  {:<5}  {:>4}  {:>6}  {:>8}\n",
-            "#", "name", "flags", "type", "bank", "offset", "size"
+            "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>8}\n",
+            "#", "name", "flags", "type", "bank", "layout", "size"
         ));
         for (i, e) in info.entries.iter().enumerate() {
-            let kind = match e.kind {
-                EntryType::Prg => "PRG",
-                // The walk refuses every other kind, so a listing cannot reach them. Labelling
-                // them would advertise support that no code path here has.
-                _ => "?",
-            };
+            let mut flags = String::new();
+            if e.hidden {
+                flags.push('H');
+            }
+            if e.align_64k {
+                flags.push('A');
+            }
+            if flags.is_empty() {
+                flags.push('-');
+            }
             out.push_str(&format!(
-                "  {i:>3}  {:<16}  {:<5}  {kind:<5}  {:>4}  {:>6}  {:>8}\n",
+                "  {i:>3}  {:<16}  {flags:<5}  {:<6}  {:>4}  {:<12}  {:>8}\n",
                 e.name,
-                if e.hidden { "H" } else { "-" },
+                kind_label(e.kind),
                 format!("${:02x}", e.bank),
-                format!("${:04x}", e.offset),
+                layout(e),
                 format!("${:06x}", e.size),
             ));
         }
@@ -342,6 +405,51 @@ fn render(info: &read::CartInfo) -> String {
         }
     ));
     out
+}
+
+/// One short label per kind the directory can hold.
+fn kind_label(kind: EntryType) -> &'static str {
+    match kind {
+        EntryType::Prg => "PRG",
+        EntryType::PrgRomL => "PRG-L",
+        EntryType::PrgRomH => "PRG-H",
+        EntryType::K8 => "8K",
+        EntryType::K16 => "16K",
+        EntryType::Ultimax8 => "ULT8",
+        EntryType::Ultimax16 => "ULT16",
+        EntryType::Ocean => "OCEAN",
+        EntryType::Ocean512 => "OCN512",
+        EntryType::Xbank8 => "XB8",
+        EntryType::Xbank16 => "XB16",
+        EntryType::XbankUltimax => "XBULT",
+        // The walk never yields an end marker as an entry.
+        EntryType::End => "END",
+    }
+}
+
+/// Where an entry's bytes sit: a program's offset word, or a cartridge's bank runs per half as
+/// `L<banks>@<offset>,H<banks>@<offset>` (offsets in banks from the start bank; an empty run is
+/// omitted).
+fn layout(e: &DirEntry) -> String {
+    if !e.kind.is_cartridge() {
+        return format!("${:04x}", e.offset);
+    }
+    let (primary, other) = (
+        (0u8, e.primary_num()),
+        (e.other_off, u32::from(e.other_num)),
+    );
+    let ((l_at, l), (h_at, h)) = match e.kind.primary() {
+        Half::RomL => (primary, other),
+        Half::RomH => (other, primary),
+    };
+    let mut runs = Vec::new();
+    if l > 0 {
+        runs.push(format!("L{l}@{l_at}"));
+    }
+    if h > 0 {
+        runs.push(format!("H{h}@{h_at}"));
+    }
+    runs.join(",")
 }
 
 /// Replace anything that would drive the terminal rather than print on it.

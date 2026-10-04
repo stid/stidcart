@@ -318,6 +318,9 @@ fn ac_26_cli_an_old_format_cart_is_refused_naming_the_format() {
         offset: 0,
         size: 2,
         hidden: false,
+        align_64k: false,
+        other_off: 0,
+        other_num: 0,
     };
     let mut slot = directory::encode(&entry);
     slot[16] &= !directory::RESERVED_FLAG_BITS; // what makes it an old-format entry

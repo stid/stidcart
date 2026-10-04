@@ -82,6 +82,26 @@ fn ac_33_cartridges_are_placed_first_in_weight_order_first_fit() {
     );
 }
 
+/// AC-33 (none): a program heavier than a cartridge still goes after it. A one-bank cart weighs
+/// `1 << 16`, so a program over 64 KiB outweighs it; the reference would hand that program to its
+/// cartridge placer (D-025).
+#[test]
+fn ac_33_a_program_over_64k_still_goes_after_a_small_cartridge() {
+    let huge = Program::new("huge", {
+        let mut d = vec![0x01, 0x08];
+        d.resize(0x10002, 0xea);
+        d
+    });
+    let b = CartBuilder::new()
+        .with_ef_name("huge")
+        .with_program(huge)
+        .with_cartridge(cart("in_8k"));
+    let got = layout(&b);
+    assert_eq!(got[1], ("in_8k".into(), EntryType::K8, 1, 0));
+    assert_eq!(got[0].0, "huge");
+    assert_eq!(got[0].1, EntryType::Prg);
+}
+
 /// AC-34 (none): programs fill gaps below the top bank as half-confined entries, largest first, and
 /// go to the top interleaved when no gap fits.
 #[test]
@@ -193,7 +213,7 @@ fn ac_38_a_wide_xbank_is_bounded_by_flash_not_by_a_flat_512_kib() {
         .as_cartridge()
         .expect("entry 0 is the cartridge");
     assert_eq!((got.kind, got.banks()), (wide.kind, (40, 40)));
-    assert_eq!((got.roml, got.romh), (wide.roml.clone(), wide.romh.clone()));
+    assert_eq!((&got.roml, &got.romh), (&wide.roml, &wide.romh));
 
     // The reference tool wrote cxbwide.crt and then refuses to list it ("size $0a0000 > $80000").
     let reference = fixture("cxbwide.crt");

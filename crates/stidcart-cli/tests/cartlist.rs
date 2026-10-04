@@ -86,25 +86,57 @@ fn ac_45_render_every_kind_is_labelled_and_cartridges_show_their_bank_runs() {
     assert_eq!(row(&aligned, "hello")[2], "-", "unaligned, unhidden");
 }
 
-/// AC-46 (RENDER): the free-bytes figure accounts for the banks cartridges occupy in both halves.
+/// AC-46 (RENDER): the free-bytes figure accounts for the banks cartridges occupy in both halves,
+/// so a further entry of exactly that size can be placed and one byte more cannot.
+///
+/// The figure is the contiguous space at the top, the reference's `calc_top_space`. Beware the
+/// reference's own listing: `flash.c` passes `(total, top)` into `util_display_space(top, total)`,
+/// so the number it prints as "top" is the *total* free bytes, gaps included ($e45be for cmixed).
 #[test]
 fn ac_46_render_free_bytes_account_for_cartridge_occupied_banks() {
-    // c8k: bank 1 ROML is the cart, hello takes 0x66 of bank 1 ROMH; the reference tool reports
-    // top space $f9f9a for this image.
-    let free = 62 * 0x4000 + (0x2000 - 0x66);
-    assert_eq!(free, 0xf9f9a);
-    let out = list("c8k.crt");
-    assert!(
-        out.contains(&format!("${free:06x} ({free}) bytes free")),
-        "expected {free:#x} free in:\n{out}"
-    );
+    // c8k: bank 1 ROML is the cart and hello takes 0x66 of bank 1 ROMH, so the top run is the rest
+    // of that ROMH plus banks 2..63.
+    let c8k = 62 * 0x4000 + (0x2000 - 0x66);
+    // cmixed: the 8k cart at bank 7 is the highest occupied bank, so the top run is bank 7 ROMH
+    // plus banks 8..63; the ROMH gaps below it are not part of a run one program could take.
+    let cmixed = 56 * 0x4000 + 0x2000;
+    for (name, free) in [("c8k.crt", c8k), ("cmixed.crt", cmixed)] {
+        let out = list(name);
+        assert!(
+            out.contains(&format!("${free:06x} ({free}) bytes free")),
+            "{name}: expected {free:#x} free in:\n{out}"
+        );
+        assert!(
+            adds(name, free),
+            "{name}: a {free:#x}-byte program should fit"
+        );
+        assert!(!adds(name, free + 1), "{name}: one byte more should not");
+    }
 
-    // cmixed: the reference tool reports top space $e45be.
-    let out = list("cmixed.crt");
-    assert!(out.contains("$0e45be (935358) bytes free"), "in:\n{out}");
+    // cocean512: every ROML bank is the cart, so only bank 63 ROMH counts as top space. A lower
+    // bound: the ROMH gap at banks 2..62 is not reported.
+    assert!(list("cocean512.crt").contains("$002000 (8192) bytes free"));
+    assert!(adds("cocean512.crt", 0x2000));
+}
 
-    // cocean512: every ROML bank is the cart; the top is bank 63 ROMH minus nothing — but hello
-    // sits in the ROMH gap at bank 2, so the top run is $7bf9a as the reference tool reports.
-    let out = list("cocean512.crt");
-    assert!(out.contains("$07bf9a"), "in:\n{out}");
+/// Whether `edit --add` of a `size`-byte program (load address included) into a copy succeeds.
+fn adds(fixture: &str, size: usize) -> bool {
+    let dir = std::env::temp_dir().join(format!("stidcart-cartlist-{fixture}-{size}"));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let prg = dir.join("p.prg");
+    let mut data = vec![0x01, 0x08];
+    data.resize(size, 0xea);
+    std::fs::write(&prg, data).unwrap();
+    stidcart()
+        .arg("edit")
+        .arg(fixtures().join(fixture))
+        .arg("-o")
+        .arg(dir.join("out.crt"))
+        .arg("--add")
+        .arg(&prg)
+        .output()
+        .unwrap()
+        .status
+        .success()
 }

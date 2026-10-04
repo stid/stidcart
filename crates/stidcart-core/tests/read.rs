@@ -30,6 +30,9 @@ fn an_entry() -> DirEntry {
         offset: 0,
         size: 2,
         hidden: false,
+        align_64k: false,
+        other_off: 0,
+        other_num: 0,
     }
 }
 
@@ -137,24 +140,37 @@ fn ac_6_a_directory_with_no_end_marker_anywhere_is_refused() {
     );
 }
 
-/// AC-7 (none): cartridge entries are refused as unsupported.
+/// AC-7 (none): what the model cannot represent is refused as unsupported, distinguishably from
+/// malformed input.
 ///
-/// A hidden entry was refused here too until D-020 gave the description somewhere to keep the flag.
-/// The two were never the same case: a cartridge entry is content this tool cannot represent at
-/// all, while hiding was representable everywhere except in the value `load` returns.
+/// The set has narrowed twice. A hidden entry was refused here until D-020 gave the description
+/// somewhere to keep the flag; a cartridge entry was refused until D-023 gave the model a
+/// cartridge. What remains is the subdirectory entry, the one live kind with no model here.
 #[test]
 fn ac_7_cartridge_and_hidden_entries_are_refused_as_unsupported() {
-    // Type 0x11 is a 16k cartridge. `EntryType` deliberately enumerates only the program types, so
-    // this slot has to be built by hand.
-    let mut cartridge = directory::encode(&an_entry());
-    cartridge[16] = 0x11 | directory::RESERVED_FLAG_BITS;
+    // Type 0x1a is an EasyFlash subdirectory: a cartridge whose payload is a nested directory.
+    let mut subdirectory = directory::encode(&an_entry());
+    subdirectory[16] = directory::SUBDIRECTORY_TYPE | directory::RESERVED_FLAG_BITS;
     assert!(
         matches!(
-            read::load(&cart_with_slots(&[cartridge, directory::end_marker()])),
-            Err(ReadError::Unsupported(Unsupported::CartridgeEntry { .. }))
+            read::load(&cart_with_slots(&[subdirectory, directory::end_marker()])),
+            Err(ReadError::Unsupported(Unsupported::Subdirectory {
+                slot: 0
+            }))
         ),
-        "a cartridge entry is well-formed but not representable here, so it is refused as \
-         unsupported rather than misparsed as a program"
+        "a subdirectory entry is well-formed but not representable here, so it is refused as \
+         unsupported rather than misparsed"
+    );
+
+    // Type 0x11 is a 16k cartridge; since D-023 it loads as one.
+    let mut cartridge = directory::encode(&an_entry());
+    cartridge[16] = 0x11 | directory::RESERVED_FLAG_BITS;
+    cartridge[19..21].copy_from_slice(&0x8000u16.to_le_bytes());
+    let loaded = read::load(&cart_with_slots(&[cartridge, directory::end_marker()]))
+        .expect("a cartridge entry is representable now, so it loads (D-023)");
+    assert_eq!(
+        loaded.entries()[0].as_cartridge().map(|c| c.kind),
+        Some(EntryType::K16)
     );
 
     let mut hidden = an_entry();
@@ -373,36 +389,51 @@ fn free_space_on_a_top_packed_image_is_capacity_less_the_entries() {
     assert_eq!(empty.free_space(), 63 * 8192 * 2 - occupied);
 }
 
-/// A half-confined entry is refused rather than read with the interleaved layout.
+/// A half-confined entry is read along its own half, never with the interleaved progression.
 ///
-/// Types 0x02 and 0x03 confine an entry to one half of a bank, and nothing here consults
-/// `DirEntry.kind` — so before this was refused, such an entry was read by stepping ROML -> ROMH ->
-/// next bank and came back as part its own bytes and part whatever occupied the other half, then
-/// rebuilt as a plain interleaved program. Silently corrupt in both directions. It is refused
-/// rather than implemented because this tool cannot produce one, and the layout rule for them
-/// belongs to the format spec rather than to a guess made here.
+/// Types 0x02 and 0x03 confine an entry to one half of a bank, continuing in the same half of the
+/// next bank. Until D-023 they were refused on both paths, because no reader here implemented that
+/// layout and reading them interleaved would have returned part their own bytes and part whatever
+/// occupied the other half.
 #[test]
-fn a_half_confined_entry_is_refused_rather_than_read_with_the_wrong_layout() {
+fn a_half_confined_entry_is_read_along_its_own_half() {
     for kind in [EntryType::PrgRomL, EntryType::PrgRomH] {
         let mut confined = an_entry();
         confined.kind = kind;
+        confined.offset = if kind == EntryType::PrgRomH {
+            0x2000
+        } else {
+            0
+        };
         confined.size = 0x3000;
-        let cart = cart_with_slots(&[directory::encode(&confined), directory::end_marker()]);
+        let mut img = CartBuilder::new().build_image().unwrap();
+        // Distinct fill per half, so a wrong-half read shows as wrong bytes.
+        let half = if kind == EntryType::PrgRomH {
+            stidcart_core::image::Half::RomH
+        } else {
+            stidcart_core::image::Half::RomL
+        };
+        for bank in [1, 2] {
+            img.write_at(
+                stidcart_core::FlashImage::offset(bank, half),
+                &[0x11 * bank as u8; 0x2000],
+            );
+        }
+        img.write_at(reserved::DIRECTORY_OFFSET, &directory::encode(&confined));
+        let cart = crt::write(&img, "probe");
 
+        let info = read::inspect(&cart).unwrap_or_else(|e| panic!("{kind:?}: inspect: {e}"));
+        assert_eq!(info.entries[0].kind, kind);
+        let loaded = read::load(&cart).unwrap_or_else(|e| panic!("{kind:?}: load: {e}"));
+        let data = &loaded.programs()[0].data;
+        assert_eq!(data.len(), 0x3000);
         assert!(
-            matches!(
-                read::load(&cart),
-                Err(ReadError::Unsupported(Unsupported::ConfinedEntry { .. }))
-            ),
-            "{kind:?} must be refused, not read with the interleaved progression"
+            data[..0x2000].iter().all(|&b| b == 0x11),
+            "{kind:?}: bank 1's half"
         );
         assert!(
-            matches!(
-                read::inspect(&cart),
-                Err(ReadError::Unsupported(Unsupported::ConfinedEntry { .. }))
-            ),
-            "{kind:?} is not describable either — listing it would advertise support that the \
-             read path does not have"
+            data[0x2000..].iter().all(|&b| b == 0x22),
+            "{kind:?}: continues in bank 2's same half"
         );
     }
 }

@@ -9,7 +9,23 @@
 use std::path::{Path, PathBuf};
 use stidcart_core::{read, CartBuilder};
 
-const FIXTURES: &[&str] = &["single", "named", "two", "spill"];
+const FIXTURES: &[&str] = &[
+    "single",
+    "named",
+    "two",
+    "spill",
+    "c8k",
+    "c16k",
+    "cult8",
+    "cult16",
+    "cocean",
+    "cocean512",
+    "cxb16",
+    "cxb16a",
+    "cxbult",
+    "cmixed",
+    "cxbwide",
+];
 
 fn fixtures_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")

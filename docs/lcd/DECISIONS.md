@@ -8,9 +8,24 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-025 -->
+<!-- Next id: D-026 -->
 
 ---
+
+## D-025 · 2026-10-04 · Cartridges are placed before programs regardless of weight
+- **Context:** The reference sorts every entry by one weight and treats the first `num_crt`
+  positions as cartridges (`place.c:577-615`). A one-bank cart weighs `1 << 16` and a program
+  weighs its size, so a program over 64 KiB sorts among the carts: the reference would hand it to
+  `place_crt`, and this port hit an `unreachable!` and panicked (`edit --add` of a 0xe2000-byte
+  program to `cmixed.crt`).
+- **Decision:** the sort key is (is cartridge, weight), descending. Carts keep the reference order
+  among themselves, programs keep theirs, and carts always come first, which is what AC-33 states.
+  No frozen fixture mixes a program over 64 KiB with a cart, so parity is unchanged.
+- **Alternatives rejected:** reproducing the reference — its output for this input is a program
+  placed as a cartridge, not a layout anyone depends on. Capping program size below 64 KiB — a new
+  refusal for inputs the format allows.
+- **Scope:** `stidcart-core` `Placer::place_all`
+- **Status:** active
 
 ## D-024 · 2026-09-19 · Ocean mode is derived from the entry set, never declared
 - **Context:** An Ocean cartridge must own bank 0 ROML, which is where the normal-mode menu loader

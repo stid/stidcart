@@ -10,8 +10,8 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Model, place, build, read, list and edit the nine cartridge entry kinds (8k/16k, Ultimax, Ocean, xbank) plus the half-confined program entries the reference placement produces beside them; decide the wide-xbank bound.
-- **Next action:** run lcd:redgreen-loop (first red: `cargo test --workspace --test cartridge`, T4–T7)
-- **Branch:** feat/cart-entries  ·  **Updated:** 2026-09-19 14:10
+- **Next action:** T34 README, then `/lcd:audit cart-entries`, reconcile SPEC.md, VICE boot of a `cxbwide.crt` copy (D-022), PR
+- **Branch:** feat/cart-entries  ·  **Updated:** 2026-10-04
 
 ## STEPS
 - [x] S1 — triage → Deep, spec.md (AC-31..AC-46), approved; D-022
@@ -19,15 +19,15 @@
 - [x] S3 — tasks.md (T1..T34 + audit/final)
 - [x] S4 — T1–T3 foundation: 0.6.0, make_inputs.py + 10 inputs, 11 ndeft images + MANIFEST
 - [x] S5 — test-gen: 16 failing tests across cartridge/cart_placement/ocean (core) and carts/cartlist (cli)
-- [ ] S6 — T4–T7 directory: cart kinds, CrtUsage, geometry (AC-31, AC-32)  ← next
-- [ ] S7 — T8–T10 cartridge.rs from_crt + crt::packets (AC-39)
-- [ ] S8 — T11–T16 placement + Entry model + image helpers (AC-33, AC-34, AC-38)
-- [ ] S9 — T17–T18 read path describes/loads every kind (AC-35)
-- [ ] S10 — T19–T22 Ocean mode (AC-36, AC-37)
-- [ ] S11 — T23–T24 parity + roundtrip on new fixtures
-- [ ] S12 — T25–T30 CLI (AC-40..AC-44)
-- [ ] S13 — T31–T33 RENDER (AC-45, AC-46)
-- [ ] S14 — T34 README; T-audit; T-final gate + reconcile; PR
+- [x] S6 — T4–T7 directory: cart kinds, CrtUsage, geometry (AC-31, AC-32)
+- [x] S7 — T8–T10 cartridge.rs from_crt + crt::packets (AC-39)
+- [x] S8 — T11–T16 placement + Entry model + image helpers (AC-33, AC-34, AC-38)
+- [x] S9 — T17–T18 read path describes/loads every kind (AC-35)
+- [x] S10 — T19–T22 Ocean mode (AC-36, AC-37)
+- [x] S11 — T23–T24 parity + roundtrip on new fixtures
+- [x] S12 — T25–T30 CLI (AC-40..AC-44)
+- [x] S13 — T31–T33 RENDER (AC-45, AC-46)
+- [ ] S14 — T34 README  ← next; T-audit; T-final gate + reconcile; PR
 
 ## DECISIONS (this work-item)
 - recon skipped: the format is fully specified in `docs/format/easyflash-cart-format.md` and no external library is involved
@@ -40,8 +40,9 @@
 ## EDIT BOUNDARY (paths this work may touch)
 - `Cargo.toml` (version bump)
 - `crates/stidcart-core/src/{lib,cartridge,directory,place,read,reserved,crt,image}.rs`
-- `crates/stidcart-core/tests/{cartridge,cart_placement,ocean}.rs` (new), `{read,parity,roundtrip}.rs`
-- `crates/stidcart-cli/src/main.rs`; `crates/stidcart-cli/tests/{carts,cartlist}.rs` (new), `{list,edit}.rs`
+- `crates/stidcart-core/tests/{cartridge,cart_placement,ocean,read,parity,roundtrip}.rs`
+- `crates/stidcart-cli/src/main.rs`
+- `crates/stidcart-cli/tests/{carts,cartlist,list,edit}.rs`
 - `fixtures/` (make_inputs.py, in_*.crt inputs, c*.crt reference images, MANIFEST.md)
 - `docs/format/easyflash-cart-format.md` (only if a format fact needs correcting — first, per D-018)
 - `docs/lcd/` (this work-item, DECISIONS.md, SPEC.md at closeout), `README.md`
@@ -55,6 +56,8 @@ See `spec.md` (AC-31..AC-46).
 
 ## LOG (append-only; not read on resume)
 
+- 2026-10-04 — red-green done; gate green. Closing fixes: (1) a 512k Ocean's empty ROMH run sits at offset 0, not 64 (AC-39). (2) A program over 64 KiB beside a one-bank cart panicked the placer, since it outweighs the cart; carts now sort first → D-025, regression test under AC-33. (3) AC-46's expected figures were wrong: they came from ndeft's listing, whose "top" label prints the *total* free bytes (`flash.c:105` passes `(total, top)` into `util_display_space(top, total)`). The code already reported the top run, which is the AC's "a further entry of that size could be placed"; the test now asserts that boundary with `edit --add`. cocean512 reports only bank 63 ROMH (8 KiB) though a larger ROMH-confined program fits — a lower bound, left as a follow-up. EDIT BOUNDARY lines reformatted (paths unchanged) so the boundary hook parses them.
+- 2026-10-04 — hardware: the user reports that output produced by this version was tested on a real C64 and works.
 - 2026-09-19 14:10 — test-gen: 16 red tests, one per AC (none) / (AC × surface). Four core/cli targets fail to compile against the planned API (`cartridge` module, `Entry`, `with_cartridge`, `entries`, `EntryType` cart variants, `DirEntry` CrtUsage fields, `reserved::Mode`/`LOADER_OCM_OFFSET`, `BuildError::SecondOcean`, `ReadError::BadGeometry`); `cartlist` runs and fails on the cart-entry refusal.
 - 2026-09-19 13:45 — T1–T3 done. `ndeft list` of every new image (Type / Bank / Offs / Size), input order preserved in every directory:
   - c8k: hello PRG $01 $2000 $66 · in_8k 8k $01 $0000 $2000 — **gap search stops below the top bank**, so bank 1 ROMH is top space and hello is interleaved there, not confined (T12 corrected)
@@ -77,5 +80,5 @@ See `spec.md` (AC-31..AC-46).
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
