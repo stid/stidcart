@@ -183,11 +183,17 @@ fn list_shows_a_hidden_entry_and_the_entries_behind_it() {
         offset: 0,
         size: 2,
         hidden: true,
+        align_64k: false,
+        other_off: 0,
+        other_num: 0,
     };
     let behind = DirEntry {
         name: "behind".into(),
         bank: 2,
         hidden: false,
+        align_64k: false,
+        other_off: 0,
+        other_num: 0,
         ..hidden.clone()
     };
     img.write_at(reserved::DIRECTORY_OFFSET, &directory::encode(&hidden));
@@ -266,6 +272,9 @@ fn ac_13_cli_list_refuses_an_old_format_cartridge() {
         offset: 0,
         size: 2,
         hidden: false,
+        align_64k: false,
+        other_off: 0,
+        other_num: 0,
     });
     slot[16] &= !directory::RESERVED_FLAG_BITS;
     img.write_at(reserved::DIRECTORY_OFFSET, &slot);

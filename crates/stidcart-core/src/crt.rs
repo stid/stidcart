@@ -40,14 +40,36 @@ pub struct Container {
     pub header_name: String,
 }
 
-/// The inverse of [`write`]: validate the header, then replay every packet into an erased image.
+/// The fixed fields of any `.crt` header, whatever kind of cartridge it wraps.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Header {
+    pub id: u16,
+    pub exrom: u8,
+    pub game: u8,
+    /// Host-encoded text, carried through verbatim.
+    pub name: String,
+}
+
+/// One CHIP packet: which bank, which load address, and its bytes — validated only as a packet.
+/// Whether the bank and address make sense for a given cartridge kind is the reader's business.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Packet<'a> {
+    /// Offset of the packet's marker in the file, for naming it in an error.
+    pub at: usize,
+    pub bank: u16,
+    pub addr: u16,
+    pub data: &'a [u8],
+}
+
+/// Walk any `.crt`: validate the header's fixed fields and every packet's framing.
 ///
-/// Both the packet marker and the total-length field are checked, unlike the reference
-/// implementation, which reads neither (see D-007), and the header length field is honoured rather
-/// than assumed to be `0x40` (D-021). Every file-supplied length and bank is bounds-
-/// checked before it reaches an index — the format spec records an unsigned underflow in the
-/// equivalent path there that was a real memory-safety bug.
-pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
+/// This is the part of parsing that does not depend on what kind of cartridge the file holds, so
+/// both [`parse`] (an EasyFlash image) and the cartridge-entry reader share it. The marker and the
+/// total-length field are checked, unlike in the reference implementation (D-007); the header
+/// length field is honoured rather than assumed to be `0x40` (D-021); and every file-supplied
+/// length and bank is bounds-checked before it reaches an index — the format spec records an
+/// unsigned underflow in the equivalent path there that was a real memory-safety bug.
+pub fn packets(bytes: &[u8]) -> Result<(Header, Vec<Packet<'_>>), ReadError> {
     if bytes.len() < HEADER_LEN {
         return Err(ReadError::Truncated {
             need: HEADER_LEN,
@@ -57,16 +79,18 @@ pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
     if &bytes[..MAGIC.len()] != MAGIC {
         return Err(ReadError::NotACartridge);
     }
-    if u16::from_be_bytes([bytes[0x16], bytes[0x17]]) != CARTRIDGE_EASYFLASH {
-        return Err(ReadError::NotACartridge);
-    }
 
     // The container header name is stored in the host's encoding, NOT the machine's. Applying the
     // case swap here is the mistake that turns `ndefpack 1.0.1` into `NDEFPACK 1.0.1` and breaks
     // parity on every reference image.
     let field = &bytes[NAME_OFFSET..NAME_OFFSET + NAME_LEN];
     let end = field.iter().position(|&b| b == 0).unwrap_or(NAME_LEN);
-    let header_name = String::from_utf8_lossy(&field[..end]).into_owned();
+    let header = Header {
+        id: u16::from_be_bytes([bytes[0x16], bytes[0x17]]),
+        exrom: bytes[0x18],
+        game: bytes[0x19],
+        name: String::from_utf8_lossy(&field[..end]).into_owned(),
+    };
 
     // The field is the offset of the first packet, and the container spec lets it exceed 0x40.
     // The reference implementation writes 0x40 and then never reads the field (D-021).
@@ -81,7 +105,7 @@ pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
         });
     }
 
-    let mut image = FlashImage::erased();
+    let mut out = Vec::new();
     let mut p = header_len;
     while p < bytes.len() {
         let rest = bytes.len() - p;
@@ -99,7 +123,7 @@ pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
         }
 
         let total = u32::from_be_bytes(bytes[p + 4..p + 8].try_into().expect("4 bytes")) as usize;
-        let bank = u16::from_be_bytes([bytes[p + 10], bytes[p + 11]]) as usize;
+        let bank = u16::from_be_bytes([bytes[p + 10], bytes[p + 11]]);
         let addr = u16::from_be_bytes([bytes[p + 12], bytes[p + 13]]);
         let len = u16::from_be_bytes([bytes[p + 14], bytes[p + 15]]) as usize;
 
@@ -115,16 +139,40 @@ pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
                 have: rest,
             });
         }
-        if bank >= N_BANKS {
+        if bank as usize >= N_BANKS {
             return Err(ReadError::BadPacket {
                 at: p,
                 problem: PacketProblem::Bank,
             });
         }
 
-        let data = &bytes[p + CHIP_HEADER_LEN..p + total];
-        // A packet covers one bank half, or — at $8000 only — both halves of one bank.
-        match (addr, len) {
+        out.push(Packet {
+            at: p,
+            bank,
+            addr,
+            data: &bytes[p + CHIP_HEADER_LEN..p + total],
+        });
+        p += total;
+    }
+
+    Ok((header, out))
+}
+
+/// The inverse of [`write`]: validate the header, then replay every packet into an erased image.
+///
+/// The packet walk is [`packets`]; this adds what an EasyFlash image specifically requires — the
+/// EasyFlash id, and packets that cover one bank half or, at `$8000` only, both halves of one bank.
+pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
+    let (header, packets) = packets(bytes)?;
+    if header.id != CARTRIDGE_EASYFLASH {
+        return Err(ReadError::NotACartridge);
+    }
+
+    let mut image = FlashImage::erased();
+    for packet in packets {
+        let bank = packet.bank as usize;
+        let data = packet.data;
+        match (packet.addr, data.len()) {
             (0x8000, BANK_SIZE) => image.write_at(FlashImage::offset(bank, Half::RomL), data),
             (0xa000 | 0xe000, BANK_SIZE) => {
                 image.write_at(FlashImage::offset(bank, Half::RomH), data)
@@ -135,16 +183,17 @@ pub fn parse(bytes: &[u8]) -> Result<Container, ReadError> {
             }
             _ => {
                 return Err(ReadError::BadPacket {
-                    at: p,
+                    at: packet.at,
                     problem: PacketProblem::Geometry,
-                })
+                });
             }
         }
-
-        p += total;
     }
 
-    Ok(Container { image, header_name })
+    Ok(Container {
+        image,
+        header_name: header.name,
+    })
 }
 
 fn header(id: u16, name: &str) -> Vec<u8> {

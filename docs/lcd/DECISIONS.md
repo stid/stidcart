@@ -8,9 +8,95 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-022 -->
+<!-- Next id: D-027 -->
 
 ---
+
+## D-026 · 2026-10-04 · cart-entries shipped: cartridge images are entries, and the kind refusal narrows to subdirectories
+- **Context:** Until cart-entries, both read paths, `build` and `edit` handled PRG entries only and
+  refused any cart holding a cartridge entry or a half-confined program as "an entry kind it cannot
+  represent" (D-019's refusal clause).
+- **Decision:** the nine cartridge kinds and both half-confined program kinds are modelled end to
+  end — input derivation (D-023), placement (D-025), Ocean mode (D-024), the wide-xbank bound
+  (D-022), read, list and every edit operation by index. The one kind still refused is the
+  EasyFlash subdirectory entry. Capabilities indexed in SPEC.md under AC-31..AC-46.
+- **Alternatives rejected:** see D-022..D-025 — this entry is the SPEC anchor for the shipped set,
+  not a new fork.
+- **Scope:** project-wide
+- **Status:** active
+
+## D-025 · 2026-10-04 · Cartridges are placed before programs regardless of weight
+- **Context:** The reference sorts every entry by one weight and treats the first `num_crt`
+  positions as cartridges (`place.c:577-615`). A one-bank cart weighs `1 << 16` and a program
+  weighs its size, so a program over 64 KiB sorts among the carts: the reference would hand it to
+  `place_crt`, and this port hit an `unreachable!` and panicked (`edit --add` of a 0xe2000-byte
+  program to `cmixed.crt`).
+- **Decision:** the sort key is (is cartridge, weight), descending. Carts keep the reference order
+  among themselves, programs keep theirs, and carts always come first, which is what AC-33 states.
+  No frozen fixture mixes a program over 64 KiB with a cart, so parity is unchanged.
+- **Alternatives rejected:** reproducing the reference — its output for this input is a program
+  placed as a cartridge (inferred from `place.c`; ndeft was not run on it), not a layout anyone depends on. Capping program size below 64 KiB — a new
+  refusal for inputs the format allows.
+- **Scope:** `stidcart-core` `Placer::place_all`
+- **Status:** active
+
+## D-024 · 2026-09-19 · Ocean mode is derived from the entry set, never declared
+- **Context:** An Ocean cartridge must own bank 0 ROML, which is where the normal-mode menu loader
+  lives. The reference tool answers this by switching the whole image into "Ocean mode": the loader
+  moves to bank 1 ROMH, a different launcher blob goes in the boot region, and placement reserves
+  bank 1 ROMH instead of bank 0 ROML (`loader.c:37-41`, `place.c:670-685`). `cart-entries` needed a
+  home for that switch in a builder that had only ever known one mode.
+- **Decision:** the mode is a function of the entries — Ocean if any entry is an Ocean kind, normal
+  otherwise — computed at build time and at load time (from the directory, before the firmware
+  regions are verified against the blobs that mode implies). Nothing on the builder or the command
+  line declares it. A second Ocean entry is a typed build error naming it, not a placement failure.
+- **Alternatives rejected:** a `with_mode` on the builder — a declared mode that disagrees with the
+  entries is either an unbootable cart or a silent override, and no user need was named for
+  either. Verifying firmware before reading the directory (today's order) — it cannot know which
+  loader to expect, so `load` reorders instead.
+- **Scope:** `stidcart-core` reserved regions, placement init, `load`; no CLI surface
+- **Status:** active
+
+## D-023 · 2026-09-19 · Cartridge entries are one entry type with the reference derivation, and short packets are refused
+- **Context:** `cart-entries` widens the model from programs to the nine cartridge kinds. Three
+  shapes had to be fixed before planning: how a cartridge sits beside programs in the builder, what a
+  cartridge holds, and how an input image becomes one.
+- **Decision:** one `Entry` enum (`Program | Cartridge`) in one vector, so every index-addressed
+  operation applies to both. A `Cartridge` holds its kind, the alignment request, and two whole-bank
+  runs (ROML, ROMH) with each run's bank offset from the entry's start bank; the directory's CrtUsage
+  word and size are derived from those at encode time. A cartridge is only ever *derived* from an
+  image by the reference tool's rules (`cart.c:414-527, 628-800`): id 0 → generic kinds by packet
+  addresses, id 5 → Ocean kinds by size, id 33 → xbank kinds by header mode; any other id is refused.
+  Packets must be whole banks — the reference accepts a generic packet as short as `0x100` bytes and
+  then records a size its own reader decodes as zero primary banks, so that leniency is classified an
+  implementation artifact and not inherited (D-007).
+- **Alternatives rejected:** a second vector of cartridges (two index spaces, every mutator twice);
+  the reference tool's two storage layouts (a flat L-then-H buffer, or a full 1 MB image for xbank —
+  conveniences that write the same bank copies); a user-declared kind on the command line (the image
+  already says what it is, and a declaration that disagrees is a cart that does not boot).
+- **Scope:** `stidcart-core` model, directory, read path; CLI input handling
+- **Status:** active
+
+## D-022 · 2026-09-19 · A cartridge entry is bounded by flash geometry, not by a flat 512 KiB
+- **Context:** The reference tool refuses any directory entry larger than `0x80000` when it reads a
+  directory (`easyfs.c:432`), which makes a 16k xbank wider than 32 banks unreadable there. The format
+  spec carried the bound as an open question — per-type or a flat 1 MB — because the size field is
+  24 bits and the bank fields address all 64 banks, so nothing in the encoding imposes the cap. The
+  `cart-entries` work-item had to settle it before placement could be specified.
+- **Decision:** an entry is accepted whenever the banks it describes fit in flash outside the
+  reserved bank, in both halves. That is the same geometry check every entry needs for memory
+  safety (the bank-run bounds the spec records as a real heap overflow in the reference tool), so
+  it adds no second rule. Reading follows the same bound: an image the reference tool refuses on
+  size alone is described and loaded here.
+- **Alternatives rejected:** reproduce the flat `0x80000` — it is a literal check in that reader,
+  not a field width, and D-007 says a quirk the spec classifies as an implementation artifact gets
+  fixed, not inherited. Per-type bounds (8k vs 16k xbank) — a second table to keep right for no
+  case the geometry check does not already refuse.
+- **Evidence:** the oracle cannot cover this case, since the reference tool refuses it (D-002
+  decay). A round-trip test here plus a boot in VICE, to be recorded in the work-item JOURNAL when
+  done.
+- **Scope:** `stidcart-core` model, placement and both read paths
+- **Status:** active
 
 ## D-021 · 2026-09-19 · The CRT header length field is honoured on read, not assumed
 - **Context:** The container spec defines the field at `0x10` as the offset of the first CHIP packet
@@ -79,7 +165,7 @@
   for itself. The safety this buys is bought instead by AC-24: a failed edit leaves every input
   byte-identical, so the failure mode the read-only default guards against is closed directly.
 - **Scope:** the `edit` CLI surface and the rebuild path in `stidcart-core`
-- **Status:** active
+- **Status:** active; the "entry kind it cannot represent" refusal narrowed to subdirectory entries by D-026
 
 ## D-018 · 2026-08-14 · The format spec lives in the tree at `docs/format/`, not in the vault
 - **Context:** `reference/easyflash-cart-format.md` in the Obsidian vault was the source for every

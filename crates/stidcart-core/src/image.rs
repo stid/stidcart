@@ -87,6 +87,30 @@ impl FlashImage {
         }
     }
 
+    /// Write a program confined to one half: it continues in the same half of the next bank
+    /// (types `0x02`/`0x03`), never crossing to the other half.
+    pub fn write_confined(&mut self, bank: usize, offset: usize, data: &[u8]) {
+        let mut addr = Self::program_start(bank, offset);
+        let mut rest = data;
+        while !rest.is_empty() {
+            let len = ((addr | 0x1fff) - addr + 1).min(rest.len());
+            self.data[addr..addr + len].copy_from_slice(&rest[..len]);
+            rest = &rest[len..];
+            addr = (addr & !0x1fff) + BANK_SIZE;
+        }
+    }
+
+    pub fn read_confined(&self, bank: usize, offset: usize, size: usize) -> Vec<u8> {
+        let mut addr = Self::program_start(bank, offset);
+        let mut out = Vec::with_capacity(size);
+        while out.len() < size {
+            let len = ((addr | 0x1fff) - addr + 1).min(size - out.len());
+            out.extend_from_slice(&self.data[addr..addr + len]);
+            addr = (addr & !0x1fff) + BANK_SIZE;
+        }
+        out
+    }
+
     pub fn read_program(&self, bank: usize, offset: usize, size: usize) -> Vec<u8> {
         let mut addr = Self::program_start(bank, offset);
         let mut out = Vec::with_capacity(size);
@@ -145,6 +169,20 @@ mod tests {
             img.as_bytes()[FlashImage::offset(1, Half::RomH)],
             data[BANK_SIZE]
         );
+    }
+
+    #[test]
+    fn a_confined_program_continues_in_the_same_half_of_the_next_bank() {
+        let mut img = FlashImage::erased();
+        let data: Vec<u8> = (0..(BANK_SIZE + 5)).map(|i| (i % 251) as u8).collect();
+        img.write_confined(3, 0x2000, &data);
+        assert_eq!(img.read_confined(3, 0x2000, data.len()), data);
+        assert_eq!(
+            img.as_bytes()[FlashImage::offset(4, Half::RomH)],
+            data[BANK_SIZE],
+            "the continuation is bank 4 ROMH, not bank 3 ROML"
+        );
+        assert_eq!(img.as_bytes()[FlashImage::offset(3, Half::RomL)], ERASED);
     }
 
     #[test]

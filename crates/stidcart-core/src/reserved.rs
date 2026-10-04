@@ -1,8 +1,9 @@
 //! The reserved region of the image, and what goes where in it.
 //!
 //! Bank 0 ROMH is reserved end to end: directory, EAPI, cartridge name, boot code. Bank 0 ROML
-//! holds the menu loader in normal mode. Every offset here was confirmed by dumping an image
-//! built by the reference tool.
+//! holds the menu loader in normal mode; in Ocean mode that bank belongs to the Ocean cartridge
+//! and the loader moves to bank 1 ROMH, with its own launcher in the boot region (D-024). Every
+//! offset here was confirmed by dumping an image built by the reference tool.
 
 use crate::firmware;
 use crate::image::{FlashImage, Half, BANK_SIZE};
@@ -28,7 +29,40 @@ pub const BOOT_BASE_ADDR: u16 = 0xfb18;
 
 /// The menu loader in normal mode: bank 0 ROML, seen by the machine at `$8000`.
 pub const LOADER_NRM_OFFSET: usize = 0;
+/// The menu loader in Ocean mode: bank 1 ROMH, seen at `$A000` (`loader.c:38`).
+pub const LOADER_OCM_OFFSET: usize = FlashImage::offset(1, Half::RomH);
 pub const LOADER_SIZE: usize = BANK_SIZE;
+
+/// Which firmware an image carries, and where. A property of the entry set — Ocean if any entry
+/// is an Ocean cartridge — never declared (D-024).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Mode {
+    Normal,
+    Ocean,
+}
+
+impl Mode {
+    pub fn loader_offset(self) -> usize {
+        match self {
+            Mode::Normal => LOADER_NRM_OFFSET,
+            Mode::Ocean => LOADER_OCM_OFFSET,
+        }
+    }
+
+    fn loader(self) -> &'static [u8] {
+        match self {
+            Mode::Normal => firmware::LOADER_NRM,
+            Mode::Ocean => firmware::LOADER_OCM,
+        }
+    }
+
+    fn launcher(self) -> &'static [u8] {
+        match self {
+            Mode::Normal => firmware::LAUNCHER_NRM,
+            Mode::Ocean => firmware::LAUNCHER_OCM,
+        }
+    }
+}
 
 /// What the reference tool stores when no cartridge name is given. The region is never absent.
 pub const DEFAULT_EF_NAME: &str = "(no EF-Name)";
@@ -37,16 +71,16 @@ pub fn write_eapi(img: &mut FlashImage) {
     img.write_at(EAPI_OFFSET, firmware::body(firmware::EAPI));
 }
 
-pub fn write_loader(img: &mut FlashImage) {
-    img.write_at(LOADER_NRM_OFFSET, firmware::body(firmware::LOADER_NRM));
+pub fn write_loader(img: &mut FlashImage, mode: Mode) {
+    img.write_at(mode.loader_offset(), firmware::body(mode.loader()));
 }
 
 /// Fill the boot region with erased flash, then overlay the launcher at `load_addr - $FB18`.
 ///
 /// Writing only the launcher blob is the tempting mistake: it leaves roughly 1100 bytes of the
 /// region holding whatever was there before.
-pub fn write_boot(img: &mut FlashImage) {
-    let blob = firmware::LAUNCHER_NRM;
+pub fn write_boot(img: &mut FlashImage, mode: Mode) {
+    let blob = mode.launcher();
     let mut region = vec![crate::image::ERASED; BOOT_SIZE];
     let start = firmware::load_addr(blob) as usize - BOOT_BASE_ADDR as usize;
     let body = firmware::body(blob);
@@ -68,11 +102,11 @@ pub fn write_ef_name(img: &mut FlashImage, name: &str) {
 /// Rebuilding always writes the embedded blobs, so an image carrying different ones could be
 /// loaded but never rebuilt to the same bytes. Refusing here makes that failure land where its
 /// cause is legible instead of surfacing later as an unexplained diff.
-pub fn verify_regions(img: &FlashImage) -> Result<(), crate::read::ReadError> {
+pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<(), crate::read::ReadError> {
     let mut expected = FlashImage::erased();
     write_eapi(&mut expected);
-    write_boot(&mut expected);
-    write_loader(&mut expected);
+    write_boot(&mut expected, mode);
+    write_loader(&mut expected, mode);
 
     let mismatch = |region| {
         Err(crate::read::ReadError::Unsupported(
@@ -83,7 +117,7 @@ pub fn verify_regions(img: &FlashImage) -> Result<(), crate::read::ReadError> {
     let regions = [
         ("EAPI", EAPI_OFFSET, EAPI_SIZE),
         ("boot", BOOT_OFFSET, BOOT_SIZE),
-        ("menu loader", LOADER_NRM_OFFSET, LOADER_SIZE),
+        ("menu loader", mode.loader_offset(), LOADER_SIZE),
     ];
     for (region, at, size) in regions {
         if img.as_bytes()[at..at + size] != expected.as_bytes()[at..at + size] {
@@ -126,7 +160,7 @@ mod tests {
     fn boot_region_keeps_its_erased_fill_around_the_launcher() {
         let mut img = FlashImage::erased();
         img.write_at(BOOT_OFFSET, &vec![0x00; BOOT_SIZE]);
-        write_boot(&mut img);
+        write_boot(&mut img, Mode::Normal);
 
         let start = firmware::load_addr(firmware::LAUNCHER_NRM) as usize - BOOT_BASE_ADDR as usize;
         let d = img.as_bytes();
@@ -164,10 +198,32 @@ mod tests {
     fn a_fully_written_image_verifies() {
         let mut img = FlashImage::erased();
         write_eapi(&mut img);
-        write_boot(&mut img);
-        write_loader(&mut img);
+        write_boot(&mut img, Mode::Normal);
+        write_loader(&mut img, Mode::Normal);
         write_ef_name(&mut img, "anything");
-        assert!(verify_regions(&img).is_ok());
+        assert!(verify_regions(&img, Mode::Normal).is_ok());
+    }
+
+    #[test]
+    fn ocean_mode_puts_the_loader_in_bank_1_romh_and_leaves_bank_0_roml_alone() {
+        let mut img = FlashImage::erased();
+        write_eapi(&mut img);
+        write_boot(&mut img, Mode::Ocean);
+        write_loader(&mut img, Mode::Ocean);
+        write_ef_name(&mut img, "ocean");
+        assert_eq!(
+            &img.as_bytes()[LOADER_OCM_OFFSET..LOADER_OCM_OFFSET + LOADER_SIZE],
+            firmware::body(firmware::LOADER_OCM)
+        );
+        assert!(img
+            .bank(0, Half::RomL)
+            .iter()
+            .all(|&b| b == crate::image::ERASED));
+        assert!(verify_regions(&img, Mode::Ocean).is_ok());
+        assert!(
+            verify_regions(&img, Mode::Normal).is_err(),
+            "the normal-mode check expects the normal loader at bank 0 ROML"
+        );
     }
 
     #[test]
@@ -180,12 +236,12 @@ mod tests {
         ] {
             let mut img = FlashImage::erased();
             write_eapi(&mut img);
-            write_boot(&mut img);
-            write_loader(&mut img);
+            write_boot(&mut img, Mode::Normal);
+            write_loader(&mut img, Mode::Normal);
             write_ef_name(&mut img, "anything");
             img.write_at(at, &[0x5a; 8]);
             assert!(
-                verify_regions(&img).is_err(),
+                verify_regions(&img, Mode::Normal).is_err(),
                 "a change at {at:#x} should be caught"
             );
         }
@@ -196,10 +252,10 @@ mod tests {
         // It is caller data — only the magic in front of it is fixed.
         let mut img = FlashImage::erased();
         write_eapi(&mut img);
-        write_boot(&mut img);
-        write_loader(&mut img);
+        write_boot(&mut img, Mode::Normal);
+        write_loader(&mut img, Mode::Normal);
         write_ef_name(&mut img, "whatever the user chose");
-        assert!(verify_regions(&img).is_ok());
+        assert!(verify_regions(&img, Mode::Normal).is_ok());
     }
 
     #[test]

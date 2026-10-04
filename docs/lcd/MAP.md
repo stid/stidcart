@@ -4,7 +4,7 @@
 > you) don't re-derive the project's shape every session — and don't reinvent a place that already
 > exists. Update it in the same commit as any change that makes it wrong. Keep under ~150 lines.
 
-**Generated:** 2026-08-10 · **Last refined:** 2026-08-14
+**Generated:** 2026-08-10 · **Last refined:** 2026-10-04
 
 ---
 
@@ -26,7 +26,7 @@ this MAP is structural. Read `SPEC.md`'s surface section before scoping a change
 
 | Zone | Path | Responsibility | Don't put here |
 |---|---|---|---|
-| core | `crates/stidcart-core/` | Flash image model, EasyFS2 directory encoding **and decoding**, PETSCII, placement, CRT container **both directions**, firmware embedding and verification | Global mutable state, file dialogs, CLI arg parsing, anything that decides *policy* about I/O |
+| core | `crates/stidcart-core/` | Flash image model, EasyFS2 directory encoding **and decoding**, cartridge-image derivation (`cartridge.rs`), PETSCII, placement, CRT container **both directions**, firmware embedding and verification | Global mutable state, file dialogs, CLI arg parsing, anything that decides *policy* about I/O |
 | cli | `crates/stidcart-cli/` | Argument parsing, file reading/writing, human-facing output. The test harness for the core, not a product | Format knowledge, placement rules — those belong in core |
 | firmware | `firmware/` | zlib-licensed C64-side blobs, embedded as data | Any Rust source, anything GPL. The licence boundary runs through this directory |
 | fixtures | `fixtures/` | Frozen `ndeft`-built carts, their input PRGs, and the exact command line that produced each | Generated output, scratch carts, anything not reproducible from a recorded command |

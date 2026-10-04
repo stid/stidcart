@@ -14,17 +14,22 @@
 //! - the packet marker and total-length field are **validated**, which that implementation does not
 //!   do;
 //! - a directory with no end marker in any slot stays **refused**, which the format does mandate;
-//! - cartridge entries and unrecognised reserved firmware are **refused as unsupported**,
-//!   distinguishably from malformed input, rather than misparsed. A hidden entry used to be refused
-//!   alongside them; it is not, since the description carries the flag (D-020);
+//! - subdirectory entries and unrecognised reserved firmware are **refused as unsupported**,
+//!   distinguishably from malformed input, rather than misparsed. Hidden entries, cartridge
+//!   entries and half-confined programs used to be refused alongside them; they are not, since the
+//!   model carries all three (D-020, D-023);
+//! - a cartridge entry's geometry is checked against the top of flash **before** its primary bank
+//!   count is derived, which the reference tool got wrong and paid for with a heap overflow;
 //! - an old-format (EasyFS1) directory is **refused rather than converted** (D-017). The reserved
 //!   flag bits are what identify it, and unlike the refusals above this one applies to describing
 //!   as well as rebuilding — read as EasyFS2 an EasyFS1 entry's bank field is decoded at the wrong
 //!   width, so there is no accurate description to give.
 
+use crate::cartridge::Cartridge;
 use crate::directory::{self, DirEntry, EntryType, Slot, ENTRY_LEN};
 use crate::image::{BANK_SIZE, N_BANKS};
 use crate::place::Placer;
+use crate::reserved::Mode;
 use crate::{crt, reserved, CartBuilder, Program};
 
 /// Why a container's packet was rejected.
@@ -45,15 +50,10 @@ pub enum PacketProblem {
 /// broken" from "this cartridge is fine, we cannot open it yet".
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Unsupported {
-    CartridgeEntry {
-        type_value: u8,
-    },
-    /// An entry confined to one half of a bank (type `0x02` or `0x03`). Refused rather than read:
-    /// every reader here walks the interleaved progression, so reading one with this code would
-    /// return part of the entry followed by whatever occupies the other half.
-    ConfinedEntry {
-        name: String,
-        kind: EntryType,
+    /// An EasyFlash subdirectory entry — a cartridge whose payload is a whole nested directory. The
+    /// one live entry kind this tool has no model for.
+    Subdirectory {
+        slot: usize,
     },
     ReservedRegionMismatch {
         region: &'static str,
@@ -93,6 +93,12 @@ pub enum ReadError {
     OutOfBounds {
         at: usize,
         len: usize,
+    },
+    /// A cartridge entry whose bank runs reach past the top of flash, or whose opposite half
+    /// holds more banks than its size allows. Checked before any arithmetic on the fields, which is
+    /// where the reference tool underflowed (D-022).
+    BadGeometry {
+        slot: usize,
     },
     /// A directory slot carried a type value the format does not define.
     BadEntry {
@@ -137,6 +143,10 @@ impl std::fmt::Display for ReadError {
                 f,
                 "an entry reaches outside the image: {len} bytes at {at:#x} in the flash image"
             ),
+            ReadError::BadGeometry { slot } => write!(
+                f,
+                "directory slot {slot} describes a cartridge whose banks lie outside the image"
+            ),
             ReadError::BadEntry { slot, type_value } => write!(
                 f,
                 "directory slot {slot} carries undefined entry type {type_value:#04x}"
@@ -150,14 +160,9 @@ impl std::fmt::Display for ReadError {
                  them set, so the directory contradicts itself about its own format"
             ),
             ReadError::Unsupported(u) => match u {
-                Unsupported::CartridgeEntry { type_value } => write!(
+                Unsupported::Subdirectory { slot } => write!(
                     f,
-                    "the cartridge holds a cartridge entry (type {type_value:#04x}), which is not supported yet"
-                ),
-                Unsupported::ConfinedEntry { name, kind } => write!(
-                    f,
-                    "the entry '{name}' is confined to one half of a bank ({kind:?}), which is not \
-                     supported yet"
+                    "directory slot {slot} is an EasyFlash subdirectory entry, which is not supported"
                 ),
                 Unsupported::ReservedRegionMismatch { region } => write!(
                     f,
@@ -181,13 +186,14 @@ impl From<Unsupported> for ReadError {
     }
 }
 
-/// Walk an entry's interleave the way the image does, confirming every step stays inside flash.
+/// Walk a program entry the way the image does, confirming every step stays inside flash.
 ///
 /// This has to be checked before reading rather than during: stepping past the last bank wraps the
 /// address back into the reserved region, so an over-long entry would quietly return the directory
 /// as though it were program data. That is worse than a crash, and it is the shape of the bug the
-/// format spec records in the reference implementation.
-fn check_extent(bank: u16, offset: u16, size: u32) -> Result<(), ReadError> {
+/// format spec records in the reference implementation. An interleaved program alternates halves;
+/// a confined one stays in its half and steps to the next bank.
+fn check_extent(kind: EntryType, bank: u16, offset: u16, size: u32) -> Result<(), ReadError> {
     let at = crate::image::FlashImage::offset(
         bank as usize,
         if offset & 0x2000 != 0 {
@@ -210,8 +216,10 @@ fn check_extent(bank: u16, offset: u16, size: u32) -> Result<(), ReadError> {
         }
         left -= (BANK_SIZE - pos).min(left);
         pos = 0;
-        // ROML -> ROMH of the same bank -> ROML of the next.
-        if romh {
+        if kind != EntryType::Prg {
+            bank += 1;
+        } else if romh {
+            // ROML -> ROMH of the same bank -> ROML of the next.
             bank += 1;
             romh = false;
         } else {
@@ -219,6 +227,20 @@ fn check_extent(bank: u16, offset: u16, size: u32) -> Result<(), ReadError> {
         }
     }
     Ok(())
+}
+
+/// A cartridge entry's two runs must both end at or below the top of flash, and its opposite
+/// half cannot hold more banks than the whole entry — checked on the fields as read, before the
+/// primary count is derived by subtraction (`easyfs.c:159-174, 210-230`).
+fn check_cart_geometry(e: &DirEntry) -> bool {
+    let banks = e.size / BANK_SIZE as u32;
+    let other = u32::from(e.other_num);
+    if other > banks {
+        return false;
+    }
+    let bank = u32::from(e.bank);
+    let primary = banks - other;
+    bank + primary <= N_BANKS as u32 && bank + u32::from(e.other_off) + other <= N_BANKS as u32
 }
 
 /// A cartridge as its own directory records it — **positions included**.
@@ -245,11 +267,20 @@ impl CartInfo {
     /// for an image holding one small entry parked high — every byte below it is unused and none
     /// of it is placeable.
     pub fn free_space(&self) -> usize {
-        let mut placer = Placer::new();
+        let mut placer = Placer::new(self.mode());
         for e in &self.entries {
-            placer.occupy(e.bank, e.offset, e.size);
+            placer.occupy(e);
         }
         placer.free_space()
+    }
+
+    /// Normal, unless an entry is an Ocean cartridge (D-024).
+    pub fn mode(&self) -> Mode {
+        if self.entries.iter().any(|e| e.kind.is_ocean()) {
+            Mode::Ocean
+        } else {
+            Mode::Normal
+        }
     }
 }
 
@@ -260,9 +291,8 @@ impl CartInfo {
 /// cannot express this" is a precondition of rebuilding, and applying it to a read-only listing
 /// makes the tool fail on exactly the images someone would want to inspect. So this walk refuses
 /// only what it cannot **describe** — malformed slots, entries reaching outside the image, and the
-/// two well-formed shapes with no representation here (a cartridge entry, whose type modelling
-/// [`CartInfo`] does not have, and a half-confined entry, whose layout no reader here implements).
-/// Everything else is described, and [`load`] applies the narrower rebuild rules on top.
+/// one well-formed shape with no representation here, the subdirectory entry. Everything else is
+/// described, and [`load`] applies the narrower rebuild rules on top.
 fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
     let mut entries = Vec::new();
     // Whether any slot has already established the directory as EasyFS2. Only that direction needs
@@ -302,19 +332,16 @@ fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
                     entries,
                 })
             }
-            Slot::Cartridge { type_value } => {
-                return Err(Unsupported::CartridgeEntry { type_value }.into())
-            }
+            Slot::Subdirectory => return Err(Unsupported::Subdirectory { slot }.into()),
             Slot::Unknown { type_value } => return Err(ReadError::BadEntry { slot, type_value }),
             Slot::Program(entry) => {
-                if entry.kind != EntryType::Prg {
-                    return Err(Unsupported::ConfinedEntry {
-                        name: entry.name,
-                        kind: entry.kind,
-                    }
-                    .into());
+                check_extent(entry.kind, entry.bank, entry.offset, entry.size)?;
+                entries.push(entry);
+            }
+            Slot::Cartridge(entry) => {
+                if !check_cart_geometry(&entry) {
+                    return Err(ReadError::BadGeometry { slot });
                 }
-                check_extent(entry.bank, entry.offset, entry.size)?;
                 entries.push(entry);
             }
         }
@@ -340,23 +367,34 @@ pub fn inspect(bytes: &[u8]) -> Result<CartInfo, ReadError> {
 /// Load a `.crt` image into the description that would produce it.
 ///
 /// Stricter than [`inspect`] by exactly the rebuild preconditions: the reserved regions must hold
-/// the firmware this crate embeds, and no entry may carry a property `CartBuilder` cannot express.
+/// the firmware this crate embeds — for the mode the directory implies, which is why the directory
+/// is walked first (D-024) — and no entry may carry a property `CartBuilder` cannot express.
 pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
     let container = crt::parse(bytes)?;
-    reserved::verify_regions(&container.image)?;
     let info = read_directory(&container)?;
+    reserved::verify_regions(&container.image, info.mode())?;
 
     let mut builder = CartBuilder::new()
         .with_header_name(&info.header_name)
         .with_ef_name(&info.ef_name);
 
     for entry in &info.entries {
-        let data = container.image.read_program(
+        let (bank, offset, size) = (
             entry.bank as usize,
             entry.offset as usize,
             entry.size as usize,
         );
-        builder = builder.with_program(Program::new(&entry.name, data).with_hidden(entry.hidden));
+        match entry.kind {
+            EntryType::Prg => {
+                let data = container.image.read_program(bank, offset, size);
+                builder.push(Program::new(&entry.name, data).with_hidden(entry.hidden));
+            }
+            EntryType::PrgRomL | EntryType::PrgRomH => {
+                let data = container.image.read_confined(bank, offset, size);
+                builder.push(Program::new(&entry.name, data).with_hidden(entry.hidden));
+            }
+            _ => builder.push(Cartridge::read_from(&container.image, entry)),
+        }
     }
 
     Ok(builder)
@@ -368,30 +406,68 @@ mod tests {
 
     #[test]
     fn an_entry_ending_exactly_at_the_top_of_flash_is_in_bounds() {
-        assert!(check_extent(63, 0x2000, BANK_SIZE as u32).is_ok());
+        assert!(check_extent(EntryType::Prg, 63, 0x2000, BANK_SIZE as u32).is_ok());
     }
 
     #[test]
     fn an_entry_continuing_past_the_last_bank_is_out_of_bounds() {
-        assert!(check_extent(63, 0x2000, BANK_SIZE as u32 + 1).is_err());
+        assert!(check_extent(EntryType::Prg, 63, 0x2000, BANK_SIZE as u32 + 1).is_err());
     }
 
     #[test]
     fn a_zero_length_entry_needs_no_space() {
         // The loop body never runs, so this documents the base case rather than the bank check.
-        assert!(check_extent(63, 0x3fff, 0).is_ok());
+        assert!(check_extent(EntryType::Prg, 63, 0x3fff, 0).is_ok());
     }
 
     #[test]
     fn a_bank_past_the_top_of_flash_is_out_of_bounds_immediately() {
         // The guard has to fire before the first byte is consumed, not after.
-        assert!(check_extent(N_BANKS as u16, 0, 1).is_err());
-        assert!(check_extent(200, 0, 1).is_err());
+        assert!(check_extent(EntryType::Prg, N_BANKS as u16, 0, 1).is_err());
+        assert!(check_extent(EntryType::Prg, 200, 0, 1).is_err());
+    }
+
+    #[test]
+    fn a_confined_entry_steps_banks_in_its_own_half() {
+        // Two banks from bank 62 ROMH end exactly at the top; one byte more does not.
+        assert!(check_extent(EntryType::PrgRomH, 62, 0x2000, 2 * BANK_SIZE as u32).is_ok());
+        assert!(check_extent(EntryType::PrgRomH, 62, 0x2000, 2 * BANK_SIZE as u32 + 1).is_err());
+        // Interleaved from the same start, the second bank half is 63 ROML, so three halves fit.
+        assert!(check_extent(EntryType::Prg, 62, 0x2000, 3 * BANK_SIZE as u32).is_ok());
+    }
+
+    #[test]
+    fn cart_geometry_is_checked_before_the_subtraction() {
+        let mut e = DirEntry {
+            name: "c".into(),
+            kind: EntryType::K16,
+            bank: 62,
+            offset: 0,
+            size: 2 * BANK_SIZE as u32,
+            hidden: false,
+            align_64k: false,
+            other_off: 0,
+            other_num: 1,
+        };
+        assert!(
+            check_cart_geometry(&e),
+            "one bank in each half from bank 62"
+        );
+        e.other_num = 3;
+        assert!(
+            !check_cart_geometry(&e),
+            "more opposite banks than the entry holds"
+        );
+        e.other_num = 1;
+        e.bank = 63;
+        assert!(check_cart_geometry(&e));
+        e.other_off = 1;
+        assert!(!check_cart_geometry(&e), "the opposite run reaches bank 64");
     }
 
     #[test]
     fn an_entry_filling_the_last_bank_exactly_is_in_bounds() {
-        assert!(check_extent(63, 0, 2 * BANK_SIZE as u32).is_ok());
-        assert!(check_extent(63, 0, 2 * BANK_SIZE as u32 + 1).is_err());
+        assert!(check_extent(EntryType::Prg, 63, 0, 2 * BANK_SIZE as u32).is_ok());
+        assert!(check_extent(EntryType::Prg, 63, 0, 2 * BANK_SIZE as u32 + 1).is_err());
     }
 }

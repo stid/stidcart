@@ -9,3 +9,5 @@
 2026-08-14 · cart-edit · 6 signals · Deep · hard:yes · risk:yes
 2026-08-14 · cart-edit · closeout · Deep · audit: PASS (first run) · re-routes: 0 · red-green iters: 2 · interventions: 1
 2026-09-19 · crt-header-length · 1 signals · Quick · hard:no · risk:no
+2026-09-19 · cart-entries · 5 signals · Deep · hard:yes · risk:yes
+2026-10-04 · cart-entries · closeout · Deep · audit: PASS (run 2) · re-routes: 0 · interventions: 1 (boundary-hook denial: JOURNAL boundary lines unparseable)
