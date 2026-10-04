@@ -205,7 +205,7 @@
 
 ### Docs and gates
 
-- [ ] **T34**: Update `README.md` — State section ("PRG entries only" → the kinds now handled, Ocean
+- [x] **T34**: Update `README.md` — State section ("PRG entries only" → the kinds now handled, Ocean
   mode, the subdirectory as the one refusal) and the read-path quirks paragraph (wide xbank now
   read).
 - [ ] **T-audit**: Run `/lcd:audit cart-entries`; resulting `audit.md` has zero MISSING/BLOCKED rows.

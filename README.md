@@ -10,10 +10,17 @@ from ndefpack's C sources into a written spec before this repo existed — that 
 
 ## State
 
-Write, read, list and edit, all for PRG entries only. It builds a cart from PRG files, loads one
-back into the same builder state byte-identically, shows what one contains, and changes one in
-place — adding, removing, renaming and replacing entries, hiding them, and setting either name. It
-has no GUI. The order — write first — was deliberate; see below.
+Write, read, list and edit. It builds a cart from PRG files and cartridge images, loads one back
+into the same builder state byte-identically, shows what one contains, and changes one in place —
+adding, removing, renaming and replacing entries, hiding them, requesting 64 KB alignment, and
+setting either name. It has no GUI. The order — write first — was deliberate; see below.
+
+Entries can be programs or cartridges. A cartridge input is recognised by its content: generic 8k,
+16k and Ultimax images, Ocean (up to 512 KiB), and EasyFlash xbank in all three modes. An xbank is
+bounded by the flash, not by a flat 512 KiB, so one wider than the reference tool reads is accepted
+(D-022). Cartridges are placed first, and programs fill the gaps between them as entries confined
+to one half of a bank, the way the reference placement does. An Ocean entry puts the whole image in
+Ocean mode, derived from the entries rather than declared (D-024); only one is allowed.
 
 Editing saves through the same placement the build path uses, so an edited cart is the cart a fresh
 build of the resulting entries would have produced, not a patch of the file that arrived: entries
@@ -26,8 +33,8 @@ Describing a cart and rebuilding it are held to different standards, because the
 `list` shows anything it can describe, while loading additionally refuses whatever it could not
 reproduce unchanged (an image whose firmware regions differ from the blobs embedded here). Hidden
 entries pass both: the model carries the flag, so they load, edit and save back intact (D-020).
-Both refuse what neither can represent: cartridge entries and entries confined to one half of a
-bank. Directories in the older EasyFS1 format are refused by both paths: read as EasyFS2 every
+Both refuse what neither can represent, which is now only the EasyFlash subdirectory entry, a
+cartridge kind that nests a whole directory. Directories in the older EasyFS1 format are refused by both paths: read as EasyFS2 every
 entry gets a corrupted bank, so there is no accurate description to give (D-017).
 
 ## Layout
@@ -49,7 +56,8 @@ first commit, so it gets spent there.
 
 The write path also has no bug-compatibility question. Reading someone else's cart does: ndefpack
 has documented quirks in its loader (an empty directory rejected, the CHIP magic never checked,
-wide 16k xbank carts unreadable) that a new implementation may or may not want to reproduce.
+wide 16k xbank carts unreadable) that a new implementation may or may not want to reproduce. This
+one reads wide xbank carts (D-022).
 Building the write path first defers that decision instead of pre-empting it.
 
 ## Build and test
