@@ -81,7 +81,7 @@ body byte `i` of file `k` (its index in the script's table), bank `b`, half `h` 
 | `cxbwide.crt` | `ndeft -q -e "cxbwide" -o cxbwide.crt build in_xbwide.crt hello.prg` | **the reference tool wrote this image and cannot read it back** (`ndeft list` fails with `size $0a0000 > $80000`). It pins the write side of D-022 only; the read side has no oracle |
 
 `ndeft list` output for each image was recorded on 2026-09-19 in the work-item JOURNAL
-(`docs/lcd/work/cart-entries/JOURNAL.md`) — bank, offset, size and type per entry.
+(`docs/lcd/work/_archive/cart-entries/JOURNAL.md`) — bank, offset, size and type per entry.
 
 ## Two things that will bite
 
