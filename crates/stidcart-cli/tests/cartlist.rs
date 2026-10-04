@@ -89,7 +89,9 @@ fn ac_45_render_every_kind_is_labelled_and_cartridges_show_their_bank_runs() {
 /// AC-46 (RENDER): the free-bytes figure accounts for the banks cartridges occupy in both halves,
 /// so a further entry of exactly that size can be placed and one byte more cannot.
 ///
-/// The figure is the contiguous space at the top, the reference's `calc_top_space`. Beware the
+/// The figure is what a re-placement of the entries plus one more program accepts (D-027). In
+/// normal mode that equals the contiguous space at the top, the reference's `calc_top_space`; in
+/// Ocean mode it can be a ROMH gap far larger than the top run (issue #29). Beware the
 /// reference's own listing: `flash.c` passes `(total, top)` into `util_display_space(top, total)`,
 /// so the number it prints as "top" is the *total* free bytes, gaps included ($e45be for cmixed).
 #[test]
@@ -100,7 +102,14 @@ fn ac_46_render_free_bytes_account_for_cartridge_occupied_banks() {
     // cmixed: the 8k cart at bank 7 is the highest occupied bank, so the top run is bank 7 ROMH
     // plus banks 8..63; the ROMH gaps below it are not part of a run one program could take.
     let cmixed = 56 * 0x4000 + 0x2000;
-    for (name, free) in [("c8k.crt", c8k), ("cmixed.crt", cmixed)] {
+    // cocean512: every ROML bank is the cart, but a re-placement gives one confined program ROMH
+    // banks 2..62 and moves hello to bank 63 ROMH (issue #29).
+    let cocean512 = 61 * 0x2000;
+    for (name, free) in [
+        ("c8k.crt", c8k),
+        ("cmixed.crt", cmixed),
+        ("cocean512.crt", cocean512),
+    ] {
         let out = list(name);
         assert!(
             out.contains(&format!("${free:06x} ({free}) bytes free")),
@@ -112,11 +121,6 @@ fn ac_46_render_free_bytes_account_for_cartridge_occupied_banks() {
         );
         assert!(!adds(name, free + 1), "{name}: one byte more should not");
     }
-
-    // cocean512: every ROML bank is the cart, so only bank 63 ROMH counts as top space. A lower
-    // bound: the ROMH gap at banks 2..62 is not reported.
-    assert!(list("cocean512.crt").contains("$002000 (8192) bytes free"));
-    assert!(adds("cocean512.crt", 0x2000));
 }
 
 /// Whether `edit --add` of a `size`-byte program (load address included) into a copy succeeds.

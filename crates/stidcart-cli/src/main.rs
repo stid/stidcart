@@ -350,13 +350,18 @@ fn list(args: &[String]) -> Result<(), String> {
 
     let bytes = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
     let info = read::inspect(&bytes).map_err(|e| e.to_string())?;
+    // The free figure is the one place the listing asks a rebuild question — what `edit --add`
+    // would accept — so it comes from the rebuild view when there is one (D-027). An image `load`
+    // refuses cannot be edited at all; it still gets a figure, describing the space the image as
+    // stored leaves at the top.
+    let free = read::load(&bytes).map_or_else(|_| info.free_space(), |b| b.free_space());
 
-    print!("{}", render(&info));
+    print!("{}", render(&info, free));
     Ok(())
 }
 
 /// The listing itself, kept separate from the printing so it can be asserted on directly.
-fn render(info: &read::CartInfo) -> String {
+fn render(info: &read::CartInfo, free: usize) -> String {
     let mut out = String::new();
     // The cartridge name and every entry name arrive through the machine's own character mapping,
     // which already turns control bytes into `.`. The container header name does not — it is
@@ -394,7 +399,6 @@ fn render(info: &read::CartInfo) -> String {
         }
     }
 
-    let free = info.free_space();
     out.push_str(&format!(
         "\n{} {}, ${free:06x} ({free}) bytes free\n",
         info.entries.len(),
