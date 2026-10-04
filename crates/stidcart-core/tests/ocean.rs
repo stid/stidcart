@@ -96,3 +96,28 @@ fn ac_37_a_second_ocean_entry_is_refused_by_name() {
         }
     );
 }
+
+/// Issue #29, behind AC-46's listing: the free figure is what a re-placement would accept, not the
+/// top run. cocean512's cart fills every ROML bank, the reserved areas take bank 0 and bank 1
+/// ROMH, so a fresh placement can give one confined program ROMH banks 2..62 and move the small
+/// entry to bank 63 ROMH. The expected value comes from that geometry, not from the search.
+#[test]
+fn ac_46_ocean_free_space_counts_the_romh_run_a_re_placement_can_use() {
+    let builder = read::load(&fixture("cocean512.crt")).expect("cocean512 loads");
+    assert_eq!(builder.free_space(), 61 * 0x2000);
+}
+
+/// With nothing placed, the whole of flash past bank 0 is free in normal mode.
+#[test]
+fn an_empty_builder_has_every_bank_but_the_reserved_one_free() {
+    assert_eq!(CartBuilder::new().free_space(), 63 * 0x4000);
+}
+
+/// A zero-length program is describable (the walk accepts it), so sizing the space beside one must
+/// not panic. The empty program is placed after the probe, and once the probe fills the top
+/// exactly there is nowhere left to put it (D-028), so the figure stops one byte short.
+#[test]
+fn free_space_beside_a_zero_length_program_does_not_panic() {
+    let b = CartBuilder::new().with_program(Program::new("z", Vec::new()));
+    assert_eq!(b.free_space(), 63 * 0x4000 - 1);
+}

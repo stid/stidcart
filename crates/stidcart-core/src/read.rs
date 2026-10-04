@@ -259,13 +259,17 @@ pub struct CartInfo {
 }
 
 impl CartInfo {
-    /// The contiguous run a further entry could actually occupy, given where these entries sit.
+    /// The contiguous run at the top of flash, given where these entries sit as stored.
     ///
-    /// Computed by replaying the entries into a placer at their recorded positions, because the
-    /// figure a caller sizes a program against has to account for *where* the image is occupied.
-    /// Subtracting the sizes from the capacity instead would report almost a full cartridge free
-    /// for an image holding one small entry parked high — every byte below it is unused and none
-    /// of it is placeable.
+    /// Computed by replaying the entries into a placer at their recorded positions, so it accounts
+    /// for *where* the image is occupied. Subtracting the sizes from the capacity instead would
+    /// report almost a full cartridge free for an image holding one small entry parked high —
+    /// every byte below it is unused and none of it is placeable.
+    ///
+    /// This describes the file, not what an edit would accept: a rebuild re-places every entry
+    /// (D-019), and on an Ocean cart that frees a ROMH run this figure never counts. For the size
+    /// a further program can actually take, load the image and ask
+    /// [`CartBuilder::free_space`](crate::CartBuilder::free_space) (D-027).
     pub fn free_space(&self) -> usize {
         let mut placer = Placer::new(self.mode());
         for e in &self.entries {

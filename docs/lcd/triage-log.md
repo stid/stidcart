@@ -11,3 +11,5 @@
 2026-09-19 · crt-header-length · 1 signals · Quick · hard:no · risk:no
 2026-09-19 · cart-entries · 5 signals · Deep · hard:yes · risk:yes
 2026-10-04 · cart-entries · closeout · Deep · audit: PASS (run 2) · re-routes: 0 · interventions: 1 (boundary-hook denial: JOURNAL boundary lines unparseable)
+2026-10-04 · ocean-free-space · 2 signals · Standard · hard:no · risk:no
+2026-10-04 · ocean-free-space · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0

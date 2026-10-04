@@ -30,6 +30,7 @@ pub use image::FlashImage;
 pub use read::{inspect, load, CartInfo, ReadError};
 
 use directory::{DirEntry, EntryType, ENTRY_LEN, MAX_ENTRIES};
+use image::{BANK_SIZE, N_BANKS};
 use place::Placer;
 use reserved::{Mode, DEFAULT_EF_NAME, DIRECTORY_OFFSET};
 
@@ -303,6 +304,37 @@ impl CartBuilder {
     /// Normal, unless an entry is an Ocean cartridge (D-024).
     pub fn mode(&self) -> Mode {
         mode_of(self.entries.iter())
+    }
+
+    /// The size of a further program these entries leave room for (D-027): one of exactly this
+    /// many bytes can be added and one byte more cannot.
+    ///
+    /// Answered by placing the entries afresh with a probe program appended last, as `push` would
+    /// add it, because a build re-places everything (D-019) — on an Ocean cart that frees a ROMH
+    /// run far larger than the top space the image as stored shows. Placement is greedy, so fit is
+    /// not proven monotone in size; the search keeps one size known to fit and one known to fail,
+    /// which makes the boundary exact even where it might not be the global maximum.
+    pub fn free_space(&self) -> usize {
+        let mode = self.mode();
+        let mut entries = self.entries.clone();
+        entries.push(Program::new("", Vec::new()).into());
+        let mut fits = |size: usize| {
+            if let Some(Entry::Program(p)) = entries.last_mut() {
+                p.data.resize(size, 0);
+            }
+            Placer::new(mode).place_all(&entries).is_ok()
+        };
+
+        let (mut lo, mut hi) = (0, N_BANKS * BANK_SIZE * 2 + 1);
+        while hi - lo > 1 {
+            let mid = lo + (hi - lo) / 2;
+            if fits(mid) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        lo
     }
 
     /// Lay out the flash image without wrapping it in a container.

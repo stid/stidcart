@@ -8,9 +8,47 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-027 -->
+<!-- Next id: D-029 -->
 
 ---
+
+## D-028 · 2026-10-04 · Nothing is placed once the top is used up, not even an empty program
+- **Context:** when the top run is exactly used up, `top()` points past bank 63, and placing a
+  zero-length program there indexed out of bounds and panicked. `edit` reached this on a cart
+  holding a 0-byte entry when an added program filled flash exactly. `list` reached it through
+  D-027's probe, which turned a describable cart into a crash (D-011). The reference reads the same
+  out-of-range slot (`place.c:336`, undefined behaviour). It only escapes because `prg_load`
+  refuses empty input (`prg.c:50`), which never covers an entry read from a stored directory.
+- **Decision:** `Placer::place_interleaved` returns `None` (out of space) when the run starts past
+  the last bank. The build reports out-of-space naming the entry, and the free figure stays
+  consistent with that: beside a 0-byte program, filling the last byte does not fit.
+- **Alternatives rejected:** recording an empty program at some in-bounds position past the data.
+  The offset field cannot encode "after bank 63 ROMH", so that position would be fabricated.
+  Refusing zero-length programs at input or on load. That is a new refusal, and `load` refusing it
+  would also stop `edit` on carts it handles today whenever space is left.
+- **Scope:** `stidcart-core` `Placer::place_interleaved`
+- **Status:** active
+
+## D-027 · 2026-10-04 · The listed free figure is what a re-placement accepts, not the top run
+- **Context:** `list` printed the top run (`calc_top_space`) replayed from the stored positions.
+  In normal mode that equals what `edit --add` accepts; in Ocean mode it does not. cocean512
+  listed $2000 free, while `edit` accepts a $7a000 program, because a rebuild re-places every entry
+  (D-019) and a confined program can take ROMH banks 2..62 (issue #29).
+- **Decision:** `CartBuilder::free_space` answers "how large a program can be added" by running
+  `Placer::place_all` on the entries plus a probe program appended last, as `--add` appends it.
+  The search keeps a size known to fit and one known to fail, so the figure always fits and one
+  byte more always fails. Placement is greedy, so fit is not proven monotone in size and the
+  figure is a boundary, not a proven global maximum. `list` uses it when the image loads. An image
+  `load` refuses cannot be edited at all, so it falls back to the replay figure, which describes
+  the file as stored (D-011).
+- **Alternatives rejected:** adding the largest stored gap to the replay figure. It undercounts,
+  because `edit` moves existing entries out of the gap (cocean512's `hello` sits at bank 2 ROMH and
+  moves to 63). Probing `build_image` instead of the placer. Its other refusals do not depend on
+  probe size, but `TooManyEntries` would turn a full directory into "0 bytes free", mixing two
+  separate limits. Claiming "largest" and searching a wider range for non-monotone fits. Nothing
+  shows a non-monotone case, and AC-46 asserts the boundary only.
+- **Scope:** `stidcart-core` `CartBuilder::free_space`, `stidcart-cli` `list`
+- **Status:** active
 
 ## D-026 · 2026-10-04 · cart-entries shipped: cartridge images are entries, and the kind refusal narrows to subdirectories
 - **Context:** Until cart-entries, both read paths, `build` and `edit` handled PRG entries only and
