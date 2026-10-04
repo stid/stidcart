@@ -136,9 +136,7 @@ read from the reference sources with `file:line` cited above; no library or exte
 
 AC-31..AC-39 are `none` and carry no row. Their tests are the coverage (see File structure).
 
-**Test scope:** `crates/stidcart-core/tests/cartridge.rs`, `crates/stidcart-core/tests/cart_placement.rs`,
-`crates/stidcart-core/tests/ocean.rs`, `crates/stidcart-cli/tests/carts.rs`,
-`crates/stidcart-cli/tests/cartlist.rs`
+**Test scope:** `crates/stidcart-core/tests/cartridge.rs`, `crates/stidcart-core/tests/cart_placement.rs`, `crates/stidcart-core/tests/ocean.rs`, `crates/stidcart-cli/tests/carts.rs`, `crates/stidcart-cli/tests/cartlist.rs`
 
 ## Reused primitives
 

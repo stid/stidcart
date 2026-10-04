@@ -208,8 +208,8 @@
 - [x] **T34**: Update `README.md` — State section ("PRG entries only" → the kinds now handled, Ocean
   mode, the subdirectory as the one refusal) and the read-path quirks paragraph (wide xbank now
   read).
-- [ ] **T-audit**: Run `/lcd:audit cart-entries`; resulting `audit.md` has zero MISSING/BLOCKED rows.
-- [ ] **T-final**: Run the gate — `cargo fmt --all --check && cargo clippy --workspace --all-targets
+- [x] **T-audit**: Run `/lcd:audit cart-entries`; resulting `audit.md` has zero MISSING/BLOCKED rows.
+- [x] **T-final**: Run the gate — `cargo fmt --all --check && cargo clippy --workspace --all-targets
   --all-features -- -D warnings && cargo test --workspace` — all green; then `lcd:reconcile` folds
   AC-31..AC-46 into `docs/lcd/SPEC.md`.
 

@@ -8,9 +8,22 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-026 -->
+<!-- Next id: D-027 -->
 
 ---
+
+## D-026 · 2026-10-04 · cart-entries shipped: cartridge images are entries, and the kind refusal narrows to subdirectories
+- **Context:** Until cart-entries, both read paths, `build` and `edit` handled PRG entries only and
+  refused any cart holding a cartridge entry or a half-confined program as "an entry kind it cannot
+  represent" (D-019's refusal clause).
+- **Decision:** the nine cartridge kinds and both half-confined program kinds are modelled end to
+  end — input derivation (D-023), placement (D-025), Ocean mode (D-024), the wide-xbank bound
+  (D-022), read, list and every edit operation by index. The one kind still refused is the
+  EasyFlash subdirectory entry. Capabilities indexed in SPEC.md under AC-31..AC-46.
+- **Alternatives rejected:** see D-022..D-025 — this entry is the SPEC anchor for the shipped set,
+  not a new fork.
+- **Scope:** project-wide
+- **Status:** active
 
 ## D-025 · 2026-10-04 · Cartridges are placed before programs regardless of weight
 - **Context:** The reference sorts every entry by one weight and treats the first `num_crt`
@@ -152,7 +165,7 @@
   for itself. The safety this buys is bought instead by AC-24: a failed edit leaves every input
   byte-identical, so the failure mode the read-only default guards against is closed directly.
 - **Scope:** the `edit` CLI surface and the rebuild path in `stidcart-core`
-- **Status:** active
+- **Status:** active; the "entry kind it cannot represent" refusal narrowed to subdirectory entries by D-026
 
 ## D-018 · 2026-08-14 · The format spec lives in the tree at `docs/format/`, not in the vault
 - **Context:** `reference/easyflash-cart-format.md` in the Obsidian vault was the source for every
