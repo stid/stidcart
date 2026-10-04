@@ -44,7 +44,7 @@
 
 | Capability (current behaviour, one line) | ACs | Provenance |
 |---|---|---|
-| The listing shows the cart name and producing tool, then one row per entry — index, name, flags (hidden, 64 KB aligned), kind label, bank, layout (a program's offset, or a cartridge's bank runs per half), size — closing with the entry count and the free bytes: the contiguous run at the top, so a program of exactly that size can be added and one byte more cannot | AC-45, AC-46 | D-026 (cart-entries) |
+| The listing shows the cart name and producing tool, then one row per entry — index, name, flags (hidden, 64 KB aligned), kind label, bank, layout (a program's offset, or a cartridge's bank runs per half), size — closing with the entry count and the free bytes: the contiguous run at the top. In normal mode a program of exactly that size can be added and one byte more cannot; in Ocean mode it is a lower bound, since a larger ROMH-confined program can still fit a gap (follow-up) | AC-45, AC-46 | D-026 (cart-entries) |
 | Every kind the walk accepts — nine cartridge kinds, interleaved and both half-confined program kinds — has one distinct label, so no entry renders as `?` | AC-45 | D-026 (cart-entries) |
 | Control characters in the container header name are replaced with `.` before printing, because a `.crt` is untrusted input and the field is free-form host text | — | D-015 (backfill) |
 

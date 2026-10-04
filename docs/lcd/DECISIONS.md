@@ -35,7 +35,7 @@
   among themselves, programs keep theirs, and carts always come first, which is what AC-33 states.
   No frozen fixture mixes a program over 64 KiB with a cart, so parity is unchanged.
 - **Alternatives rejected:** reproducing the reference — its output for this input is a program
-  placed as a cartridge, not a layout anyone depends on. Capping program size below 64 KiB — a new
+  placed as a cartridge (inferred from `place.c`; ndeft was not run on it), not a layout anyone depends on. Capping program size below 64 KiB — a new
   refusal for inputs the format allows.
 - **Scope:** `stidcart-core` `Placer::place_all`
 - **Status:** active

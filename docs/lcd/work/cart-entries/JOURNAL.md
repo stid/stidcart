@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Model, place, build, read, list and edit the nine cartridge entry kinds (8k/16k, Ultimax, Ocean, xbank) plus the half-confined program entries the reference placement produces beside them; decide the wide-xbank bound.
-- **Next action:** open the PR; required checks `gate` and `claude-review`
+- **Next action:** PR #28 open, checks green; awaiting the user's merge
 - **Branch:** feat/cart-entries  ·  **Updated:** 2026-10-04
 
 ## STEPS
