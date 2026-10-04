@@ -35,9 +35,10 @@
 
 ## Acceptance criteria
 
-Re-tightens an existing AC rather than adding one: **AC-46** (surfaces: RENDER), as folded into
-`SPEC.md` — the free-bytes figure is a size a further entry could actually be placed at. This
-work-item extends the exact-fit / one-more-fails assertion from `c8k`/`cmixed` to `cocean512`.
+Re-tightens an existing AC rather than adding one; this work-item extends its exact-fit /
+one-more-fails assertion from `c8k`/`cmixed` to `cocean512`.
+
+**AC-46** (surfaces: RENDER): the free-bytes figure is a size a further entry can actually be placed at — exactly that size can be added and one byte more cannot.
 
 ## LOG (append-only; not read on resume)
 
@@ -51,3 +52,6 @@ work-item extends the exact-fit / one-more-fails assertion from `c8k`/`cmixed` t
 - 2026-10-04 21:40 — S4: D-027, SPEC RENDER row, `CartInfo::free_space` doc. Dropped a stray
   `AC-46 (none)` token from the core test (AC-46 is RENDER only). audit: PASS (test-presence).
 - 2026-10-04 21:45 — reconciled: folded AC-46 (re-tightened) → SPEC.md/RENDER (free-bytes row rewritten in place, D-027).
+- 2026-10-04 22:00 — Post-PR review: the probe could panic beside a 0-byte program (top used up →
+  `used[_][64]`). The same panic was reachable from `edit` on main. Red test, then fixed in the placer
+  → D-028. JOURNAL AC moved to its own line so `parse-acs.sh` reads it.

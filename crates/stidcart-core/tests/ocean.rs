@@ -112,3 +112,12 @@ fn ac_46_ocean_free_space_counts_the_romh_run_a_re_placement_can_use() {
 fn an_empty_builder_has_every_bank_but_the_reserved_one_free() {
     assert_eq!(CartBuilder::new().free_space(), 63 * 0x4000);
 }
+
+/// A zero-length program is describable (the walk accepts it), so sizing the space beside one must
+/// not panic. The empty program is placed after the probe, and once the probe fills the top
+/// exactly there is nowhere left to put it (D-028), so the figure stops one byte short.
+#[test]
+fn free_space_beside_a_zero_length_program_does_not_panic() {
+    let b = CartBuilder::new().with_program(Program::new("z", Vec::new()));
+    assert_eq!(b.free_space(), 63 * 0x4000 - 1);
+}

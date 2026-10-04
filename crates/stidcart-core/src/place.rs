@@ -97,7 +97,9 @@ impl Placer {
     /// Place `size` bytes interleaved in the top free space, or fail if it does not fit.
     pub fn place_interleaved(&mut self, size: usize) -> Option<Placement> {
         let (bank, half, space) = self.top();
-        if size > space {
+        // A used-up top starts past the last bank, where even an empty program has no position
+        // to record (D-028).
+        if size > space || bank == N_BANKS {
             return None;
         }
 
@@ -469,6 +471,15 @@ mod tests {
         let all = p.free_space();
         assert!(p.place_interleaved(all).is_some());
         assert_eq!(p.free_space(), 0);
+    }
+
+    #[test]
+    fn nothing_more_is_placed_once_the_top_is_used_up_not_even_an_empty_program() {
+        // The run then starts past the last bank; indexing it panicked (D-028).
+        let mut p = Placer::new(Mode::Normal);
+        let all = p.free_space();
+        p.place_interleaved(all);
+        assert_eq!(p.place_interleaved(0), None);
     }
 
     #[test]

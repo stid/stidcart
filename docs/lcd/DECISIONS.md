@@ -8,9 +8,26 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-028 -->
+<!-- Next id: D-029 -->
 
 ---
+
+## D-028 · 2026-10-04 · Nothing is placed once the top is used up, not even an empty program
+- **Context:** when the top run is exactly used up, `top()` points past bank 63, and placing a
+  zero-length program there indexed out of bounds and panicked. `edit` reached this on a cart
+  holding a 0-byte entry when an added program filled flash exactly. `list` reached it through
+  D-027's probe, which turned a describable cart into a crash (D-011). The reference reads the same
+  out-of-range slot (`place.c:336`, undefined behaviour). It only escapes because `prg_load`
+  refuses empty input (`prg.c:50`), which never covers an entry read from a stored directory.
+- **Decision:** `Placer::place_interleaved` returns `None` (out of space) when the run starts past
+  the last bank. The build reports out-of-space naming the entry, and the free figure stays
+  consistent with that: beside a 0-byte program, filling the last byte does not fit.
+- **Alternatives rejected:** recording an empty program at some in-bounds position past the data.
+  The offset field cannot encode "after bank 63 ROMH", so that position would be fabricated.
+  Refusing zero-length programs at input or on load. That is a new refusal, and `load` refusing it
+  would also stop `edit` on carts it handles today whenever space is left.
+- **Scope:** `stidcart-core` `Placer::place_interleaved`
+- **Status:** active
 
 ## D-027 · 2026-10-04 · The listed free figure is what a re-placement accepts, not the top run
 - **Context:** `list` printed the top run (`calc_top_space`) replayed from the stored positions.
