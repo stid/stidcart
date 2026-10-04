@@ -97,10 +97,10 @@ fn ac_37_a_second_ocean_entry_is_refused_by_name() {
     );
 }
 
-/// AC-46 (none), issue #29: the free figure is what a re-placement would accept, not the top run.
-/// cocean512's cart fills every ROML bank, the reserved areas take bank 0 and bank 1 ROMH, so a
-/// fresh placement can give one confined program ROMH banks 2..62 and move the small entry to
-/// bank 63 ROMH. The expected value comes from that geometry, not from the search.
+/// Issue #29, behind AC-46's listing: the free figure is what a re-placement would accept, not the
+/// top run. cocean512's cart fills every ROML bank, the reserved areas take bank 0 and bank 1
+/// ROMH, so a fresh placement can give one confined program ROMH banks 2..62 and move the small
+/// entry to bank 63 ROMH. The expected value comes from that geometry, not from the search.
 #[test]
 fn ac_46_ocean_free_space_counts_the_romh_run_a_re_placement_can_use() {
     let builder = read::load(&fixture("cocean512.crt")).expect("cocean512 loads");

@@ -7,14 +7,14 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** `list` reports the free-bytes figure `edit --add` actually accepts on Ocean-mode carts (issue #29), not just the top run.
-- **Next action:** S1 — failing tests (cocean512 literal in cartlist.rs, geometry unit test in core).
-- **Branch:** fix/ocean-free-space  ·  **Updated:** 2026-10-04 21:00
+- **Next action:** done — PR closing #29.
+- **Branch:** fix/ocean-free-space  ·  **Updated:** 2026-10-04 21:40
 
 ## STEPS
-- [ ] S1 — failing tests: cocean512 lists `$07a000 (499712)` with exact-fit / one-more-fails; core unit test expects 61 ROMH banks on an Ocean 512k + small program  ← next
-- [ ] S2 — `CartBuilder::free_space()`: search the placer with a probe program appended last; `lo` always fits, `hi` always fails
-- [ ] S3 — `list` uses the builder figure when `load` succeeds, the replay figure otherwise; `render` takes the figure
-- [ ] S4 — D-027, SPEC RENDER row, `CartInfo::free_space` doc comment; gate; PR closing #29
+- [x] S1 — failing tests: cocean512 lists `$07a000 (499712)` with exact-fit / one-more-fails; core unit test expects 61 ROMH banks on an Ocean 512k + small program
+- [x] S2 — `CartBuilder::free_space()`: search the placer with a probe program appended last; `lo` always fits, `hi` always fails
+- [x] S3 — `list` uses the builder figure when `load` succeeds, the replay figure otherwise; `render` takes the figure
+- [x] S4 — D-027, SPEC RENDER row, `CartInfo::free_space` doc comment; gate; PR closing #29
 
 ## DECISIONS (this work-item)
 - Figure = boundary of a search over `Placer::place_all` with a probe, not `build_image` (entry-count refusals would turn "directory full" into "0 bytes free") → D-027
@@ -45,3 +45,9 @@ work-item extends the exact-fit / one-more-fails assertion from `c8k`/`cmixed` t
   accepts a $07a000-byte program, i.e. ROMH banks 2..62 (61 × $2000); `hello` moves to the top.
   The replay figure (`CartInfo::free_space`) can't reach that number because `edit` re-places
   every entry (D-019), so the figure has to come from a fresh placement.
+- 2026-10-04 21:20 — S1–S3: tests red on the $2000 figure, then `CartBuilder::free_space` (probe
+  search over `place_all`) and `list` routing it. c8k/cmixed literals held unchanged; cocean512 now
+  lists $07a000. Committed 02238a4. Decision → D-027.
+- 2026-10-04 21:40 — S4: D-027, SPEC RENDER row, `CartInfo::free_space` doc. Dropped a stray
+  `AC-46 (none)` token from the core test (AC-46 is RENDER only). audit: PASS (test-presence).
+- 2026-10-04 21:45 — reconciled: folded AC-46 (re-tightened) → SPEC.md/RENDER (free-bytes row rewritten in place, D-027).

@@ -8,9 +8,30 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-027 -->
+<!-- Next id: D-028 -->
 
 ---
+
+## D-027 · 2026-10-04 · The listed free figure is what a re-placement accepts, not the top run
+- **Context:** `list` printed the top run (`calc_top_space`) replayed from the stored positions.
+  In normal mode that equals what `edit --add` accepts; in Ocean mode it does not. cocean512
+  listed $2000 free, while `edit` accepts a $7a000 program, because a rebuild re-places every entry
+  (D-019) and a confined program can take ROMH banks 2..62 (issue #29).
+- **Decision:** `CartBuilder::free_space` answers "how large a program can be added" by running
+  `Placer::place_all` on the entries plus a probe program appended last, as `--add` appends it.
+  The search keeps a size known to fit and one known to fail, so the figure always fits and one
+  byte more always fails. Placement is greedy, so fit is not proven monotone in size and the
+  figure is a boundary, not a proven global maximum. `list` uses it when the image loads. An image
+  `load` refuses cannot be edited at all, so it falls back to the replay figure, which describes
+  the file as stored (D-011).
+- **Alternatives rejected:** adding the largest stored gap to the replay figure. It undercounts,
+  because `edit` moves existing entries out of the gap (cocean512's `hello` sits at bank 2 ROMH and
+  moves to 63). Probing `build_image` instead of the placer. Its other refusals do not depend on
+  probe size, but `TooManyEntries` would turn a full directory into "0 bytes free", mixing two
+  separate limits. Claiming "largest" and searching a wider range for non-monotone fits. Nothing
+  shows a non-monotone case, and AC-46 asserts the boundary only.
+- **Scope:** `stidcart-core` `CartBuilder::free_space`, `stidcart-cli` `list`
+- **Status:** active
 
 ## D-026 · 2026-10-04 · cart-entries shipped: cartridge images are entries, and the kind refusal narrows to subdirectories
 - **Context:** Until cart-entries, both read paths, `build` and `edit` handled PRG entries only and
