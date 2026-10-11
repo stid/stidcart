@@ -43,6 +43,7 @@ fn a_cart_entry(kind: EntryType) -> DirEntry {
         size: 6 * 0x2000,
         hidden: true,
         align_64k: true,
+        subdir: false,
         other_off: 2,
         other_num: 2,
     }

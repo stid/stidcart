@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-10-04 (ocean-free-space)
+**Last compacted:** 2026-10-11 (subdir-entries)
 
 ---
 
@@ -37,14 +37,14 @@
 | An edit writes over the cartridge it was given unless `-o` names a destination, in which case the input is left byte-identical | AC-23 | D-019 (cart-edit) |
 | Every index in one invocation refers to the cartridge as given, not to the state a previous operation in the same invocation left | AC-27 | D-019 (cart-edit) |
 | A failed edit — a bad index, a set that does not fit, an unreadable program — reports the reason, exits non-zero and leaves every file it was given byte-identical, with no partial cartridge left behind | AC-24 | D-019 (cart-edit) |
-| `edit` refuses what it could not rebuild unchanged, naming the reason: an EasyFlash subdirectory entry (the one kind still unmodelled), firmware regions differing from the embedded blobs, or an old-format (EasyFS1) directory | AC-25, AC-26, AC-43 | D-019 (cart-edit) · D-011, D-017 · D-026 (cart-entries) |
+| `edit` refuses what it could not rebuild unchanged, naming the reason: a type `0x1A` EasyFlash entry (the one kind still unmodelled), firmware regions differing from the embedded blobs, or an old-format (EasyFS1) directory. A subdirectory-flagged xbank is edited like any entry, and the result is byte-for-byte what `ndeft` writes for the same rename | AC-25, AC-26, AC-43, AC-48 | D-019 (cart-edit) · D-011, D-017 · D-026 (cart-entries) · D-029 (subdir-entries) |
 | A cartridge image `build` or `edit --add` cannot represent — an EasyFlash multicart, a subdirectory, an unlisted id — is refused naming what it is, exit non-zero, every file left byte-identical; alignment on a non-xbank entry is refused naming the entry | AC-42, AC-44 | D-026 (cart-entries) |
 
 ### RENDER
 
 | Capability (current behaviour, one line) | ACs | Provenance |
 |---|---|---|
-| The listing shows the cart name and producing tool, then one row per entry — index, name, flags (hidden, 64 KB aligned), kind label, bank, layout (a program's offset, or a cartridge's bank runs per half), size — closing with the entry count and the free bytes: the size a re-placement of the entries plus one more program accepts, so a program of exactly that size can be added and one byte more cannot, in Ocean mode too. For an image `load` refuses (and `edit` therefore cannot touch), the figure is the contiguous run at the top of the image as stored | AC-45, AC-46 | D-026 (cart-entries) · D-027 (ocean-free-space) |
+| The listing shows the cart name and producing tool, then one row per entry — index, name, flags (`H` hidden, `A` 64 KB aligned, `S` subdirectory bit), kind label, bank, layout (a program's offset, or a cartridge's bank runs per half), size — closing with the entry count and the free bytes: the size a re-placement of the entries plus one more program accepts, so a program of exactly that size can be added and one byte more cannot, in Ocean mode too. For an image `load` refuses (and `edit` therefore cannot touch), the figure is the contiguous run at the top of the image as stored | AC-45, AC-46, AC-49 | D-026 (cart-entries) · D-027 (ocean-free-space) · D-029 (subdir-entries) |
 | Every kind the walk accepts — nine cartridge kinds, interleaved and both half-confined program kinds — has one distinct label, so no entry renders as `?` | AC-45 | D-026 (cart-entries) |
 | Control characters in the container header name are replaced with `.` before printing, because a `.crt` is untrusted input and the field is free-form host text | — | D-015 (backfill) |
 
@@ -61,9 +61,9 @@
 | Every build rewrites bank 0's reserved regions from the zlib blobs embedded as-is, plus the `ef-nAME:` magic and the caller's cartridge name. The mode is derived from the entries: an Ocean entry owns bank 0 ROML and switches to the Ocean-mode boot and loader (loader in bank 1 ROMH); a second Ocean entry is a typed build error naming it | AC-36, AC-37 | D-005 · D-024 (cart-entries) |
 | The CRT container header name and the EF-Name are separate caller-supplied fields at different offsets; the header defaults to `stidcart <crate-version>` | — | D-015 (backfill) · D-006, D-008 |
 | Names cross the PETSCII boundary in both directions | — | D-015 (backfill) |
-| `inspect` describes any image it can walk; `load` layers the rebuild preconditions on top and refuses what it could not reproduce byte-identically — firmware regions differing from the blobs the derived mode implies (normal or Ocean), and subdirectory entries | AC-36, AC-43 | D-011, D-007 · D-026 (cart-entries) |
+| `inspect` describes any image it can walk; `load` layers the rebuild preconditions on top and refuses what it could not reproduce byte-identically — firmware regions differing from the blobs the derived mode implies (normal or Ocean), and type `0x1A` entries | AC-36, AC-43 | D-011, D-007 · D-026 (cart-entries) · D-029 (subdir-entries) |
 | The hidden flag is part of the entry model on both sides, so a cartridge carrying hidden entries loads, edits and saves back with names, order, flags and program data intact — it was refused for rebuilding only while the description had nowhere to keep the flag | AC-29 | D-020 (cart-edit) · D-011 |
-| Both read paths describe and load every cartridge kind and half-confined programs (same-half, next-bank continuation); a load-and-save of a reference fixture holding them is byte-identical. Only subdirectory entries are refused | AC-35, AC-43 | D-026 (cart-entries) |
+| Both read paths describe and load every cartridge kind and half-confined programs (same-half, next-bank continuation); a load-and-save of a reference fixture holding them is byte-identical. The CrtUsage subdirectory bit is carried on an xbank through decode, load and save, and refused as malformed at its slot on any other cartridge kind, as the reference does. Only type `0x1A` entries are refused, as unsupported | AC-35, AC-43, AC-47, AC-50 | D-026 (cart-entries) · D-029 (subdir-entries) |
 | Every cartridge directory entry round-trips through encode and decode with all fields, and one whose bank runs reach past the top of flash in either half, or whose opposite-half count exceeds its size, is refused as malformed at that slot | AC-31, AC-32 | D-026 (cart-entries) · D-017 |
 | A cartridge image becomes an entry by its own header and packet layout — generic → 8k/16k/Ultimax, Ocean → Ocean/Ocean 512k, EasyFlash xbank → the matching xbank kind — banks mapped into the two halves in order | AC-39 | D-026 (cart-entries) · D-023 |
 | An xbank is bounded by flash geometry, not a flat 512 KiB: one wider than 32 banks is placed, written, described and loaded, though the reference tool refuses to read it back | AC-38 | D-022 (cart-entries) |

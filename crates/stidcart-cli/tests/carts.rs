@@ -278,6 +278,7 @@ fn ac_43_cli_every_edit_operation_works_on_a_cartridge_entry_by_index() {
         size: 0x2000,
         hidden: false,
         align_64k: false,
+        subdir: false,
         other_off: 0,
         other_num: 0,
     });

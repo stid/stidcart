@@ -83,6 +83,23 @@ body byte `i` of file `k` (its index in the script's table), bank `b`, half `h` 
 `ndeft list` output for each image was recorded on 2026-09-19 in the work-item JOURNAL
 (`docs/lcd/work/_archive/cart-entries/JOURNAL.md`) — bank, offset, size and type per entry.
 
+## Subdirectory-bit fixtures (subdir-entries work-item)
+
+Captured **2026-10-11** with `ndeft` built from `stid/ndefpack@662db56`, run from inside this
+directory.
+
+`ndeft` carries the CrtUsage subdirectory bit (`0x4000`) on an xbank entry but no request of its own
+sets it, so the input is a reference image with the bit patched in. `make_inputs.py` writes it
+(its `PATCHED` table), after the synthetic inputs above.
+
+| File | Made from | Patch |
+|---|---|---|
+| `in_cxb16sub.crt` | `cxb16.crt` | slot 1 (`in_xb16`, xbank 16k): CrtUsage `0x8004` → `0xc004` (bit `0x4000` set) |
+
+| Image | Exact request | Covers |
+|---|---|---|
+| `cxb16sub.crt` | `cp in_cxb16sub.crt cxb16sub.crt && ndeft -q ren cxb16sub.crt 0 hello2` | the reference re-saving a cart with a subdirectory-flagged xbank: only the name byte changes, so the bit is carried |
+
 ## Two things that will bite
 
 - **`-e` is not the container header name.** It sets the cartridge name inside the flash image at

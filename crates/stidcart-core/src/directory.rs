@@ -19,8 +19,9 @@ pub const HIDDEN_FLAG: u8 = 0x80;
 /// Bit 4 of the type value is the "this entry is a cartridge" discriminator.
 pub const CARTRIDGE_BIT: u8 = 0x10;
 
-/// The EasyFlash subdirectory kind: a cartridge whose payload is a whole nested directory. It is
-/// the one live type value this tool does not model, so it is not an [`EntryType`] variant.
+/// The EasyFlash kind (CRT id 32), which the format names "subdirectory". The reference tool refuses
+/// it on read and no implementation in reach writes one, so it has no known layout and is not an
+/// [`EntryType`] variant (format spec, "Subdirectories").
 pub const SUBDIRECTORY_TYPE: u8 = 0x1a;
 
 /// CrtUsage — what bytes 19-20 mean for a cartridge entry.
@@ -133,6 +134,9 @@ pub struct DirEntry {
     pub hidden: bool,
     /// Cartridges only: the 64 KB alignment request.
     pub align_64k: bool,
+    /// Cartridges only: the subdirectory bit. Carried, never interpreted — nothing places or boots
+    /// by it — and only an xbank may set it; [`decode`] refuses it on any other kind.
+    pub subdir: bool,
     /// Cartridges only: where the opposite half's run starts, in banks from `bank`.
     pub other_off: u8,
     /// Cartridges only: how many banks the opposite half's run holds. The primary half's count is
@@ -155,9 +159,12 @@ pub enum Slot {
     End,
     Program(DirEntry),
     Cartridge(DirEntry),
-    /// An EasyFlash subdirectory — type `0x1a`, or any cartridge type with the subdirectory bit in
-    /// its usage word. Well-formed, and the one kind this tool does not model.
+    /// An EasyFlash entry, type `0x1a` — the format's "subdirectory". Well-formed, and the one kind
+    /// this tool does not model.
     Subdirectory,
+    /// The subdirectory bit set in the usage word of a cartridge that is not an xbank. Malformed:
+    /// the reference tool rejects it (`easyfs.c:412`).
+    MisplacedSubdirBit,
     /// A type value the format does not define. Malformed, not merely unsupported.
     Unknown {
         type_value: u8,
@@ -211,6 +218,7 @@ pub fn decode(raw: &[u8; ENTRY_LEN]) -> Slot {
         size: u32::from_le_bytes([raw[21], raw[22], raw[23], 0]),
         hidden: flags & HIDDEN_FLAG != 0,
         align_64k: false,
+        subdir: false,
         other_off: 0,
         other_num: 0,
     };
@@ -218,8 +226,9 @@ pub fn decode(raw: &[u8; ENTRY_LEN]) -> Slot {
     if !kind.is_cartridge() {
         return Slot::Program(entry);
     }
-    if word & USAGE_SUBDIR != 0 {
-        return Slot::Subdirectory;
+    entry.subdir = word & USAGE_SUBDIR != 0;
+    if entry.subdir && !kind.is_xbank() {
+        return Slot::MisplacedSubdirBit;
     }
     entry.offset = 0;
     entry.align_64k = word & USAGE_ALIGN_64K != 0;
@@ -240,6 +249,7 @@ pub fn encode(entry: &DirEntry) -> [u8; ENTRY_LEN] {
 
     let word = if entry.kind.is_cartridge() {
         USAGE_MSB
+            | if entry.subdir { USAGE_SUBDIR } else { 0 }
             | if entry.align_64k { USAGE_ALIGN_64K } else { 0 }
             | ((u16::from(entry.other_off) << 8) & USAGE_OTHER_OFF_MASK)
             | (u16::from(entry.other_num) & USAGE_OTHER_NUM_MASK)
@@ -267,6 +277,7 @@ mod tests {
             size: 0x2002,
             hidden: false,
             align_64k: false,
+            subdir: false,
             other_off: 0,
             other_num: 0,
         }
@@ -382,15 +393,27 @@ mod tests {
     }
 
     #[test]
-    fn a_subdirectory_decodes_as_such_by_type_or_by_usage_bit() {
-        let mut raw = encode(&an_entry());
-        raw[16] = SUBDIRECTORY_TYPE | RESERVED_FLAG_BITS;
-        assert_eq!(decode(&raw), Slot::Subdirectory);
+    fn type_0x1a_decodes_as_a_subdirectory_with_or_without_the_usage_bit() {
+        for word in [USAGE_MSB, USAGE_MSB | USAGE_SUBDIR] {
+            let mut raw = encode(&an_entry());
+            raw[16] = SUBDIRECTORY_TYPE | RESERVED_FLAG_BITS;
+            raw[19..21].copy_from_slice(&word.to_le_bytes());
+            assert_eq!(decode(&raw), Slot::Subdirectory, "usage {word:#06x}");
+        }
+    }
 
+    #[test]
+    fn the_subdirectory_bit_is_carried_on_an_xbank_and_misplaced_elsewhere() {
         let mut raw = encode(&an_entry());
-        raw[16] = 0x11 | RESERVED_FLAG_BITS;
         raw[19..21].copy_from_slice(&(USAGE_MSB | USAGE_SUBDIR).to_le_bytes());
-        assert_eq!(decode(&raw), Slot::Subdirectory);
+        for kind in EntryType::CARTRIDGES {
+            raw[16] = kind as u8 | RESERVED_FLAG_BITS;
+            match decode(&raw) {
+                Slot::Cartridge(c) if kind.is_xbank() => assert!(c.subdir, "{kind:?}"),
+                Slot::MisplacedSubdirBit if !kind.is_xbank() => {}
+                other => panic!("{kind:?} decoded as {other:?}"),
+            }
+        }
     }
 
     #[test]

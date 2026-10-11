@@ -319,6 +319,7 @@ fn ac_26_cli_an_old_format_cart_is_refused_naming_the_format() {
         size: 2,
         hidden: false,
         align_64k: false,
+        subdir: false,
         other_off: 0,
         other_num: 0,
     };

@@ -8,9 +8,30 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-029 -->
+<!-- Next id: D-030 -->
 
 ---
+
+## D-029 · 2026-10-11 · The subdirectory bit is carried on xbank entries; type 0x1A stays refused
+- **Context:** "subdirectory" names two things in the format: the `0x4000` CrtUsage bit and the
+  type `0x1A` EasyFlash entry. Both were refused as one unsupported kind (D-026). Checked against
+  the reference: `ndeft` carries the bit on an xbank through load, rename and save (only the name
+  byte changed in a re-save), rejects it on any other cart type (`easyfs.c:412`), and refuses type
+  `0x1A` outright (`easyfs.c:500-502`). Nothing places or boots by the bit; EasyLoader boots `0x1A`
+  as Ultimax (`easyloader.asm:912`). Format spec, "Subdirectories".
+- **Decision:** the model carries the bit (`DirEntry::subdir`, `Cartridge::subdir`) on xbank
+  entries, with `list` showing it as `S`. The bit on another cartridge kind is malformed at that
+  slot (`ReadError::SubdirectoryBitMisplaced`) in both read paths. Type `0x1A` stays refused as
+  unsupported. No input sets the bit, and `--replace` takes it from the new data, which never has
+  it, as `align_64k` works.
+- **Alternatives rejected:** modelling `0x1A` as a tenth cartridge kind (Ultimax geometry, as
+  EasyLoader treats it). That is plausible, but there is no oracle: the reference refuses it and
+  no image in reach holds one, so it waits for a VICE or hardware check (MAP: the oracle decays).
+  Accepting EasyFlash `.crt` inputs as `0x1A` entries ("create"). The reference refuses them and
+  nothing says how a nested cart's banks are addressed. Refusing the misplaced bit as unsupported
+  rather than malformed: the reference calls it an error, and no layout gives it a meaning there.
+- **Scope:** `stidcart-core` `directory`, `cartridge`, `read`; `stidcart-cli` listing flags
+- **Status:** active
 
 ## D-028 · 2026-10-04 · Nothing is placed once the top is used up, not even an empty program
 - **Context:** when the top run is exactly used up, `top()` points past bank 63, and placing a
@@ -61,7 +82,7 @@
 - **Alternatives rejected:** see D-022..D-025 — this entry is the SPEC anchor for the shipped set,
   not a new fork.
 - **Scope:** project-wide
-- **Status:** active
+- **Status:** active · refusal narrowed further to type `0x1A` by D-029
 
 ## D-025 · 2026-10-04 · Cartridges are placed before programs regardless of weight
 - **Context:** The reference sorts every entry by one weight and treats the first `num_crt`

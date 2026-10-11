@@ -184,6 +184,7 @@ fn list_shows_a_hidden_entry_and_the_entries_behind_it() {
         size: 2,
         hidden: true,
         align_64k: false,
+        subdir: false,
         other_off: 0,
         other_num: 0,
     };
@@ -192,6 +193,7 @@ fn list_shows_a_hidden_entry_and_the_entries_behind_it() {
         bank: 2,
         hidden: false,
         align_64k: false,
+        subdir: false,
         other_off: 0,
         other_num: 0,
         ..hidden.clone()
@@ -273,6 +275,7 @@ fn ac_13_cli_list_refuses_an_old_format_cartridge() {
         size: 2,
         hidden: false,
         align_64k: false,
+        subdir: false,
         other_off: 0,
         other_num: 0,
     });

@@ -385,6 +385,9 @@ fn render(info: &read::CartInfo, free: usize) -> String {
             if e.align_64k {
                 flags.push('A');
             }
+            if e.subdir {
+                flags.push('S');
+            }
             if flags.is_empty() {
                 flags.push('-');
             }

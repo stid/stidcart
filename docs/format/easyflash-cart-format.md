@@ -218,6 +218,25 @@ Which half is "primary" depends on the type: for 8k/16k the primary is ROML and 
 ROMH; for Ultimax it is reversed (`easyfs.h:99-104`, `easyfs.c:124-127` — the test is bit 1 of the
 type value).
 
+### Subdirectories
+
+Two things in the format carry the word, and the reference implementation treats them differently:
+
+- **The `0x4000` CrtUsage bit** is accepted only on type `0x1A` and the xbank types `0x1C`–`0x1E`;
+  on any other cart type the parser rejects the entry ("subdir flag set for non-EF/xbank cart",
+  `easyfs.c:412`). Where accepted it is read into a flag (`easyfs.c:211-212`) and written back
+  unchanged (`easyfs.c:590-591`). Nothing else reads it: `place.c` never consults it, so it does
+  not affect placement, and nothing in the tool creates it. It is carried, not interpreted.
+- **Type `0x1A` ("EasyFlash", CRT id 32)** is refused outright when a directory is read
+  ("unsupported entry type", `easyfs.c:500-502`), and an EasyFlash `.crt` given as an input is
+  refused too (`cart.c:668`, no loader for id 32). So the reference tool can neither create nor
+  carry one, and its layout has no oracle.
+
+The embedded EasyLoader does not navigate either. Its directory scan masks a cart type with `$13`
+(`easyloader.asm:912`), so a `0x1A` entry shows and boots as an Ultimax cart at its bank, and the
+`0x4000` bit is never tested. Whatever a "subdirectory" meant to the tool that wrote one, this
+menu treats it as a plain cartridge.
+
 ## Names and PETSCII
 
 Both the 16-byte entry name and the 16-byte EF-Name are stored as PETSCII and converted on the way
@@ -283,6 +302,13 @@ listing them is that the choice should be deliberate.
   loader sets its size to the whole source cart's byte count, and a 16k xbank counts both halves —
   32 banks hits `0x80000` exactly and anything wider is refused. Whether the right bound is
   per-type or a flat 1 MB is an open question nobody has needed to answer.
+- **The subdirectory bit is rejected on non-xbank cart types** (`easyfs.c:412`; see
+  "Subdirectories" above). Format-consistent rather than an artifact: the bit names a property of
+  an EasyFlash-family cart, and a generic or Ocean cart cannot have one. A reader refuses it as
+  malformed at that slot.
+- **Type `0x1A` is refused on read** (`easyfs.c:500-502`). No implementation in reach writes,
+  carries or tests one, so accepting it would mean guessing its layout; refusing it as unsupported
+  stays until a boot in VICE or on hardware says what it is.
 - **The producing tool's name and version land in the CRT header** — ndefpack uses
   `PACKAGE_STRING` as the default (`cart.c:45`). A new tool writes its own string there, so this
   is an expected byte difference rather than a parity failure. Pin it explicitly on both sides

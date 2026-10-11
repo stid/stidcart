@@ -14,10 +14,11 @@
 //! - the packet marker and total-length field are **validated**, which that implementation does not
 //!   do;
 //! - a directory with no end marker in any slot stays **refused**, which the format does mandate;
-//! - subdirectory entries and unrecognised reserved firmware are **refused as unsupported**,
+//! - type `0x1A` entries and unrecognised reserved firmware are **refused as unsupported**,
 //!   distinguishably from malformed input, rather than misparsed. Hidden entries, cartridge
 //!   entries and half-confined programs used to be refused alongside them; they are not, since the
-//!   model carries all three (D-020, D-023);
+//!   model carries all three (D-020, D-023). The subdirectory *bit* on an xbank is carried too;
+//!   on any other cartridge kind it is **refused as malformed**, as the reference rejects it (D-029);
 //! - a cartridge entry's geometry is checked against the top of flash **before** its primary bank
 //!   count is derived, which the reference tool got wrong and paid for with a heap overflow;
 //! - an old-format (EasyFS1) directory is **refused rather than converted** (D-017). The reserved
@@ -50,8 +51,9 @@ pub enum PacketProblem {
 /// broken" from "this cartridge is fine, we cannot open it yet".
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Unsupported {
-    /// An EasyFlash subdirectory entry — a cartridge whose payload is a whole nested directory. The
-    /// one live entry kind this tool has no model for.
+    /// A type `0x1A` entry, the format's EasyFlash "subdirectory". The one live entry kind this
+    /// tool has no model for: the reference tool refuses it too, so nothing says what its layout
+    /// is (D-029).
     Subdirectory {
         slot: usize,
     },
@@ -98,6 +100,11 @@ pub enum ReadError {
     /// holds more banks than its size allows. Checked before any arithmetic on the fields, which is
     /// where the reference tool underflowed (D-022).
     BadGeometry {
+        slot: usize,
+    },
+    /// A cartridge entry other than an xbank sets the subdirectory bit, which the reference tool
+    /// rejects (`easyfs.c:412`) and the format gives no meaning on that kind (D-029).
+    SubdirectoryBitMisplaced {
         slot: usize,
     },
     /// A directory slot carried a type value the format does not define.
@@ -147,6 +154,11 @@ impl std::fmt::Display for ReadError {
                 f,
                 "directory slot {slot} describes a cartridge whose banks lie outside the image"
             ),
+            ReadError::SubdirectoryBitMisplaced { slot } => write!(
+                f,
+                "directory slot {slot} sets the subdirectory bit on a cartridge that is not an \
+                 xbank, which the format does not allow"
+            ),
             ReadError::BadEntry { slot, type_value } => write!(
                 f,
                 "directory slot {slot} carries undefined entry type {type_value:#04x}"
@@ -162,7 +174,8 @@ impl std::fmt::Display for ReadError {
             ReadError::Unsupported(u) => match u {
                 Unsupported::Subdirectory { slot } => write!(
                     f,
-                    "directory slot {slot} is an EasyFlash subdirectory entry, which is not supported"
+                    "directory slot {slot} is an EasyFlash subdirectory entry (type 0x1a), which \
+                     is not supported"
                 ),
                 Unsupported::ReservedRegionMismatch { region } => write!(
                     f,
@@ -337,6 +350,7 @@ fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
                 })
             }
             Slot::Subdirectory => return Err(Unsupported::Subdirectory { slot }.into()),
+            Slot::MisplacedSubdirBit => return Err(ReadError::SubdirectoryBitMisplaced { slot }),
             Slot::Unknown { type_value } => return Err(ReadError::BadEntry { slot, type_value }),
             Slot::Program(entry) => {
                 check_extent(entry.kind, entry.bank, entry.offset, entry.size)?;
@@ -450,6 +464,7 @@ mod tests {
             size: 2 * BANK_SIZE as u32,
             hidden: false,
             align_64k: false,
+            subdir: false,
             other_off: 0,
             other_num: 1,
         };

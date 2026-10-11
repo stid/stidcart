@@ -31,6 +31,7 @@ fn an_entry() -> DirEntry {
         size: 2,
         hidden: false,
         align_64k: false,
+        subdir: false,
         other_off: 0,
         other_num: 0,
     }
@@ -148,7 +149,7 @@ fn ac_6_a_directory_with_no_end_marker_anywhere_is_refused() {
 /// cartridge. What remains is the subdirectory entry, the one live kind with no model here.
 #[test]
 fn ac_7_cartridge_and_hidden_entries_are_refused_as_unsupported() {
-    // Type 0x1a is an EasyFlash subdirectory: a cartridge whose payload is a nested directory.
+    // Type 0x1a is the format's EasyFlash "subdirectory", which no tool in reach writes or reads.
     let mut subdirectory = directory::encode(&an_entry());
     subdirectory[16] = directory::SUBDIRECTORY_TYPE | directory::RESERVED_FLAG_BITS;
     assert!(
