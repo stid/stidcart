@@ -30,9 +30,11 @@
 - **Alternatives rejected:**
   - egui 0.36, ranked second by two analysts and first by the third. It passes every hard limit
     with no gate change, and its UI tests run headless in `cargo test`. Its polish at this bar is
-    unproven beyond Rerun, which needed about 20k lines of in-house theme and widget code, and
-    there is no reusable kit for that. Tauri's style control is established by construction
-    (CSS), and the polish bar was weighted first.
+    proven only by Rerun, a funded team. Rerun's `re_ui` is 18.8k lines, but most of that is
+    product features; the theme layer itself is about 1.4k lines plus three RON files. There is no
+    reusable kit, so every component would be hand-built, and egui's README calls layout a
+    fundamental shortcoming of immediate mode. GitButler is the same class of proof for Tauri, but
+    on Tauri the styling and component tooling is commodity CSS. The polish bar was weighted first.
   - Slint 1.18. Its default backend cannot receive files dropped from Finder (it has no winit
     drop handler), its test crate is internal and must be pinned to an exact version, and the
     binary would ship as GPLv3.
@@ -43,7 +45,8 @@
 - **Accepted costs:** a second toolchain (Node, a frontend framework); a second lockfile and target
   dir; a TypeScript copy of the entry model that can drift from Rust; a 30–50 s apt step (cacheable)
   in the GUI job; WebKit rather than Chromium (WKWebView on macOS); a future 2→3 migration whose
-  size is unknown.
+  size is unknown. Tauri has no written 2.x support policy; the only evidence is that 1.x got three
+  patch releases over 7.5 months after 2.0.
 - **Scope:** new `gui/` workspace; CI workflow; MAP zones; lcd-conventions test placement
 - **Status:** active
 

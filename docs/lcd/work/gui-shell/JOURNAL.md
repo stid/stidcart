@@ -26,6 +26,7 @@
 
 ## OPEN QUESTIONS
 - Frontend framework inside Tauri (Svelte / React / Solid / vanilla TS): decide in plan
+- Plan must cover: the Rust↔TS DTO contract (a type generator such as tauri-specta, or a test that pins it), since vitest+mockIPC never exercises the real IPC; `devUrl`-in-debug vs building the frontend before cargo in the GUI job (`frontendDist` must exist at compile time)
 
 ## EDIT BOUNDARY (paths this work may touch)
 - `docs/lcd/work/gui-shell/`
@@ -49,7 +50,7 @@ See `spec.md`: AC-51..AC-58.
   - rfd 0.17.2 (MIT) for native dialogs; its default features need no GTK. Packaging without Tauri: cargo-packager.
   - Licence hygiene: choose the MIT side of dual licences, consider cargo-deny.
   - Recon recommendation: egui + egui_kittest (Harness only) + rfd.
-- 2026-10-11 12:55 — /stid-decide council (3 analysts, one revision round). User relaxed tests-in-cargo-test to tests-automated-in-CI; ruled small-footprint = gate only, GUI job required, Linux = portability only. Two analysts converged on Tauri 2.12 + separate workspace; the skeptic held egui because Tauri's style control is established and egui's isn't, and weighting polish first decides it → D-030. Measured: Tauri apt step 30–50 s on ubuntu-latest (tauri runs 38139467117/38139467273), nothing preinstalled; `frontendDist` must exist at compile time unless devUrl in debug.
+- 2026-10-11 12:55 — /stid-decide council (3 analysts, one revision round). User relaxed tests-in-cargo-test to tests-automated-in-CI; ruled small-footprint = gate only, GUI job required, Linux = portability only. Two analysts converged on Tauri 2.12 + separate workspace; the skeptic held egui because Tauri's style control is established and egui's isn't, and weighting polish first decides it → D-030. Skeptic's stress-test (after the user's rulings) upheld Tauri: council unanimous. Corrections folded into D-030: re_ui's polish layer is ~1.4k lines, not 20k; no written 2.x support policy. Measured: Tauri apt step 27–47 s on ubuntu-latest (tauri runs 38139467117/38139467273), nothing preinstalled; `frontendDist` must exist at compile time unless devUrl in debug.
 
 ## DEEP PIPELINE (Deep lane only)
 
