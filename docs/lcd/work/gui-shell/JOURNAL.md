@@ -10,15 +10,15 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** First GUI slice: a read-only desktop viewer that opens a `.crt` (chooser or drop) and shows what `list` shows, with refusals as readable errors; macOS first, portable toolkit.
-- **Next action:** run /lcd:tasks gui-shell
+- **Next action:** user reviews plan.md; on approval run /lcd:tasks gui-shell
 - **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 13:40
 
 ## STEPS
 - [x] S1 — triage (Deep), recon on toolkits
 - [x] S2 — spec.md (AC-51..AC-58)
 - [x] S3 — toolkit decision → D-030 (Tauri 2.x, separate workspace + required GUI CI job)
-- [x] S4 — plan.md (listing in core D-032; GUI workspace + required `gui` CI job; host adapter + golden JSON contract)
-- [ ] S5 — /lcd:tasks gui-shell  ← next
+- [x] S4 — version bump 0.7.0 (1f7d4f1); plan.md (listing in core D-032; GUI workspace + required `gui` CI job; host adapter + golden JSON contract)
+- [ ] S5 — user approves plan.md, then /lcd:tasks gui-shell  ← next
 
 ## DECISIONS (this work-item)
 - Platforms: macOS first, toolkit must stay portable since CI builds on Ubuntu (user, 2026-10-11)
@@ -29,12 +29,26 @@
 - none (DTO contract → golden JSON; frontend built before cargo in the GUI job)
 
 ## EDIT BOUNDARY (paths this work may touch)
-- `docs/lcd/work/gui-shell/`, `docs/lcd/DECISIONS.md`, `docs/lcd/MAP.md`, `docs/lcd/SPEC.md` (reconcile)
-- `Cargo.toml`, `Cargo.lock`, `.gitignore`, `CLAUDE.md`, `README.md`, `.claude/rules/lcd-conventions.md`
-- `crates/stidcart-core/src/listing.rs`, `crates/stidcart-core/src/lib.rs`, `crates/stidcart-core/tests/listing.rs`
-- `crates/stidcart-cli/src/main.rs`, `crates/stidcart-cli/tests/list_golden.rs`, `crates/stidcart-cli/tests/golden/`
-- `gui/` (frontend, `src-tauri/`, tests; see plan File structure)
+- `docs/lcd/work/gui-shell/`
+- `docs/lcd/DECISIONS.md`
+- `docs/lcd/MAP.md`
+- `docs/lcd/SPEC.md`
+- `docs/lcd/ci/run-test.sh`
+- `docs/lcd/ci/gui-gate.sh`
+- `Cargo.toml`
+- `Cargo.lock`
+- `.gitignore`
+- `CLAUDE.md`
+- `README.md`
+- `.claude/rules/lcd-conventions.md`
 - `.github/workflows/ci.yml`
+- `crates/stidcart-core/src/listing.rs`
+- `crates/stidcart-core/src/lib.rs`
+- `crates/stidcart-core/tests/listing.rs`
+- `crates/stidcart-cli/src/main.rs`
+- `crates/stidcart-cli/tests/list_golden.rs`
+- `crates/stidcart-cli/tests/golden/`
+- `gui/`
 <!-- /lcd-resume -->
 
 ---

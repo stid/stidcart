@@ -24,7 +24,7 @@ the free figure from `load` with an `inspect` fallback). They move into a new
 `stidcart-core::listing` module. `describe(&[u8]) -> Result<Listing, ReadError>` returns the cart
 name, the filtered producing-tool name, one `Row` per entry with each value as displayed, and the
 free figure. `list` keeps only column widths, the `(no entries)` line and pluralisation. Its output
-does not change: a golden snapshot of `list` for every fixture is committed **before** the move and
+does not change: a golden snapshot of `list` (stdout, stderr and exit code) for every fixture, including the ones it refuses, is committed **before** the move and
 must still pass after it (no-downgrade).
 
 **The GUI is its own Cargo workspace (D-030).** It lives at `gui/`, using Tauri's standard layout:
@@ -106,7 +106,7 @@ dialog, a menu or virtualisation. They come in with the editing slice.
 | `no-downgrade.md` | yes | Moving `list`'s helpers into core must leave its output byte-identical. A golden snapshot of `list` stdout for every fixture is committed before the move. No CLI option, column or error text changes |
 | `no-overengineering.md` | yes | No bits-ui, TanStack, routing, state library, bundled fonts, menus, packaging or code generator. One adapter module, one store, three components |
 | `refinement-protocol.md` | yes | The spec is approved. Any drift found mid-build goes through `lcd:refine`, and changes of intent are escalated |
-| `versioning.md` | yes | `feat/` branch, so a minor bump: `0.6.0 → 0.7.0` in the first code commit (the test-gen baseline). The bump is checked against `git show $(git merge-base HEAD main):Cargo.toml`. The GUI crate's `Cargo.toml` holds the GUI version (`0.7.0` to match). `tauri.conf.json` omits `version`, so Tauri falls back to Cargo, and `package.json` is `private` with no version. One source per manifest. This bump changes the default header name in produced carts, so check that the parity tests pin the header name (they compare to `ndeft` output, and past bumps passed) |
+| `versioning.md` | yes | `feat/` branch → minor bump. Done as its own commit (`1f7d4f1`, `0.6.0 → 0.7.0`, base checked with `git merge-base`), with the root gate green, parity included. The GUI crate's `Cargo.toml` holds the GUI version (`0.7.0`). `tauri.conf.json` omits `version`, so Tauri falls back to Cargo, and `package.json` is `private` with no version |
 | `commits.md` | yes | Conventional commits, one per red→green flip in the loop, pushed (user rule) |
 | `ac-convention.md`, EVAL coverage | no | No scorer, ranker or LLM output. The viewer mirrors deterministic values, and the golden JSON plus per-fixture equality are presence/equality tests, not quality thresholds |
 | MAP invariant: no global state or I/O policy in the core | yes | `listing::describe` takes bytes and returns data. File reading, path formatting and dialogs stay in the CLI and GUI crates. No serde in core |
@@ -116,7 +116,11 @@ dialog, a menu or virtualisation. They come in with the editing slice.
 | MAP invariant: format facts from `docs/format/` | no | No format fact changes. Labels and layout are moved, not redefined |
 | `CLAUDE.md`: gate green before every commit; never commit to `main` | yes | The root gate is unchanged and still runs. GUI commits also run the GUI job's steps locally. Work stays on `feat/gui-shell` with a PR, and the required checks become `gate`, `gui` and `claude-review` |
 | `CLAUDE.md`: toolchain pin through rustup shims (D-010) | yes | The nested workspace inherits `rust-toolchain.toml`. Check `cargo --version` in `gui/src-tauri` before trusting a result |
-| `.claude/rules/lcd-conventions.md` | yes | ACs AC-51..58 are claimed (next free AC-59). Update `test-placement` (add `gui`), the stem-uniqueness note (new core stem `listing`; GUI stems live in their own workspace) and the gate note (GUI job commands) |
+| `.claude/rules/lcd-conventions.md` | yes | ACs AC-51..58 claimed (next free AC-59). The machine block knows only the root cargo workspace, but this work adds two more runners, so the keys change in the scaffold task, followed by `/lcd:doctor`. The audit only greps for `AC-N (SURFACE)` tokens and runs no tests (`docs/lcd/ci/audit-crosspath.sh`), so vitest files satisfy it as long as they carry the token. New values: |
+| ↳ `test-discovery-glob` | | `crates/*/tests/*.rs` + inline `#[cfg(test)]` + `gui/src-tauri/tests/*.rs` + `gui/src/**/*.test.ts` |
+| ↳ `scoped-test` / `bail` | | `docs/lcd/ci/run-test.sh {path}`. A plain stem → `cargo test --workspace --test {stem}`; `gui/src-tauri/tests/<stem>.rs` → `cargo test --manifest-path gui/src-tauri/Cargo.toml --test <stem>`; `*.test.ts` → `npm --prefix gui exec -- vitest run <file>` |
+| ↳ `single-test` | | `cargo test --workspace {name}`, unchanged for root. The GUI form is recorded in the notes: `cargo test --manifest-path gui/src-tauri/Cargo.toml {name}` / `vitest run -t {name}` |
+| ↳ `gate` | | root gate `&& docs/lcd/ci/gui-gate.sh`. The script runs the GUI job's steps locally (npm ci when the lockfile changed, check, test, build, then fmt/clippy/test in `gui/src-tauri`), and CI's `gui` job calls the same script so the two can't drift. The `test-placement` notes add `gui`, and the stem note says GUI stems live in their own workspace |
 
 ## Cross-path behavior matrix
 
@@ -213,7 +217,7 @@ interface Host { pickFile(): Promise<string | null>; onDrop(cb: (paths: string[]
 ```
 crates/stidcart-core/src/listing.rs        Listing/Row/describe + free_text; moved CLI helpers
 crates/stidcart-core/tests/listing.rs      AC-51 core side: describe values per fixture, refusals
-crates/stidcart-cli/tests/list_golden.rs   pre-move golden: `list` stdout for every fixture
+crates/stidcart-cli/tests/list_golden.rs   pre-move golden: `list` stdout, stderr and exit code for every fixture, refused ones (`in_*.crt`) included
 crates/stidcart-cli/tests/golden/*.txt     the committed `list` outputs (one per fixture)
 gui/package.json                           private; scripts dev/build/check/test/tauri; GPL-2.0-or-later
 gui/package-lock.json                      npm lockfile
@@ -248,6 +252,8 @@ gui/src-tauri/src/main.rs                  calls stidcart_gui::run()
 gui/src-tauri/tests/open.rs                AC-51 every-fixture equality, AC-54 error text, AC-58 no writes
 gui/src-tauri/tests/contract.rs            golden JSON equality (UPDATE_GOLDEN=1 rewrites)
 gui/.gitignore                             node_modules, dist, src-tauri/target
+docs/lcd/ci/run-test.sh                    scoped-test dispatcher over the three runners (cargo root, cargo gui, vitest)
+docs/lcd/ci/gui-gate.sh                    the GUI gate: same steps locally and in the CI `gui` job
 ```
 
 ### Modified files
@@ -257,7 +263,7 @@ gui/.gitignore                             node_modules, dist, src-tauri/target
 - `crates/stidcart-core/src/lib.rs`: `pub mod listing;`
 - `crates/stidcart-cli/src/main.rs`: `list` calls `listing::describe`; `render` takes `&Listing`;
   helpers removed (moved)
-- `.github/workflows/ci.yml`: add the `gui` job
+- `.github/workflows/ci.yml`: add the `gui` job (apt + node + rust-cache, then `docs/lcd/ci/gui-gate.sh`)
 - `.gitignore`: ignore `gui/node_modules`, `gui/dist`, `gui/src-tauri/target` if not covered by
   `gui/.gitignore`
 - `docs/lcd/MAP.md`: `gui` zone row, entry point, Surfaces (RENDER now has two renderers), core
