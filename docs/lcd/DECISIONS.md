@@ -8,7 +8,26 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-031 -->
+<!-- Next id: D-032 -->
+
+---
+
+## D-031 · 2026-10-11 · The GUI frontend is Svelte 5
+- **Context:** D-030 puts the GUI in a Tauri web frontend. The framework inside it was still open.
+  The candidates, as of npm on 2026-10-11, all build with Vite 8, test with Vitest 5 and have
+  TanStack Table 9: Svelte 5.57, React 19.3, Solid 1.9, and plain TypeScript.
+- **Decision:** Svelte 5, with bits-ui 2.x as the headless component layer and
+  `@testing-library/svelte` for the frontend tests (user's choice, following the recommendation).
+- **Alternatives rejected:**
+  - React: the deepest component ecosystem (Radix + shadcn/ui), but more boilerplate and runtime
+    for a Rust-first maintainer, and the polish bar doesn't need it.
+  - Solid: its main headless component library, Kobalte, is still pre-1.0 (0.13), against the
+    stable-release limit.
+  - Plain TypeScript: every component, state update and accessibility detail would be
+    hand-written, which gets expensive once editing arrives.
+  GitButler, the polished Tauri app D-030 cites, ships on Svelte.
+- **Scope:** `gui/` frontend
+- **Status:** active
 
 ---
 

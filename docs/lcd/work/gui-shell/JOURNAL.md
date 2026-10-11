@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** First GUI slice: a read-only desktop viewer that opens a `.crt` (chooser or drop) and shows what `list` shows, with refusals as readable errors; macOS first, portable toolkit.
-- **Next action:** run /lcd:plan gui-shell (toolkit = Tauri 2.x per D-030; frontend framework still to pick in plan)
+- **Next action:** run /lcd:plan gui-shell (Tauri 2.x per D-030, Svelte 5 + bits-ui per D-031)
 - **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 12:11
 
 ## STEPS
@@ -25,7 +25,6 @@
 - GUI ACs use the existing `RENDER` surface token (MAP: a GUI widens RENDER, it doesn't open a new surface)
 
 ## OPEN QUESTIONS
-- Frontend framework inside Tauri (Svelte / React / Solid / vanilla TS): decide in plan
 - Plan must cover: the Rust↔TS DTO contract (a type generator such as tauri-specta, or a test that pins it), since vitest+mockIPC never exercises the real IPC; `devUrl`-in-debug vs building the frontend before cargo in the GUI job (`frontendDist` must exist at compile time)
 
 ## EDIT BOUNDARY (paths this work may touch)
