@@ -6,7 +6,7 @@
 **Slug:** `gui-shell`
 **Spec:** [`spec.md`](./spec.md) · **Journal:** [`JOURNAL.md`](./JOURNAL.md)
 **Created:** 2026-10-11
-**Status:** draft <!-- draft | approved | implemented | superseded -->
+**Status:** approved <!-- draft | approved | implemented | superseded -->
 
 ---
 

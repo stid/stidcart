@@ -10,15 +10,35 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** First GUI slice: a read-only desktop viewer that opens a `.crt` (chooser or drop) and shows what `list` shows, with refusals as readable errors; macOS first, portable toolkit.
-- **Next action:** user reviews plan.md; on approval run /lcd:tasks gui-shell
-- **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 13:40
+- **Next action:** run /lcd:test-gen gui-shell
+- **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 14:05
 
 ## STEPS
-- [x] S1 — triage (Deep), recon on toolkits
-- [x] S2 — spec.md (AC-51..AC-58)
-- [x] S3 — toolkit decision → D-030 (Tauri 2.x, separate workspace + required GUI CI job)
-- [x] S4 — version bump 0.7.0 (1f7d4f1); plan.md (listing in core D-032; GUI workspace + required `gui` CI job; host adapter + golden JSON contract)
-- [ ] S5 — user approves plan.md, then /lcd:tasks gui-shell  ← next
+- [x] S0 — triage, recon, spec (AC-51..58), D-030/031/032, plan approved, version 0.7.0, tasks.md
+- [ ] S1 — T1 list golden (stdout/stderr/exit, every fixture)  ← next (via /lcd:test-gen)
+- [ ] S2 — T2 failing core listing tests (AC-51)
+- [ ] S3 — T3 core listing.rs + lib.rs mod
+- [ ] S4 — T4 CLI list uses describe; golden green
+- [ ] S5 — T5 gui/src-tauri scaffold + root exclude
+- [ ] S6 — T6 frontend scaffold (Svelte 5, Vite, Vitest)
+- [ ] S7 — T7/T8 gui-gate.sh, run-test.sh
+- [ ] S8 — T9 lcd-conventions keys + /lcd:doctor
+- [ ] S9 — T10 failing open.rs (AC-51, AC-54, AC-58)
+- [ ] S10 — T11 gui lib.rs open/DTO/command
+- [ ] S11 — T12 contract.rs + golden JSON
+- [ ] S12 — T13 types.ts
+- [ ] S13 — T14 failing viewer.test.ts (AC-52..56)
+- [ ] S14 — T15 viewer.svelte.ts
+- [ ] S15 — T16/T17 Listing test + component (AC-51)
+- [ ] S16 — T18/T19 EmptyState (AC-57)
+- [ ] S17 — T20/T21 ErrorState (AC-54)
+- [ ] S18 — T22 host.ts adapter
+- [ ] S19 — T23–T25 tokens.css, App.svelte, main.ts
+- [ ] S20 — T26 CI gui job
+- [ ] S21 — T27 live check (screencapture)
+- [ ] S22 — T28–T30 MAP, CLAUDE.md, README
+- [ ] S23 — T31 PR green; ask user → required check
+- [ ] S24 — T-audit, T-reconcile, T-final
 
 ## DECISIONS (this work-item)
 - Platforms: macOS first, toolkit must stay portable since CI builds on Ubuntu (user, 2026-10-11)
@@ -76,5 +96,5 @@ See `spec.md`: AC-51..AC-58.
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
