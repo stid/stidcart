@@ -1,0 +1,11 @@
+exit: 0
+-- stdout --
+cart: cxb16
+built by: ndefpack 1.0.1
+
+    #  name              flags  type    bank  layout            size
+    0  hello             -      PRG      $05  $0000          $000066
+    1  in_xb16           -      XB16     $01  L4@0,H4@0      $010000
+
+2 entries, $0ebf9a (966554) bytes free
+-- stderr --

@@ -1,0 +1,11 @@
+exit: 0
+-- stdout --
+cart: cocean
+built by: ndefpack 1.0.1
+
+    #  name              flags  type    bank  layout            size
+    0  big               -      PRG-L    $10  $0000          $004e22
+    1  in_ocean          -      OCEAN    $00  L16@0,H16@16   $040000
+
+2 entries, $080000 (524288) bytes free
+-- stderr --

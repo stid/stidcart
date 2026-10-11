@@ -1,0 +1,11 @@
+exit: 0
+-- stdout --
+cart: cult16
+built by: ndefpack 1.0.1
+
+    #  name              flags  type    bank  layout            size
+    0  hello             -      PRG      $02  $0000          $000066
+    1  in_ult16          -      ULT16    $01  L1@0,H1@0      $004000
+
+2 entries, $0f7f9a (1015706) bytes free
+-- stderr --
