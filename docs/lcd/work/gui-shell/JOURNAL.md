@@ -10,14 +10,14 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** First GUI slice: a read-only desktop viewer that opens a `.crt` (chooser or drop) and shows what `list` shows, with refusals as readable errors; macOS first, portable toolkit.
-- **Next action:** user picks the toolkit (recon in LOG) → log D-030 → run /lcd:plan gui-shell
+- **Next action:** run /lcd:plan gui-shell (toolkit = Tauri 2.x per D-030; frontend framework still to pick in plan)
 - **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 12:11
 
 ## STEPS
 - [x] S1 — triage (Deep), recon on toolkits
 - [x] S2 — spec.md (AC-51..AC-58)
-- [ ] S3 — toolkit decision → D-030  ← next
-- [ ] S4 — /lcd:plan gui-shell
+- [x] S3 — toolkit decision → D-030 (Tauri 2.x, separate workspace + required GUI CI job)
+- [ ] S4 — /lcd:plan gui-shell  ← next
 
 ## DECISIONS (this work-item)
 - Platforms: macOS first, toolkit must stay portable since CI builds on Ubuntu (user, 2026-10-11)
@@ -25,7 +25,7 @@
 - GUI ACs use the existing `RENDER` surface token (MAP: a GUI widens RENDER, it doesn't open a new surface)
 
 ## OPEN QUESTIONS
-- Toolkit (blocks plan)
+- Frontend framework inside Tauri (Svelte / React / Solid / vanilla TS): decide in plan
 
 ## EDIT BOUNDARY (paths this work may touch)
 - `docs/lcd/work/gui-shell/`
@@ -49,6 +49,7 @@ See `spec.md`: AC-51..AC-58.
   - rfd 0.17.2 (MIT) for native dialogs; its default features need no GTK. Packaging without Tauri: cargo-packager.
   - Licence hygiene: choose the MIT side of dual licences, consider cargo-deny.
   - Recon recommendation: egui + egui_kittest (Harness only) + rfd.
+- 2026-10-11 12:55 — /stid-decide council (3 analysts, one revision round). User relaxed tests-in-cargo-test to tests-automated-in-CI; ruled small-footprint = gate only, GUI job required, Linux = portability only. Two analysts converged on Tauri 2.12 + separate workspace; the skeptic held egui because Tauri's style control is established and egui's isn't, and weighting polish first decides it → D-030. Measured: Tauri apt step 30–50 s on ubuntu-latest (tauri runs 38139467117/38139467273), nothing preinstalled; `frontendDist` must exist at compile time unless devUrl in debug.
 
 ## DEEP PIPELINE (Deep lane only)
 

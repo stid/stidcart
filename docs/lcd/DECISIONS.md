@@ -8,7 +8,44 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-030 -->
+<!-- Next id: D-031 -->
+
+---
+
+## D-030 · 2026-10-11 · The GUI is Tauri 2.x, in its own Cargo workspace with its own required CI job
+- **Context:** the GUI's first criterion is a polished look on par with VS Code, Zed or Obsidian,
+  with full control over style. Three independent analysts (`/stid-decide`) researched it against
+  hard limits: a stable release, a required `gate` that stays small, and automated UI tests. The
+  user relaxed "tests run from `cargo test`" to "tests run automatically in CI". The user also
+  ruled that the small-footprint limit covers the `gate` only, that the GUI job is a required
+  check, and that Linux is a portability check, with macOS the shipping target.
+- **Decision:** Tauri 2.x (2.12 at the time), pinned to the 2.x line, with no 3.0 alphas.
+  - The GUI lives outside the root workspace (`exclude`), as its own workspace with a path
+    dependency on `stidcart-core`, so `--workspace` in the `gate` never compiles webkit and the
+    gate string stays unchanged.
+  - A separate required CI job on ubuntu-latest installs webkit2gtk, then runs fmt, clippy and the
+    Rust tests plus the frontend tests (Vitest with Tauri's `mockIPC`) under Node.
+  - Serde DTOs and all file reading live in the GUI crate, so the core stays free of serde and
+    I/O policy.
+- **Alternatives rejected:**
+  - egui 0.36, ranked second by two analysts and first by the third. It passes every hard limit
+    with no gate change, and its UI tests run headless in `cargo test`. Its polish at this bar is
+    unproven beyond Rerun, which needed about 20k lines of in-house theme and widget code, and
+    there is no reusable kit for that. Tauri's style control is established by construction
+    (CSS), and the polish bar was weighted first.
+  - Slint 1.18. Its default backend cannot receive files dropped from Finder (it has no winit
+    drop handler), its test crate is internal and must be pinned to an exact version, and the
+    binary would ship as GPLv3.
+  - iced 0.14. No release in 10 months (about 15 months between releases) and no accessibility.
+  - gpui. The crates.io release is 12 months stale and the maintained line is pre-release
+    snapshots.
+  - Dioxus/Blitz. Same webview cost as Tauri with weaker testing, or still in beta.
+- **Accepted costs:** a second toolchain (Node, a frontend framework); a second lockfile and target
+  dir; a TypeScript copy of the entry model that can drift from Rust; a 30–50 s apt step (cacheable)
+  in the GUI job; WebKit rather than Chromium (WKWebView on macOS); a future 2→3 migration whose
+  size is unknown.
+- **Scope:** new `gui/` workspace; CI workflow; MAP zones; lcd-conventions test placement
+- **Status:** active
 
 ---
 
