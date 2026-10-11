@@ -33,8 +33,10 @@ Describing a cart and rebuilding it are held to different standards, because the
 `list` shows anything it can describe, while loading additionally refuses whatever it could not
 reproduce unchanged (an image whose firmware regions differ from the blobs embedded here). Hidden
 entries pass both: the model carries the flag, so they load, edit and save back intact (D-020).
-Both refuse what neither can represent, which is now only the EasyFlash subdirectory entry, a
-cartridge kind that nests a whole directory. Directories in the older EasyFS1 format are refused by both paths: read as EasyFS2 every
+Both refuse what neither can represent, which is now only the type `0x1A` EasyFlash entry the
+format calls a subdirectory: the reference tool refuses it too, so nothing says what its layout is.
+The subdirectory *bit* on an xbank entry is carried through every operation, as ndefpack does, and
+`list` marks it `S` (D-029). Directories in the older EasyFS1 format are refused by both paths: read as EasyFS2 every
 entry gets a corrupted bank, so there is no accurate description to give (D-017).
 
 ## Layout

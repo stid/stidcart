@@ -35,7 +35,7 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
   name* — the `tests/<stem>.rs` filename without its extension — so `{path}` = `directory`, not
   `crates/stidcart-core/tests/directory.rs`. Every target stem in this workspace is currently
   unique across both crates (`container` `directory` `parity` `placement` `read` `reserved`
-  `roundtrip` in core; `boot` `cli` `list` in cli), so `--workspace --test <stem>` resolves without
+  `roundtrip` `subdir` in core; `boot` `cli` `list` `subdir_cli` in cli), so `--workspace --test <stem>` resolves without
   a `-p`. Add `-p stidcart-core` / `-p stidcart-cli` if that ever stops being true.
 - **There is no true per-test bail.** libtest has no `--bail`; `cargo test` fails fast at *target*
   granularity (it stops before the next target once one fails) and runs every test inside a target.
@@ -56,7 +56,7 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
 - **Therefore: number a new work-item's ACs from the next free id, not from AC-1.** The tokens in
   use are `AC-1..AC-12 (none)` and `AC-1..AC-5 (CLI)`, plus `AC-13..AC-16 (…)` taken by
   `easyfs1-refusal`, plus `AC-17..AC-30` taken by `cart-edit`, plus `AC-31..AC-46` taken by
-  `cart-entries`. **Next free: AC-47.** Bump this line
+  `cart-entries`, plus `AC-47..AC-50` taken by `subdir-entries`. **Next free: AC-51.** Bump this line
   when a work-item claims a range. Renaming
   the orphans instead would be a sweep across six files for no behaviour change — rename them only
   if you are already editing the file.
