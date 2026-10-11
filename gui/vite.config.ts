@@ -1,0 +1,16 @@
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { defineConfig } from 'vitest/config';
+
+// Tauri expects a fixed dev-server port and serves the built `dist` in release builds.
+export default defineConfig({
+  plugins: [svelte()],
+  clearScreen: false,
+  server: { port: 1420, strictPort: true },
+  build: { target: 'safari16', outDir: 'dist' },
+  resolve: process.env.VITEST ? { conditions: ['browser'] } : undefined,
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    include: ['src/**/*.test.ts'],
+  },
+});
