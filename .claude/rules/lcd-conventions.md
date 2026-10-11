@@ -18,12 +18,12 @@ spec: docs/lcd/SPEC.md
 living-spec: on
 closeout-evaluator: off
 work-item-dir: docs/lcd/work/<slug>
-test-placement: crates/stidcart-<area>/tests/<slug>.rs
-test-discovery-glob: crates/*/tests/*.rs + inline `#[cfg(test)]` modules (both collected by cargo, no registration)
-scoped-test: cargo test --workspace --test {path}
-bail: cargo test --workspace --test {path}
+test-placement: crates/stidcart-<area>/tests/<slug>.rs (core, cli) · gui/src-tauri/tests/<slug>.rs (GUI Rust) · gui/src/lib/<Name>.test.ts (frontend)
+test-discovery-glob: crates/*/tests/*.rs + inline `#[cfg(test)]` modules (root cargo) + gui/src-tauri/tests/*.rs (GUI cargo) + gui/src/**/*.test.ts (vitest); none need registration
+scoped-test: docs/lcd/ci/run-test.sh {path}
+bail: docs/lcd/ci/run-test.sh {path}
 single-test: cargo test --workspace {name}
-gate: cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace
+gate: cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace && docs/lcd/ci/gui-gate.sh
 eval: n/a — output is byte-exact images compared against frozen fixtures, never scored
 maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace; cargo update --workspace --dry-run
 
@@ -31,18 +31,26 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
 
 ### Cargo-specific notes on the test keys
 
-- **`{path}` is the test-target stem, not a filesystem path.** `cargo test --test` takes a *target
-  name* — the `tests/<stem>.rs` filename without its extension — so `{path}` = `directory`, not
-  `crates/stidcart-core/tests/directory.rs`. Every target stem in this workspace is currently
-  unique across both crates (`container` `directory` `parity` `placement` `read` `reserved`
-  `roundtrip` `subdir` in core; `boot` `cli` `list` `subdir_cli` in cli), so `--workspace --test <stem>` resolves without
-  a `-p`. Add `-p stidcart-core` / `-p stidcart-cli` if that ever stops being true.
+- **Three runners sit behind `scoped-test` / `bail`**, dispatched by `docs/lcd/ci/run-test.sh` (D-030):
+  a bare stem → root cargo, `gui/src-tauri/tests/<stem>.rs` → the GUI workspace's cargo, a
+  `*.test.ts` path → `vitest run`. `single-test` stays root-only; for the GUI use
+  `cargo test --manifest-path gui/src-tauri/Cargo.toml {name}` or `npx vitest run -t {name}` in `gui/`.
+- **`gate` covers both workspaces.** `gui-gate.sh` builds the frontend first, because Tauri
+  embeds `gui/dist` at compile time, so a bare `cargo test` in `gui/src-tauri` fails without it.
+  CI runs the root part as `gate` and the script as `gui`.
+- **For root cargo, `{path}` is the test-target stem, not a filesystem path.** `cargo test --test` takes a *target
+  name*, the `tests/<stem>.rs` filename without its extension, so `{path}` = `directory`, not
+  `crates/stidcart-core/tests/directory.rs`. Every target stem in the root workspace is currently
+  unique across both crates (`cart_placement` `cartridge` `container` `directory` `listing` `mutate`
+  `parity` `read` `reserved` … in core; `cli` `edit` `list` `list_golden` … in cli), so `--workspace --test <stem>`
+  resolves without a `-p`. Add `-p stidcart-core` / `-p stidcart-cli` if that ever stops being true.
+  GUI stems live in their own workspace and cannot collide.
 - **There is no true per-test bail.** libtest has no `--bail`; `cargo test` fails fast at *target*
   granularity (it stops before the next target once one fails) and runs every test inside a target.
   `bail` therefore names a single target, which is the tightest loop cargo offers. `--no-fail-fast`
   is the opposite flag — never add it to these keys.
-- **Nothing here watches.** Cargo has no watch mode without `cargo-watch`, so the red-green loop
-  cannot hang on these commands.
+- **Nothing here watches.** Cargo has no watch mode without `cargo-watch`, and the frontend runs
+  `vitest run`, never bare `vitest`, so the red-green loop cannot hang on these commands.
 - **`single-test` filters by substring** on the test function name. Append `-- --exact` only when
   you have the fully-qualified name and a substring would over-match.
 - **Existing `ac_N_*` tests are orphans, and their doc comments DO carry the audit's token.**
@@ -60,7 +68,7 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
   when a work-item claims a range. Renaming
   the orphans instead would be a sweep across six files for no behaviour change — rename them only
   if you are already editing the file.
-- **`test-placement`**: `<area>` is `core` or `cli`. Inline `#[cfg(test)]` modules next to the code
+- **`test-placement`**: `<area>` is `core` or `cli`; GUI tests sit in `gui/src-tauri/tests/` and next to the component as `*.test.ts`. Inline `#[cfg(test)]` modules next to the code
   are equally valid and equally collected — prefer them for unit-level assertions on a private
   function, and `tests/<slug>.rs` for anything that drives the public API or the binary.
 
