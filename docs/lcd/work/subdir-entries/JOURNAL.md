@@ -7,15 +7,15 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** Carry the CrtUsage subdirectory bit (`0x4000`) on xbank entries through read, list, edit and save, as `ndeft` does; refuse the bit on any other kind as malformed; keep type `0x1A` refused, by name.
-- **Next action:** S5: README, SPEC rows, D-029, lcd-conventions next-free AC-51; audit; PR.
-- **Branch:** feat/subdir-entries  ·  **Updated:** 2026-10-11 15:30
+- **Next action:** done — PR open; follow-up for type 0x1A needs a VICE boot (D-029).
+- **Branch:** feat/subdir-entries  ·  **Updated:** 2026-10-11 16:45
 
 ## STEPS
 - [x] S1: format spec: type `0x1A` refused by the reference (`easyfs.c:500-502`), bit allowed only on 0x1A/xbank (`easyfs.c:412`), carried only (`easyfs.c:211,590`; `place.c` never reads it), EasyLoader boots `0x1A` as Ultimax (`easyloader.asm:912`). Add to "behaviours to decide on"
 - [x] S2: fixture: `make_inputs.py` patches `cxb16.crt` slot 1 with the bit → `in_cxb16sub.crt`; reference `cxb16sub.crt` = `ndeft -q ren` of a copy, renaming entry 0 to `hello2`. MANIFEST rows
 - [x] S3: failing tests: directory codec round-trips the bit (AC-47); load+build of `in_cxb16sub.crt` is byte-identical (AC-47); `edit --rename 0 hello2` equals `cxb16sub.crt` (AC-48); `list` flags `S` (AC-49); bit on a non-xbank kind is malformed in both read paths (AC-50); `0x1A` still refused by name (existing AC-43 tests, message reworded)
 - [x] S4: model: `subdir` on `DirEntry` and `Cartridge`; `decode` / `encode` / `read_from` / `dir_entry`; new malformed variant; `Slot::Subdirectory` → the 0x1A-only refusal
-- [ ] S5: CLI `S` flag; README, SPEC rows, D-029; gate; audit; PR ← next
+- [x] S5: CLI `S` flag; README, SPEC rows, D-029; gate; audit; PR
 
 ## DECISIONS (this work-item)
 - Scope is the `ndeft` oracle: the bit on xbank is carried; `0x1A` stays refused because the reference refuses it and there is no fixture or VICE evidence for it (user chose "carry", 2026-10-11) → D-029
@@ -83,3 +83,6 @@
   `DirEntry`/`Cartridge`, `Slot::MisplacedSubdirBit` → `ReadError::SubdirectoryBitMisplaced`, `S`
   flag. `edit --rename 0 hello2` matches `ndeft ren` byte for byte. No build-side guard for the bit
   on a non-xbank: only `read` sets it, and only on an xbank. Gate green.
+- 2026-10-11 16:30 — audit: PASS (test-presence). AC-47..AC-50 tokens present (core `subdir`, cli
+  `subdir_cli`); full suite green.
+- 2026-10-11 16:40 — reconciled: folded AC-47..AC-50 → SPEC.md/CLI (edit refusal row), RENDER (listing row), none (read-paths and inspect/load rows); all rewrites in place, no new rows. D-026 status notes D-029.

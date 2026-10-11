@@ -82,7 +82,7 @@
 - **Alternatives rejected:** see D-022..D-025 — this entry is the SPEC anchor for the shipped set,
   not a new fork.
 - **Scope:** project-wide
-- **Status:** active
+- **Status:** active · refusal narrowed further to type `0x1A` by D-029
 
 ## D-025 · 2026-10-04 · Cartridges are placed before programs regardless of weight
 - **Context:** The reference sorts every entry by one weight and treats the first `num_crt`

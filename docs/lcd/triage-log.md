@@ -14,3 +14,4 @@
 2026-10-04 · ocean-free-space · 2 signals · Standard · hard:no · risk:no
 2026-10-04 · ocean-free-space · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
 2026-10-11 · subdir-entries · 5 signals · Standard · hard:no · risk:no
+2026-10-11 · subdir-entries · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 2 (scope narrowed after the ndeft experiment; one boundary-hook denial)
