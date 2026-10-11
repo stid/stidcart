@@ -1,5 +1,7 @@
 [workspace]
 members = ["crates/stidcart-core", "crates/stidcart-cli"]
+# The GUI is its own workspace so the gate never compiles webkit (D-030).
+exclude = ["gui/src-tauri"]
 resolver = "2"
 
 [workspace.package]
