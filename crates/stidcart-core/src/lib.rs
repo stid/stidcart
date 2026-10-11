@@ -20,6 +20,7 @@ pub mod crt;
 pub mod directory;
 pub mod firmware;
 pub mod image;
+pub mod listing;
 pub mod petscii;
 pub mod place;
 pub mod read;
