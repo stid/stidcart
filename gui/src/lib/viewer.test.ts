@@ -6,7 +6,7 @@ import refused from './fixtures/refused.json';
 import type { Host, Listing } from './types';
 import { createViewer } from './viewer.svelte';
 
-const listing = two as Listing;
+const listing: Listing = two;
 
 function fakeHost(overrides: Partial<Host> = {}): Host {
   return {

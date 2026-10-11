@@ -4,7 +4,7 @@ import two from './fixtures/two.json';
 import type { Listing as ListingData } from './types';
 import Listing from './Listing.svelte';
 
-const listing = two as ListingData;
+const listing: ListingData = two;
 
 test('AC-51 (RENDER): every listing value is shown', () => {
   render(Listing, { props: { listing, file: 'two.crt' } });
