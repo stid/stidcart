@@ -10,14 +10,14 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** First GUI slice: a read-only desktop viewer that opens a `.crt` (chooser or drop) and shows what `list` shows, with refusals as readable errors; macOS first, portable toolkit.
-- **Next action:** run /lcd:test-gen gui-shell
+- **Next action:** run lcd:redgreen-loop from T3 (core listing.rs); T1 done, T2/T10/T14/T16/T18/T20 tests written red
 - **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 14:05
 
 ## STEPS
 - [x] S0 — triage, recon, spec (AC-51..58), D-030/031/032, plan approved, version 0.7.0, tasks.md
-- [ ] S1 — T1 list golden (stdout/stderr/exit, every fixture)  ← next (via /lcd:test-gen)
-- [ ] S2 — T2 failing core listing tests (AC-51)
-- [ ] S3 — T3 core listing.rs + lib.rs mod
+- [x] S1 — T1 list golden (stdout/stderr/exit, every fixture)
+- [x] S2 — T2 failing core listing tests (AC-51); GUI AC tests also written (open.rs, *.test.ts), red until scaffold
+- [ ] S3 — T3 core listing.rs + lib.rs mod  ← next
 - [ ] S4 — T4 CLI list uses describe; golden green
 - [ ] S5 — T5 gui/src-tauri scaffold + root exclude
 - [ ] S6 — T6 frontend scaffold (Svelte 5, Vite, Vitest)
@@ -96,5 +96,5 @@ See `spec.md`: AC-51..AC-58.
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
