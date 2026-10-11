@@ -394,6 +394,7 @@ impl CartBuilder {
                         size: program.data.len() as u32,
                         hidden: program.hidden,
                         align_64k: false,
+                        subdir: false,
                         other_off: 0,
                         other_num: 0,
                     }

@@ -22,6 +22,9 @@ pub struct Cartridge {
     pub kind: EntryType,
     /// Ask the placer for a 64 KB boundary. Meaningful for the xbank kinds only.
     pub align_64k: bool,
+    /// The directory's subdirectory bit, carried from a cart that had it and never interpreted.
+    /// Only an xbank read back from an image can carry it; [`Cartridge::from_crt`] never sets it.
+    pub subdir: bool,
     /// The ROML run: whole banks, contiguous, possibly empty.
     pub roml: Vec<u8>,
     /// Where the ROML run starts, in banks from the entry's start bank.
@@ -109,6 +112,7 @@ impl Cartridge {
             hidden: false,
             kind,
             align_64k: false,
+            subdir: false,
             roml,
             roml_at,
             romh,
@@ -160,6 +164,7 @@ impl Cartridge {
             size: self.size(),
             hidden: self.hidden,
             align_64k: self.align_64k,
+            subdir: self.subdir,
             other_off,
             other_num: other_num as u8,
         }
@@ -201,6 +206,7 @@ impl Cartridge {
             hidden: entry.hidden,
             kind: entry.kind,
             align_64k: entry.align_64k,
+            subdir: entry.subdir,
             roml: run(Half::RomL, roml_at, l),
             roml_at,
             romh: run(Half::RomH, romh_at, h),
