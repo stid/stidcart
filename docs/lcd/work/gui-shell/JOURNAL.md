@@ -10,14 +10,15 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** First GUI slice: a read-only desktop viewer that opens a `.crt` (chooser or drop) and shows what `list` shows, with refusals as readable errors; macOS first, portable toolkit.
-- **Next action:** run /lcd:plan gui-shell (Tauri 2.x per D-030, Svelte 5 + bits-ui per D-031)
-- **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 12:11
+- **Next action:** run /lcd:tasks gui-shell
+- **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 13:40
 
 ## STEPS
 - [x] S1 — triage (Deep), recon on toolkits
 - [x] S2 — spec.md (AC-51..AC-58)
 - [x] S3 — toolkit decision → D-030 (Tauri 2.x, separate workspace + required GUI CI job)
-- [ ] S4 — /lcd:plan gui-shell  ← next
+- [x] S4 — plan.md (listing in core D-032; GUI workspace + required `gui` CI job; host adapter + golden JSON contract)
+- [ ] S5 — /lcd:tasks gui-shell  ← next
 
 ## DECISIONS (this work-item)
 - Platforms: macOS first, toolkit must stay portable since CI builds on Ubuntu (user, 2026-10-11)
@@ -25,11 +26,15 @@
 - GUI ACs use the existing `RENDER` surface token (MAP: a GUI widens RENDER, it doesn't open a new surface)
 
 ## OPEN QUESTIONS
-- Plan must cover: the Rust↔TS DTO contract (a type generator such as tauri-specta, or a test that pins it), since vitest+mockIPC never exercises the real IPC; `devUrl`-in-debug vs building the frontend before cargo in the GUI job (`frontendDist` must exist at compile time)
+- none (DTO contract → golden JSON; frontend built before cargo in the GUI job)
 
 ## EDIT BOUNDARY (paths this work may touch)
-- `docs/lcd/work/gui-shell/`
-- `docs/lcd/DECISIONS.md`
+- `docs/lcd/work/gui-shell/`, `docs/lcd/DECISIONS.md`, `docs/lcd/MAP.md`, `docs/lcd/SPEC.md` (reconcile)
+- `Cargo.toml`, `Cargo.lock`, `.gitignore`, `CLAUDE.md`, `README.md`, `.claude/rules/lcd-conventions.md`
+- `crates/stidcart-core/src/listing.rs`, `crates/stidcart-core/src/lib.rs`, `crates/stidcart-core/tests/listing.rs`
+- `crates/stidcart-cli/src/main.rs`, `crates/stidcart-cli/tests/list_golden.rs`, `crates/stidcart-cli/tests/golden/`
+- `gui/` (frontend, `src-tauri/`, tests; see plan File structure)
+- `.github/workflows/ci.yml`
 <!-- /lcd-resume -->
 
 ---
@@ -51,9 +56,11 @@ See `spec.md`: AC-51..AC-58.
   - Recon recommendation: egui + egui_kittest (Harness only) + rfd.
 - 2026-10-11 12:55 — /stid-decide council (3 analysts, one revision round). User relaxed tests-in-cargo-test to tests-automated-in-CI; ruled small-footprint = gate only, GUI job required, Linux = portability only. Two analysts converged on Tauri 2.12 + separate workspace; the skeptic held egui because Tauri's style control is established and egui's isn't, and weighting polish first decides it → D-030. Skeptic's stress-test (after the user's rulings) upheld Tauri: council unanimous. Corrections folded into D-030: re_ui's polish layer is ~1.4k lines, not 20k; no written 2.x support policy. Measured: Tauri apt step 27–47 s on ubuntu-latest (tauri runs 38139467117/38139467273), nothing preinstalled; `frontendDist` must exist at compile time unless devUrl in debug.
 
+- 2026-10-11 13:40 — plan.md written. User chose the listing in core (D-032). Verified in scratch: an `exclude`d nested workspace is not reached by `cargo test --workspace`. Frontend tests use a fake host adapter instead of mockIPC (refines D-030). No bits-ui/TanStack in this slice.
+
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ⬜  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->

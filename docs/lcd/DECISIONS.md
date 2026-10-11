@@ -8,7 +8,24 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-032 -->
+<!-- Next id: D-033 -->
+
+---
+
+## D-032 · 2026-10-11 · The listing is one structured description in the core, rendered by both `list` and the GUI
+- **Context:** the GUI viewer must show exactly what `list` prints (gui-shell AC-51). The values
+  are derived by private helpers in the CLI binary: kind labels, flags, bank-run layout, the
+  header-name control-character filter, and the free figure that tries `load` and falls back to
+  `inspect` (D-027).
+- **Decision:** a core `listing` module turns image bytes into a `Listing`: cart name, filtered
+  producing-tool name, one row per entry with every value as `list` displays it, and the free
+  figure. `list` keeps only column layout and pluralisation. The GUI maps the same struct to a
+  serde DTO inside its own crate. Core gains display labels, but no serde and no I/O.
+- **Alternatives rejected:** a separate `stidcart-view` crate, since one more workspace member buys
+  nothing a module doesn't. Letting the GUI re-derive the values, which would mean two
+  implementations kept equal only by tests.
+- **Scope:** `stidcart-core` new `listing` module; `stidcart-cli` `list`/`render`
+- **Status:** active
 
 ---
 

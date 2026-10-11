@@ -6,7 +6,7 @@
 **Slug:** `gui-shell`
 **Created:** 2026-10-11
 **Related issue:** none
-**Status:** draft <!-- draft | approved | implemented | abandoned -->
+**Status:** approved <!-- draft | approved | implemented | abandoned -->
 
 ---
 
@@ -83,12 +83,9 @@ byte-identical after it was viewed, whether it opened cleanly or was refused.
 
 - [x] Platforms: macOS first, toolkit portable (user, 2026-10-11).
 - [x] First slice scope: read-only viewer (user, 2026-10-11).
-- [ ] The toolkit. Recon is done (JOURNAL LOG, 2026-10-11). It's the user's choice and it lands as
-  D-030 before `plan.md` is written. This blocks `/lcd:plan`, not this spec.
-- [ ] How the listing is shared between the two views: one description both render, or the GUI
-  re-deriving it. AC-51 requires equal values either way. This is a plan-level question, not a
-  blocker here.
-
+- [x] The toolkit: Tauri 2.x (D-030) with a Svelte 5 frontend (D-031).
+- [x] How the listing is shared: one structured description in the core, which both `list` and
+  the viewer render (D-032).
 ---
 
 <!--
