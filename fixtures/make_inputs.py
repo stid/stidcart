@@ -7,6 +7,9 @@ wrong place shows up as wrong data rather than as a duplicate.
 
 Bank body byte i of file k, bank b, half h (0 = ROML, 1 = ROMH):  (i * 7 + 3 + 5*k + 2*b + h) % 251
 
+The second table is not synthetic: each entry patches the directory of a frozen reference image,
+for an entry shape the reference tool carries but never writes itself (see PATCHED).
+
 Run from inside fixtures/:  python3 make_inputs.py
 """
 
@@ -65,6 +68,31 @@ IMAGES = [
     ("in_xbwide", 33, M16K, 2, [p for b in range(40) for p in ((b, ROML, 0, BANK), (b, ROMH, 1, BANK))]),
 ]
 
+# CrtUsage subdirectory bit (bytes 19-20 of a cart entry). The reference tool reads and writes it
+# back on an xbank entry but no request of its own sets it, so the input is a reference image with
+# the bit patched in. (output, source reference image, directory slot)
+SUBDIR = 0x4000
+PATCHED = [
+    ("in_cxb16sub", "cxb16.crt", 1),
+]
+
+
+def patch_subdir(src, slot):
+    """Set the subdirectory bit in one slot of the directory at bank 0 ROMH."""
+    img = bytearray(open(src, "rb").read())
+    p = int.from_bytes(img[0x10:0x14], "big")
+    while p < len(img):
+        length = int.from_bytes(img[p + 4 : p + 8], "big")
+        bank = int.from_bytes(img[p + 10 : p + 12], "big")
+        addr = int.from_bytes(img[p + 12 : p + 14], "big")
+        if bank == 0 and addr in (ROMH, ULT):
+            at = p + 0x10 + slot * 24 + 19
+            word = int.from_bytes(img[at : at + 2], "little") | SUBDIR
+            img[at : at + 2] = word.to_bytes(2, "little")
+            return bytes(img)
+        p += length
+    raise SystemExit(f"{src}: no bank 0 ROMH packet")
+
 
 def main():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -76,6 +104,11 @@ def main():
         with open(f"{name}.crt", "wb") as f:
             f.write(out)
         print(f"{name}.crt  {len(out)} bytes")
+    for name, src, slot in PATCHED:
+        out = patch_subdir(src, slot)
+        with open(f"{name}.crt", "wb") as f:
+            f.write(out)
+        print(f"{name}.crt  {len(out)} bytes (from {src})")
 
 
 if __name__ == "__main__":

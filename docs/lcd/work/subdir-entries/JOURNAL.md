@@ -7,13 +7,13 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** Carry the CrtUsage subdirectory bit (`0x4000`) on xbank entries through read, list, edit and save, as `ndeft` does; refuse the bit on any other kind as malformed; keep type `0x1A` refused, by name.
-- **Next action:** S2: subdir fixture via `make_inputs.py` + `ndeft ren`.
+- **Next action:** S3: failing tests for AC-47..AC-50.
 - **Branch:** feat/subdir-entries  ·  **Updated:** 2026-10-11 15:30
 
 ## STEPS
 - [x] S1: format spec: type `0x1A` refused by the reference (`easyfs.c:500-502`), bit allowed only on 0x1A/xbank (`easyfs.c:412`), carried only (`easyfs.c:211,590`; `place.c` never reads it), EasyLoader boots `0x1A` as Ultimax (`easyloader.asm:912`). Add to "behaviours to decide on"
-- [ ] S2: fixture: `make_inputs.py` patches `cxb16.crt` slot 1 with the bit → `in_cxb16sub.crt`; reference `cxb16sub.crt` = `ndeft -q ren` of a copy, renaming entry 0 to `hello2`. MANIFEST rows ← next
-- [ ] S3: failing tests: directory codec round-trips the bit (AC-47); load+build of `in_cxb16sub.crt` is byte-identical (AC-47); `edit --rename 0 hello2` equals `cxb16sub.crt` (AC-48); `list` flags `S` (AC-49); bit on a non-xbank kind is malformed in both read paths (AC-50); `0x1A` still refused by name (existing AC-43 tests, message reworded)
+- [x] S2: fixture: `make_inputs.py` patches `cxb16.crt` slot 1 with the bit → `in_cxb16sub.crt`; reference `cxb16sub.crt` = `ndeft -q ren` of a copy, renaming entry 0 to `hello2`. MANIFEST rows
+- [ ] S3: failing tests: directory codec round-trips the bit (AC-47); load+build of `in_cxb16sub.crt` is byte-identical (AC-47); `edit --rename 0 hello2` equals `cxb16sub.crt` (AC-48); `list` flags `S` (AC-49); bit on a non-xbank kind is malformed in both read paths (AC-50); `0x1A` still refused by name (existing AC-43 tests, message reworded) ← next
 - [ ] S4: model: `subdir` on `DirEntry` and `Cartridge`; `decode` / `encode` / `read_from` / `dir_entry`; new malformed variant; `Slot::Subdirectory` → the 0x1A-only refusal
 - [ ] S5: CLI `S` flag; README, SPEC rows, D-029; gate; audit; PR
 
