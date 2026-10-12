@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** First GUI slice: a read-only desktop viewer that opens a `.crt` (chooser or drop) and shows what `list` shows, with refusals as readable errors; macOS first, portable toolkit.
-- **Next action:** user tries drag-and-drop (one file, two files) in the running app; then mark PR #33 ready, confirm checks, ask before adding `gui` to required checks
+- **Next action:** done; PR #33 awaits the user's merge
 - **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 17:15
 
 ## STEPS
@@ -37,7 +37,7 @@
 - [x] S20 — T26 CI gui job
 - [x] S21 — T27 live check (screencapture)
 - [x] S22 — T28–T30 MAP, CLAUDE.md, README
-- [ ] S23 — T31 PR #33 green; ask user → required check  ← next
+- [x] S23 — T31 PR #33 green and ready; `gui` added to main's required checks (user approved)
 - [x] S24 — T-audit PASS, T-reconcile, T-final (both gates green)
 
 ## DECISIONS (this work-item)
@@ -97,6 +97,7 @@ See `spec.md`: AC-51..AC-58.
 - 2026-10-11 17:10 — audit: PASS (first run). Closeout line appended.
 - 2026-10-11 17:15 — reconciled: folded AC-51..57 → SPEC.md/RENDER (3 rows, list row gains D-032), AC-58 → SPEC.md/Internal.
 - 2026-10-11 17:35 — user confirmed Finder drag-and-drop works, including a real cart of theirs with all entries shown correctly. CI `gui` first run failed on `process` in vite.config.ts (no Node types on CI) → fixed with `mode` (da98eef).
+- 2026-10-11 17:45 — all checks green (gate, gui 4m52s, audit, claude-review); PR marked ready; `gui` added to main's required checks.
 
 ## DEEP PIPELINE (Deep lane only)
 
