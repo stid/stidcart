@@ -234,15 +234,34 @@ impl Document {
         true
     }
 
+    /// Replace the cart's file with the edited cart. A clean cart is left alone — rewriting it
+    /// would re-place a cart another tool made without anyone asking — and an untitled one has
+    /// nowhere to go, so the window asks for a path (Save As) instead.
     pub fn save(&mut self) -> Result<(), String> {
-        Err("not implemented".into())
-    }
-
-    pub fn save_as(&mut self, _path: &Path) -> Result<(), String> {
         if let Some(reason) = &self.read_only {
             return Err(reason.clone());
         }
-        Err("not implemented".into())
+        let Some(path) = self.path.clone() else {
+            return Err("this cartridge has never been saved; choose where with Save As".into());
+        };
+        if !self.dirty() {
+            return Ok(());
+        }
+        write_replacing(&path, self.bytes())?;
+        self.saved = Some(self.at);
+        Ok(())
+    }
+
+    /// Write the cart to `path` and make that the cart's file from now on. The file it was opened
+    /// from is not touched.
+    pub fn save_as(&mut self, path: &Path) -> Result<(), String> {
+        if let Some(reason) = &self.read_only {
+            return Err(reason.clone());
+        }
+        write_replacing(path, self.bytes())?;
+        self.path = Some(path.to_path_buf());
+        self.saved = Some(self.at);
+        Ok(())
     }
 
     fn current(&self) -> &Snapshot {
@@ -278,5 +297,23 @@ fn input_entry(path: &str, aligned: bool) -> Result<Entry, String> {
     Entry::from_input(&name, data, aligned).map_err(|e| match e {
         InputError::Cartridge(e) => format!("'{path}': {e}"),
         other => other.to_string(),
+    })
+}
+
+/// Write `bytes` to `path` through a temporary file in the same directory, then rename over it, so
+/// the file is either the old cart or the new one and never part of one. The same approach as
+/// `write_replacing` in the CLI (`crates/stidcart-cli/src/lib.rs`); I/O policy can't live in the
+/// core, so each front end has its own copy. Not `tempfile`: it creates mode 0600, which would make
+/// every saved cart owner-only (D-035).
+fn write_replacing(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut temporary = path.as_os_str().to_owned();
+    temporary.push(".stidcart-tmp");
+    let temporary = Path::new(&temporary);
+
+    std::fs::write(temporary, bytes)
+        .map_err(|e| format!("writing '{}': {e}", temporary.display()))?;
+    std::fs::rename(temporary, path).map_err(|e| {
+        let _ = std::fs::remove_file(temporary);
+        format!("replacing '{}': {e}", path.display())
     })
 }
