@@ -4,6 +4,8 @@
 //! and no serde). The values themselves come from `stidcart_core::listing`, which `list` renders
 //! too, so the window and the command line cannot disagree (D-032).
 
+pub mod document;
+
 use std::path::Path;
 
 use serde::Serialize;
