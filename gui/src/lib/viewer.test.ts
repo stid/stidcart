@@ -3,10 +3,13 @@
 import { describe, expect, test, vi } from 'vitest';
 import two from './fixtures/two.json';
 import refused from './fixtures/refused.json';
+import documentGolden from './fixtures/document.json';
 import type { Document, Host, Listing } from './types';
 import { createViewer, unsavedChoice } from './viewer.svelte';
 
 const listing: Listing = two;
+// svelte-check holds the Rust side's DocumentDto golden to this type (contract.rs pins the other end).
+const golden: Document = documentGolden;
 
 function doc(overrides: Partial<Document> = {}): Document {
   return {
@@ -55,6 +58,10 @@ async function opened(host: Host, d: Document = clean) {
   host.openDocument = vi.fn(async () => clean);
   return v;
 }
+
+test('the DocumentDto golden is a Document', () => {
+  expect(golden.rows).toHaveLength(golden.listing.rows.length);
+});
 
 describe('opening (gui-shell)', () => {
   test('AC-52 (RENDER): a single dropped file is opened and shown', async () => {
