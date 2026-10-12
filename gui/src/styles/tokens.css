@@ -25,7 +25,7 @@
 
   --titlebar-height: 44px;
   /* Room for the macOS traffic lights under the overlay title bar. */
-  --titlebar-inset: 80px;
+  --titlebar-inset: 92px;
 
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --duration: 140ms;

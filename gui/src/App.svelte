@@ -25,13 +25,7 @@
 
 <div class="app">
   <header class="titlebar" data-tauri-drag-region>
-    <span class="title" data-tauri-drag-region>
-      stidcart
-      {#if viewer.state.kind !== 'empty'}
-        <span class="sep" data-tauri-drag-region>/</span>
-        <span class="current" data-tauri-drag-region>{viewer.state.file}</span>
-      {/if}
-    </span>
+    <span class="title" data-tauri-drag-region>stidcart</span>
     {#if viewer.state.kind !== 'empty'}
       <button class="button" onclick={() => viewer.pick()}>Open…</button>
     {/if}
@@ -74,16 +68,6 @@
     font-size: var(--text-md);
     font-weight: 600;
     color: var(--text-muted);
-  }
-
-  .sep {
-    margin: 0 var(--space-2);
-    color: var(--text-faint);
-    font-weight: 400;
-  }
-
-  .current {
-    color: var(--text);
   }
 
   main {
