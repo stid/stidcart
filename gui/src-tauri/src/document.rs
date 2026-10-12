@@ -146,7 +146,7 @@ impl Document {
                 .map(|&alignable| RowActions { alignable })
                 .collect(),
             read_only: self.read_only.clone(),
-            dirty: self.dirty(),
+            dirty: self.is_dirty(),
             can_undo: self.at > 0,
             can_redo: self.at + 1 < self.history.len(),
         }
@@ -244,7 +244,7 @@ impl Document {
         let Some(path) = self.path.clone() else {
             return Err("this cartridge has never been saved; choose where with Save As".into());
         };
-        if !self.dirty() {
+        if !self.is_dirty() {
             return Ok(());
         }
         write_replacing(&path, self.bytes())?;
@@ -268,7 +268,7 @@ impl Document {
         &self.history[self.at]
     }
 
-    fn dirty(&self) -> bool {
+    pub fn is_dirty(&self) -> bool {
         self.saved != Some(self.at)
     }
 }
