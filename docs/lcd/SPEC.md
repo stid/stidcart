@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-10-11 (gui-shell)
+**Last compacted:** 2026-10-11 (gui-edit)
 
 ---
 
@@ -47,9 +47,15 @@
 | The listing shows the cart name and producing tool, then one row per entry — index, name, flags (`H` hidden, `A` 64 KB aligned, `S` subdirectory bit), kind label, bank, layout (a program's offset, or a cartridge's bank runs per half), size — closing with the entry count and the free bytes: the size a re-placement of the entries plus one more program accepts, so a program of exactly that size can be added and one byte more cannot, in Ocean mode too. For an image `load` refuses (and `edit` therefore cannot touch), the figure is the contiguous run at the top of the image as stored | AC-45, AC-46, AC-49, AC-51 | D-026 (cart-entries) · D-027 (ocean-free-space) · D-029 (subdir-entries) · D-032 (gui-shell) |
 | Every kind the walk accepts — nine cartridge kinds, interleaved and both half-confined program kinds — has one distinct label, so no entry renders as `?` | AC-45 | D-026 (cart-entries) |
 | Control characters in the container header name are replaced with `.` before printing, because a `.crt` is untrusted input and the field is free-form host text | — | D-015 (backfill) |
-| The desktop viewer shows the same listing as `list`, value for value: file name, cart name, producing tool, every row (index, name, flags, kind, bank, layout, size), entry count and free bytes, for every image `list` describes. Both render one core description | AC-51 | D-032 (gui-shell) · D-030 |
-| The viewer opens one `.crt` dropped on the window, picked with Open/⌘O (dismissing the chooser changes nothing), and shows an empty state inviting either before any file is opened. Dropping several files opens none and says to drop one | AC-52, AC-53, AC-56, AC-57 | D-030 (gui-shell) |
+| On opening, the desktop app shows the same listing as `list`, value for value: file name, cart name, producing tool, every row (index, name, flags, kind, bank, layout, size), entry count and free bytes, for every image `list` describes. Both render one core description | AC-51 | D-032 (gui-shell) · D-030 |
+| The desktop app opens a `.crt` picked with Open…/⌘O (dismissing the chooser changes nothing), or one dropped while no editable cart is open (empty, an error, or view-only); several dropped then open none and it says to drop one. Before any file it shows an empty state inviting either. With an editable cart open, every drop (`.prg` or `.crt`) adds instead, never opens | AC-52, AC-53, AC-56, AC-57, AC-79 | D-030 (gui-shell) · D-033 (gui-edit) |
 | A file `list` refuses shows the reason `list` gives and no rows, replacing whatever cart was shown; the next valid open clears it | AC-54, AC-55 | D-032 (gui-shell) |
+| A cart `edit` accepts opens editable and clean; one `list` describes but `edit` refuses (firmware differing from the embedded blobs) opens view-only, with `edit`'s reason and no edit commands | AC-59, AC-60 | D-033 · D-035 (gui-edit) |
+| The window edits what `edit` does — add (picked or dropped; several at once all-or-none as one step; Add Aligned for an xbank), remove, rename (inline, shown as stored), replace (name, hidden and place kept, kind follows the file), hide/show, align/unalign (offered only on an xbank), cart and header names — plus New, an empty untitled cart with `build`'s default names. Each new entry is named by its file stem and classified as `edit --add` classifies it | AC-61..AC-69, AC-77 | D-033 · D-034 (gui-edit) |
+| An edit `edit` would refuse shows `edit`'s reason and changes nothing — listing, unsaved state and undo history stay as they were | AC-70 | D-035 (gui-edit) |
+| After an edit the listing describes the cart as saving would write it: the whole set is re-placed, so an untouched entry may show a new position, and the free bytes are recomputed | AC-71 | D-035 (gui-edit) · D-011 |
+| Edits stay in memory: undo/redo walk every edit since opening (in a focused text field they act on its text), an Edited marker shows when the cart differs from the state last saved or opened, ⌘S replaces the file only when there are changes, ⌘⇧S writes elsewhere and adopts that file, an untitled cart saves through Save As, and a failed save leaves the destination whole and the changes unsaved | AC-72..AC-77 | D-033 · D-035 (gui-edit) |
+| Closing, quitting (⌘Q, the app's own Quit item), opening another cart or New with unsaved changes asks Save / Don't Save / Cancel; only the first two go ahead, and a dismissed or failed save stops. Quitting from the Dock does not ask yet | AC-78 | D-033 (gui-edit) |
 
 ### Internal (surface: none)
 
@@ -78,6 +84,7 @@
 | The CRT header length field is honoured on read: the packet walk starts at the offset it states, a value below the fixed `0x40` header is refused as malformed, and one past the end of the file is a truncation. The writer still emits `0x40` | — | D-021 (crt-header-length) |
 | Produced bytes match the frozen `ndeft` fixtures for every case the parity test covers, and each covered case's originating command line is asserted present in `fixtures/MANIFEST.md` (the converse is not checked — a manifest image with no case is not caught) | — | D-015 (backfill) · D-002 |
 | Viewing a cartridge in the GUI never writes to it: the file is byte-identical and unmodified afterwards, opened or refused | AC-58 | D-030 (gui-shell) |
+| A cart saved from the window after edits is byte-identical to what `edit` writes for the equivalent request on the same input, and a New cart saved after adding files is byte-identical to `build` of the same files in order — held against the real CLI over the fixtures | AC-80 | D-035 (gui-edit) |
 
 <!--
 What this file is FOR (and what it is NOT):

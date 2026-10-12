@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Second GUI slice: the viewer edits carts with the full `edit` set plus New, held in memory with undo, an unsaved-changes indicator and prompt, ⌘S/⌘⇧S, and saves byte-identical to `edit`/`build`.
-- **Next action:** /lcd:audit gui-edit, then the full gate, reconcile, PR
+- **Next action:** full gate, then open the PR
 - **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 20:10
 
 ## STEPS
@@ -36,7 +36,7 @@
 - [x] S20 — T33–T35 host.ts, App.svelte, tokens
 - [x] S21 — T36 live check (one bug found and fixed: ⌘Q)
 - [x] S22 — T37/T38 MAP, README
-- [ ] S23 — T-audit, T-final, reconcile, PR  ← next
+- [x] S23 — T-audit, T-final, reconcile  ·  PR next
 
 ## DECISIONS (this work-item)
 - ACs AC-59..AC-80 claimed (next free AC-81); GUI ACs use `RENDER`, byte parity `none`
@@ -78,10 +78,12 @@ See `spec.md` (AC-59..AC-80).
 - 2026-10-11 22:20 — red-green: all green (root gate; gui-gate 38 vitest + 28 GUI cargo). ~14 implement/fix iterations, 0 reverts, no STUCK. Deviations: bits-ui pinned 2.19.3 (2.19.5 only 8 days old); component tests add `afterEach(cleanup)` (vitest without globals); EditableText loads its value only when editing starts (rename from the row menu); T35 tokens not needed (existing tokens cover menu/banner/dot).
 - 2026-10-11 22:15 — T36 live check (tauri dev, scratch copies, driven by osascript + a CGEvent click tool; captures in the session scratchpad). Passed: open clean; inline rename with ⌘Z undoing field text only; "⋯" menu offers Align only on the xbank, align re-placed the untouched PRG (AC-71); right-click menu without Align on a PRG; Hide + menu ⌘Z; ⌘S → file byte-identical to `edit --rename 0 greetings --align 1`, Edited cleared; ⌘⇧S → copy with -rw-r--r--, window adopts it, source untouched; Add Aligned with a .prg → edit's exact refusal, no change; New + Add + ⌘S → save panel, file byte-identical to `build hello.prg`; firmware-mismatch cart → view-only banner with edit's text, no edit controls; ⌘W prompt (Save/Don't Save/Cancel), Esc cancels; ⌘O → Don't Save → reopens, file untouched; ⌘W → Don't Save → app exits, file untouched. User: multi-file drop of hello+ramp added both, one ⌘Z removed both; dropped in_8k.crt added as 8K, not opened.
 - 2026-10-11 22:15 — BUG found live, fixed c4dff08: predefined Quit sends `terminate:`, which tao 0.37 doesn't intercept (no applicationShouldTerminate) → ⌘Q exited with no ExitRequested and lost an unsaved edit. Quit is now a custom ⌘Q item routed through the store's guard (test added). Known gap: Dock → Quit still sends terminate: and bypasses the prompt (needs an app-delegate hook; out of this slice unless the user wants it). Cosmetic: a focused row shows a blue focus-ring line.
+- 2026-10-11 22:30 — audit: PASS (first run), 21/21 RENDER rows OK; AC-80 (none) in parity.rs. Closeout line appended.
+- 2026-10-11 22:30 — reconciled: folded AC-59..80 → SPEC.md/RENDER (6 new rows; drop row rewritten for AC-79; opening row reworded) and SPEC.md/none (AC-80). No supersede entry: the drop change is D-033.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
