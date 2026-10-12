@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use stidcart_core::listing::{self, Listing};
-use stidcart_core::{read, CartBuilder};
+use stidcart_core::{read, CartBuilder, Entry, InputError};
 
 use crate::ListingDto;
 
@@ -152,11 +152,68 @@ impl Document {
         }
     }
 
-    pub fn apply(&mut self, _edit: Edit) -> Result<(), String> {
+    /// Apply one change. On success it becomes the next step and anything that could have been
+    /// redone is gone; on failure the error is what `edit` says and nothing has changed.
+    pub fn apply(&mut self, edit: Edit) -> Result<(), String> {
         if let Some(reason) = &self.read_only {
             return Err(reason.clone());
         }
-        Err("not implemented".into())
+        let mut builder = read::load(self.bytes()).map_err(|e| e.to_string())?;
+        match edit {
+            Edit::Add { paths, aligned } => {
+                // Every file is read and classified before any is added: all of them or none.
+                let entries = paths
+                    .iter()
+                    .map(|p| input_entry(p, aligned))
+                    .collect::<Result<Vec<_>, _>>()?;
+                for entry in entries {
+                    builder.push(entry);
+                }
+            }
+            Edit::Remove { index } => {
+                check_index(&builder, index)?;
+                builder.remove(index);
+            }
+            Edit::Rename { index, name } => {
+                check_index(&builder, index)?;
+                builder.set_name(index, &name);
+            }
+            Edit::Replace { index, path } => {
+                check_index(&builder, index)?;
+                builder.replace(index, input_entry(&path, false)?);
+            }
+            Edit::SetHidden { index, hidden } => {
+                check_index(&builder, index)?;
+                builder.set_hidden(index, hidden);
+            }
+            Edit::SetAligned { index, aligned } => {
+                check_index(&builder, index)?;
+                // The core ignores alignment on a program rather than refusing it, so the check
+                // `edit --align` makes is repeated here, in its words, before a no-op becomes a step.
+                let entry = &builder.entries()[index];
+                if !entry.as_cartridge().is_some_and(|c| c.kind.is_xbank()) {
+                    return Err(format!(
+                        "entry {index} '{}' is not an xbank cartridge, so 64 KB alignment does not \
+                         apply to it",
+                        entry.name()
+                    ));
+                }
+                builder.set_align_64k(index, aligned);
+            }
+            Edit::SetCartName { name } => builder.set_ef_name(&name),
+            Edit::SetHeaderName { name } => builder.set_header_name(&name),
+        }
+
+        let bytes = builder.build().map_err(|e| e.to_string())?;
+        let listing = listing::describe(&bytes).map_err(|e| e.to_string())?;
+        self.history.truncate(self.at + 1);
+        if self.saved.is_some_and(|s| s > self.at) {
+            self.saved = None;
+        }
+        self.history
+            .push(Snapshot::new(bytes, listing, Some(&builder)));
+        self.at += 1;
+        Ok(())
     }
 
     pub fn undo(&mut self) -> bool {
@@ -185,4 +242,31 @@ impl Document {
     fn dirty(&self) -> bool {
         self.saved != Some(self.at)
     }
+}
+
+/// Bounds-check an index before it reaches the core, whose mutators panic on a bad one — and a
+/// panic inside a command would poison the lock every later command needs. The text is `edit`'s.
+fn check_index(builder: &CartBuilder, index: usize) -> Result<(), String> {
+    let held = builder.entries().len();
+    if index >= held {
+        return Err(format!(
+            "no entry at index {index}; the cartridge holds {held} {}",
+            if held == 1 { "entry" } else { "entries" }
+        ));
+    }
+    Ok(())
+}
+
+/// Read a file as the entry it is, named after its file stem, as `edit --add` does. What the file
+/// is comes from the core (D-034); only the reading and the path in the error are here.
+fn input_entry(path: &str, aligned: bool) -> Result<Entry, String> {
+    let data = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
+    let name = Path::new(path)
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_string());
+    Entry::from_input(&name, data, aligned).map_err(|e| match e {
+        InputError::Cartridge(e) => format!("'{path}': {e}"),
+        other => other.to_string(),
+    })
 }
