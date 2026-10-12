@@ -96,6 +96,7 @@ See `spec.md`: AC-51..AC-58.
 - 2026-10-11 17:05 — red-green: green in 9 iterations, 0 reverts.
 - 2026-10-11 17:10 — audit: PASS (first run). Closeout line appended.
 - 2026-10-11 17:15 — reconciled: folded AC-51..57 → SPEC.md/RENDER (3 rows, list row gains D-032), AC-58 → SPEC.md/Internal.
+- 2026-10-11 17:35 — user confirmed Finder drag-and-drop works, including a real cart of theirs with all entries shown correctly. CI `gui` first run failed on `process` in vite.config.ts (no Node types on CI) → fixed with `mode` (da98eef).
 
 ## DEEP PIPELINE (Deep lane only)
 
