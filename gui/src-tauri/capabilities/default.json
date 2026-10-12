@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The viewer window: core defaults plus the open-file dialog.",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:allow-open"]
+}

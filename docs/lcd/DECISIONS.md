@@ -8,7 +8,83 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-030 -->
+<!-- Next id: D-033 -->
+
+---
+
+## D-032 · 2026-10-11 · The listing is one structured description in the core, rendered by both `list` and the GUI
+- **Context:** the GUI viewer must show exactly what `list` prints (gui-shell AC-51). The values
+  are derived by private helpers in the CLI binary: kind labels, flags, bank-run layout, the
+  header-name control-character filter, and the free figure that tries `load` and falls back to
+  `inspect` (D-027).
+- **Decision:** a core `listing` module turns image bytes into a `Listing`: cart name, filtered
+  producing-tool name, one row per entry with every value as `list` displays it, and the free
+  figure. `list` keeps only column layout and pluralisation. The GUI maps the same struct to a
+  serde DTO inside its own crate. Core gains display labels, but no serde and no I/O.
+- **Alternatives rejected:** a separate `stidcart-view` crate, since one more workspace member buys
+  nothing a module doesn't. Letting the GUI re-derive the values, which would mean two
+  implementations kept equal only by tests.
+- **Scope:** `stidcart-core` new `listing` module; `stidcart-cli` `list`/`render`
+- **Status:** active
+
+---
+
+## D-031 · 2026-10-11 · The GUI frontend is Svelte 5
+- **Context:** D-030 puts the GUI in a Tauri web frontend. The framework inside it was still open.
+  The candidates, as of npm on 2026-10-11, all build with Vite 8, test with Vitest 5 and have
+  TanStack Table 9: Svelte 5.57, React 19.3, Solid 1.9, and plain TypeScript.
+- **Decision:** Svelte 5, with bits-ui 2.x as the headless component layer and
+  `@testing-library/svelte` for the frontend tests (user's choice, following the recommendation).
+- **Alternatives rejected:**
+  - React: the deepest component ecosystem (Radix + shadcn/ui), but more boilerplate and runtime
+    for a Rust-first maintainer, and the polish bar doesn't need it.
+  - Solid: its main headless component library, Kobalte, is still pre-1.0 (0.13), against the
+    stable-release limit.
+  - Plain TypeScript: every component, state update and accessibility detail would be
+    hand-written, which gets expensive once editing arrives.
+  GitButler, the polished Tauri app D-030 cites, ships on Svelte.
+- **Scope:** `gui/` frontend
+- **Status:** active
+
+---
+
+## D-030 · 2026-10-11 · The GUI is Tauri 2.x, in its own Cargo workspace with its own required CI job
+- **Context:** the GUI's first criterion is a polished look on par with VS Code, Zed or Obsidian,
+  with full control over style. Three independent analysts (`/stid-decide`) researched it against
+  hard limits: a stable release, a required `gate` that stays small, and automated UI tests. The
+  user relaxed "tests run from `cargo test`" to "tests run automatically in CI". The user also
+  ruled that the small-footprint limit covers the `gate` only, that the GUI job is a required
+  check, and that Linux is a portability check, with macOS the shipping target.
+- **Decision:** Tauri 2.x (2.12 at the time), pinned to the 2.x line, with no 3.0 alphas.
+  - The GUI lives outside the root workspace (`exclude`), as its own workspace with a path
+    dependency on `stidcart-core`, so `--workspace` in the `gate` never compiles webkit and the
+    gate string stays unchanged.
+  - A separate required CI job on ubuntu-latest installs webkit2gtk, then runs fmt, clippy and the
+    Rust tests plus the frontend tests (Vitest with Tauri's `mockIPC`) under Node.
+  - Serde DTOs and all file reading live in the GUI crate, so the core stays free of serde and
+    I/O policy.
+- **Alternatives rejected:**
+  - egui 0.36, ranked second by two analysts and first by the third. It passes every hard limit
+    with no gate change, and its UI tests run headless in `cargo test`. Its polish at this bar is
+    proven only by Rerun, a funded team. Rerun's `re_ui` is 18.8k lines, but most of that is
+    product features; the theme layer itself is about 1.4k lines plus three RON files. There is no
+    reusable kit, so every component would be hand-built, and egui's README calls layout a
+    fundamental shortcoming of immediate mode. GitButler is the same class of proof for Tauri, but
+    on Tauri the styling and component tooling is commodity CSS. The polish bar was weighted first.
+  - Slint 1.18. Its default backend cannot receive files dropped from Finder (it has no winit
+    drop handler), its test crate is internal and must be pinned to an exact version, and the
+    binary would ship as GPLv3.
+  - iced 0.14. No release in 10 months (about 15 months between releases) and no accessibility.
+  - gpui. The crates.io release is 12 months stale and the maintained line is pre-release
+    snapshots.
+  - Dioxus/Blitz. Same webview cost as Tauri with weaker testing, or still in beta.
+- **Accepted costs:** a second toolchain (Node, a frontend framework); a second lockfile and target
+  dir; a TypeScript copy of the entry model that can drift from Rust; a 30–50 s apt step (cacheable)
+  in the GUI job; WebKit rather than Chromium (WKWebView on macOS); a future 2→3 migration whose
+  size is unknown. Tauri has no written 2.x support policy; the only evidence is that 1.x got three
+  patch releases over 7.5 months after 2.0.
+- **Scope:** new `gui/` workspace; CI workflow; MAP zones; lcd-conventions test placement
+- **Status:** active
 
 ---
 

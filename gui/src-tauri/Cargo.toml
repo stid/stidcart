@@ -1,0 +1,26 @@
+[package]
+name = "stidcart-gui"
+version = "0.7.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+repository = "https://github.com/stid/stidcart"
+description = "Desktop viewer for EasyFlash cartridge images"
+
+# Its own workspace, excluded from the root one, so the root gate (`--workspace`) never compiles
+# webkit (D-030). The root rust-toolchain.toml still binds it: rustup walks up the directories.
+[workspace]
+
+[lib]
+name = "stidcart_gui"
+
+[build-dependencies]
+tauri-build = { version = "2.7.2", features = [] }
+
+[dependencies]
+stidcart-core = { path = "../../crates/stidcart-core" }
+tauri = { version = "2.12.3", features = [] }
+tauri-plugin-dialog = "2.8.2"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

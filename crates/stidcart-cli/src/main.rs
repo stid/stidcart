@@ -7,8 +7,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use stidcart_core::directory::{DirEntry, EntryType};
-use stidcart_core::image::Half;
+use stidcart_core::listing::{self, Listing};
 use stidcart_core::read;
 use stidcart_core::{crt, CartBuilder, Cartridge, Entry, Program};
 
@@ -349,125 +348,45 @@ fn list(args: &[String]) -> Result<(), String> {
     let path = path.ok_or_else(|| format!("no cartridge image given\n{USAGE}"))?;
 
     let bytes = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
-    let info = read::inspect(&bytes).map_err(|e| e.to_string())?;
-    // The free figure is the one place the listing asks a rebuild question — what `edit --add`
-    // would accept — so it comes from the rebuild view when there is one (D-027). An image `load`
-    // refuses cannot be edited at all; it still gets a figure, describing the space the image as
-    // stored leaves at the top.
-    let free = read::load(&bytes).map_or_else(|_| info.free_space(), |b| b.free_space());
-
-    print!("{}", render(&info, free));
+    let listing = listing::describe(&bytes).map_err(|e| e.to_string())?;
+    print!("{}", render(&listing));
     Ok(())
 }
 
-/// The listing itself, kept separate from the printing so it can be asserted on directly.
-fn render(info: &read::CartInfo, free: usize) -> String {
+/// The listing's layout. The values come from the core, shared with the GUI (D-032); this owns
+/// only the columns and the wording around them, kept apart from the printing so tests can assert
+/// on the string.
+fn render(l: &Listing) -> String {
     let mut out = String::new();
-    // The cartridge name and every entry name arrive through the machine's own character mapping,
-    // which already turns control bytes into `.`. The container header name does not — it is
-    // host-encoded text carried through verbatim, and this is the first path that puts it in front
-    // of a terminal, so it is filtered here.
-    out.push_str(&format!("cart: {}\n", info.ef_name));
-    out.push_str(&format!("built by: {}\n\n", printable(&info.header_name)));
+    out.push_str(&format!("cart: {}\n", l.cart));
+    out.push_str(&format!("built by: {}\n\n", l.built_by));
 
-    if info.entries.is_empty() {
+    if l.rows.is_empty() {
         out.push_str("  (no entries)\n");
     } else {
         out.push_str(&format!(
             "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>8}\n",
             "#", "name", "flags", "type", "bank", "layout", "size"
         ));
-        for (i, e) in info.entries.iter().enumerate() {
-            let mut flags = String::new();
-            if e.hidden {
-                flags.push('H');
-            }
-            if e.align_64k {
-                flags.push('A');
-            }
-            if e.subdir {
-                flags.push('S');
-            }
-            if flags.is_empty() {
-                flags.push('-');
-            }
+        for r in &l.rows {
             out.push_str(&format!(
-                "  {i:>3}  {:<16}  {flags:<5}  {:<6}  {:>4}  {:<12}  {:>8}\n",
-                e.name,
-                kind_label(e.kind),
-                format!("${:02x}", e.bank),
-                layout(e),
-                format!("${:06x}", e.size),
+                "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>8}\n",
+                r.index, r.name, r.flags, r.kind, r.bank, r.layout, r.size,
             ));
         }
     }
 
     out.push_str(&format!(
-        "\n{} {}, ${free:06x} ({free}) bytes free\n",
-        info.entries.len(),
-        if info.entries.len() == 1 {
+        "\n{} {}, {} bytes free\n",
+        l.rows.len(),
+        if l.rows.len() == 1 {
             "entry"
         } else {
             "entries"
-        }
+        },
+        l.free_text()
     ));
     out
-}
-
-/// One short label per kind the directory can hold.
-fn kind_label(kind: EntryType) -> &'static str {
-    match kind {
-        EntryType::Prg => "PRG",
-        EntryType::PrgRomL => "PRG-L",
-        EntryType::PrgRomH => "PRG-H",
-        EntryType::K8 => "8K",
-        EntryType::K16 => "16K",
-        EntryType::Ultimax8 => "ULT8",
-        EntryType::Ultimax16 => "ULT16",
-        EntryType::Ocean => "OCEAN",
-        EntryType::Ocean512 => "OCN512",
-        EntryType::Xbank8 => "XB8",
-        EntryType::Xbank16 => "XB16",
-        EntryType::XbankUltimax => "XBULT",
-        // The walk never yields an end marker as an entry.
-        EntryType::End => "END",
-    }
-}
-
-/// Where an entry's bytes sit: a program's offset word, or a cartridge's bank runs per half as
-/// `L<banks>@<offset>,H<banks>@<offset>` (offsets in banks from the start bank; an empty run is
-/// omitted).
-fn layout(e: &DirEntry) -> String {
-    if !e.kind.is_cartridge() {
-        return format!("${:04x}", e.offset);
-    }
-    let (primary, other) = (
-        (0u8, e.primary_num()),
-        (e.other_off, u32::from(e.other_num)),
-    );
-    let ((l_at, l), (h_at, h)) = match e.kind.primary() {
-        Half::RomL => (primary, other),
-        Half::RomH => (other, primary),
-    };
-    let mut runs = Vec::new();
-    if l > 0 {
-        runs.push(format!("L{l}@{l_at}"));
-    }
-    if h > 0 {
-        runs.push(format!("H{h}@{h_at}"));
-    }
-    runs.join(",")
-}
-
-/// Replace anything that would drive the terminal rather than print on it.
-///
-/// A `.crt` is untrusted input, and its 32-byte header name is free-form host-encoded text. Left
-/// alone, a name holding `\x1b[2J` clears the screen the listing was just written to, so what the
-/// reader believes they inspected is not what the file holds.
-fn printable(s: &str) -> String {
-    s.chars()
-        .map(|c| if c.is_control() { '.' } else { c })
-        .collect()
 }
 
 /// The menu name a program gets when the request does not give one: the file name with its

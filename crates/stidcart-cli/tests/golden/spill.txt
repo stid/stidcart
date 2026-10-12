@@ -1,0 +1,10 @@
+exit: 0
+-- stdout --
+cart: spill
+built by: ndefpack 1.0.1
+
+    #  name              flags  type    bank  layout            size
+    0  big               -      PRG      $01  $0000          $004e22
+
+1 entry, $0f71de (1012190) bytes free
+-- stderr --

@@ -1,0 +1,11 @@
+exit: 0
+-- stdout --
+cart: cxbwide
+built by: ndefpack 1.0.1
+
+    #  name              flags  type    bank  layout            size
+    0  in_xbwide         -      XB16     $01  L40@0,H40@0    $0a0000
+    1  hello             -      PRG      $29  $0000          $000066
+
+2 entries, $05bf9a (376730) bytes free
+-- stderr --

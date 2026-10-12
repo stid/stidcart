@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-10-11 (subdir-entries)
+**Last compacted:** 2026-10-11 (gui-shell)
 
 ---
 
@@ -44,9 +44,12 @@
 
 | Capability (current behaviour, one line) | ACs | Provenance |
 |---|---|---|
-| The listing shows the cart name and producing tool, then one row per entry — index, name, flags (`H` hidden, `A` 64 KB aligned, `S` subdirectory bit), kind label, bank, layout (a program's offset, or a cartridge's bank runs per half), size — closing with the entry count and the free bytes: the size a re-placement of the entries plus one more program accepts, so a program of exactly that size can be added and one byte more cannot, in Ocean mode too. For an image `load` refuses (and `edit` therefore cannot touch), the figure is the contiguous run at the top of the image as stored | AC-45, AC-46, AC-49 | D-026 (cart-entries) · D-027 (ocean-free-space) · D-029 (subdir-entries) |
+| The listing shows the cart name and producing tool, then one row per entry — index, name, flags (`H` hidden, `A` 64 KB aligned, `S` subdirectory bit), kind label, bank, layout (a program's offset, or a cartridge's bank runs per half), size — closing with the entry count and the free bytes: the size a re-placement of the entries plus one more program accepts, so a program of exactly that size can be added and one byte more cannot, in Ocean mode too. For an image `load` refuses (and `edit` therefore cannot touch), the figure is the contiguous run at the top of the image as stored | AC-45, AC-46, AC-49, AC-51 | D-026 (cart-entries) · D-027 (ocean-free-space) · D-029 (subdir-entries) · D-032 (gui-shell) |
 | Every kind the walk accepts — nine cartridge kinds, interleaved and both half-confined program kinds — has one distinct label, so no entry renders as `?` | AC-45 | D-026 (cart-entries) |
 | Control characters in the container header name are replaced with `.` before printing, because a `.crt` is untrusted input and the field is free-form host text | — | D-015 (backfill) |
+| The desktop viewer shows the same listing as `list`, value for value: file name, cart name, producing tool, every row (index, name, flags, kind, bank, layout, size), entry count and free bytes, for every image `list` describes. Both render one core description | AC-51 | D-032 (gui-shell) · D-030 |
+| The viewer opens one `.crt` dropped on the window, picked with Open/⌘O (dismissing the chooser changes nothing), and shows an empty state inviting either before any file is opened. Dropping several files opens none and says to drop one | AC-52, AC-53, AC-56, AC-57 | D-030 (gui-shell) |
+| A file `list` refuses shows the reason `list` gives and no rows, replacing whatever cart was shown; the next valid open clears it | AC-54, AC-55 | D-032 (gui-shell) |
 
 ### Internal (surface: none)
 
@@ -74,6 +77,7 @@
 | Every CHIP packet's marker and total-length field are validated on read, and a packet whose bank, geometry or length the format does not allow is refused as malformed at its file offset; the reference tool checks none of these | — | D-015 (backfill) · D-007 |
 | The CRT header length field is honoured on read: the packet walk starts at the offset it states, a value below the fixed `0x40` header is refused as malformed, and one past the end of the file is a truncation. The writer still emits `0x40` | — | D-021 (crt-header-length) |
 | Produced bytes match the frozen `ndeft` fixtures for every case the parity test covers, and each covered case's originating command line is asserted present in `fixtures/MANIFEST.md` (the converse is not checked — a manifest image with no case is not caught) | — | D-015 (backfill) · D-002 |
+| Viewing a cartridge in the GUI never writes to it: the file is byte-identical and unmodified afterwards, opened or refused | AC-58 | D-030 (gui-shell) |
 
 <!--
 What this file is FOR (and what it is NOT):

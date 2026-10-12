@@ -1,0 +1,26 @@
+{
+  "builtBy": "ndefpack 1.0.1",
+  "cart": "two entries",
+  "free": 1029088,
+  "freeText": "$0fb3e0 (1029088)",
+  "rows": [
+    {
+      "bank": "$01",
+      "flags": "-",
+      "index": 0,
+      "kind": "PRG",
+      "layout": "$0bba",
+      "name": "hello",
+      "size": "$000066"
+    },
+    {
+      "bank": "$01",
+      "flags": "-",
+      "index": 1,
+      "kind": "PRG",
+      "layout": "$0000",
+      "name": "ramp",
+      "size": "$000bba"
+    }
+  ]
+}

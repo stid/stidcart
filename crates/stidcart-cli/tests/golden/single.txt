@@ -1,0 +1,10 @@
+exit: 0
+-- stdout --
+cart: (no EF-Name)
+built by: ndefpack 1.0.1
+
+    #  name              flags  type    bank  layout            size
+    0  hello             -      PRG      $01  $0000          $000066
+
+1 entry, $0fbf9a (1032090) bytes free
+-- stderr --

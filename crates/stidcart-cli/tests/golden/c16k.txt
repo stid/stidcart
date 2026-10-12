@@ -1,0 +1,11 @@
+exit: 0
+-- stdout --
+cart: c16k
+built by: ndefpack 1.0.1
+
+    #  name              flags  type    bank  layout            size
+    0  ramp              -      PRG      $02  $0000          $000bba
+    1  in_16k            -      16K      $01  L1@0,H1@0      $004000
+
+2 entries, $0f7446 (1012806) bytes free
+-- stderr --

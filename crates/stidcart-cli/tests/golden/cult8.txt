@@ -1,0 +1,11 @@
+exit: 0
+-- stdout --
+cart: cult8
+built by: ndefpack 1.0.1
+
+    #  name              flags  type    bank  layout            size
+    0  hello             -      PRG-L    $01  $0000          $000066
+    1  in_ult8           -      ULT8     $01  H1@0           $002000
+
+2 entries, $0f8000 (1015808) bytes free
+-- stderr --

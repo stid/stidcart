@@ -37,14 +37,19 @@ section you're about to touch. Non-trivial work routes through triage first (see
 cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace
 ```
 
-The compiler that runs it is pinned by `rust-toolchain.toml`, and the pin binds only through
+The compiler that runs it is pinned by `rust-toolchain.toml` (for both workspaces), and the pin binds only through
 rustup's shims — a Homebrew `cargo` ignores the file silently (D-010).
+
+The GUI (`gui/`) is its own Cargo workspace, so the gate above never builds it. Its gate is
+`docs/lcd/ci/gui-gate.sh` (CI job `gui`); run it before committing GUI changes. It builds the
+frontend first because Tauri embeds `gui/dist` at compile time, so a bare `cargo test` in
+`gui/src-tauri` fails until `npm run build` has run (D-030).
 
 - **Tests first.** Cargo collects `crates/*/tests/*.rs` and inline `#[cfg(test)]` modules
   automatically; nothing needs registering. (Not true of ndefpack, where a test missing from
   `NDEFPACK_UNIT_TESTS` compiles into nothing and reports a false green — don't carry that habit over.)
 - **Never commit to `main`.** Branch, PR, conventional commits (`feat:`/`fix:`/`refactor:`/`chore:`/
-  `test:`/`docs:`). Required checks: `gate` and `claude-review`.
+  `test:`/`docs:`). Required checks: `gate`, `gui` and `claude-review`.
 - **Log a decision when a real fork gets decided** — append to `docs/lcd/DECISIONS.md`, newest at top,
   including the alternatives rejected and why. Write it when the decision is made, not at the end.
   This is the one durable artifact; keep entries tight.
