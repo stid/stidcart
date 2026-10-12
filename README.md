@@ -13,8 +13,8 @@ from ndefpack's C sources into a written spec before this repo existed — that 
 Write, read, list and edit. It builds a cart from PRG files and cartridge images, loads one back
 into the same builder state byte-identically, shows what one contains, and changes one in place —
 adding, removing, renaming and replacing entries, hiding them, requesting 64 KB alignment, and
-setting either name. A first desktop viewer opens a cart and shows the same listing `list`
-prints (`gui/`, below). The order — write first — was deliberate; see below.
+setting either name. The desktop app (`gui/`, below) does the same edits in a window and saves
+the same bytes `edit` and `build` write. The order — write first — was deliberate; see below.
 
 Entries can be programs or cartridges. A cartridge input is recognised by its content: generic 8k,
 16k and Ultimax images, Ocean (up to 512 KiB), and EasyFlash xbank in all three modes. An xbank is
@@ -45,7 +45,7 @@ entry gets a corrupted bank, so there is no accurate description to give (D-017)
 ```
 crates/stidcart-core/   library: format, placement, firmware. No I/O policy, no globals.
 crates/stidcart-cli/    binary `stidcart`: the test harness, not a product.
-gui/                    desktop viewer: Tauri 2 + Svelte 5, its own Cargo workspace (gui/src-tauri)
+gui/                    desktop app: Tauri 2 + Svelte 5, its own Cargo workspace (gui/src-tauri)
 firmware/               zlib-licensed C64-side blobs (see firmware/README.md)
 fixtures/               ndeft-built carts, frozen, with the exact command line for each
 ```
@@ -75,12 +75,28 @@ cargo run -p stidcart-cli -- edit out.crt --rename 0 "new name" --add another.pr
 
 The parity test needs only the checked-in fixtures; `ndeft` does not have to be installed.
 
-## Desktop viewer
+## Desktop app
 
-Read-only for now: open a `.crt` with the Open button, ⌘O or by dropping it on the window, and it
-shows the cart name, producing tool, every entry and the free space — the values `list` prints,
-from the same code (D-032). A file it can't describe shows the same reason `list` gives. It needs
-Node 24 and, on Linux, the WebKitGTK packages the CI `gui` job installs.
+Open a `.crt` with Open…, ⌘O or by dropping it on the window. It shows the cart name, the
+producing tool, every entry and the free space: the values `list` prints, from the same code
+(D-032). A file it can't describe shows the same reason `list` gives.
+
+The window edits what `edit` edits:
+- Drop programs or cartridge images on an open cart, or use Add… / Add Aligned….
+- Rename an entry by clicking its name. Its "⋯" or right-click menu replaces, hides or shows,
+  aligns or removes it.
+- Click the cart name or the header name to change either one.
+- New (⌘N) starts an empty cart.
+
+Changes stay in memory until you save:
+- Undo and redo cover every edit since the cart was opened, and an "Edited" dot marks unsaved
+  changes.
+- ⌘S replaces the file and ⌘⇧S saves as. A saved cart is byte-identical to what `edit` or `build`
+  writes for the same request (D-035).
+- Closing, quitting, opening another cart or New asks first.
+
+A cart `edit` refuses, such as firmware that differs from the embedded copy, opens view-only with
+the reason. The app needs Node 24 and, on Linux, the WebKitGTK packages the CI `gui` job installs.
 
 ```bash
 cd gui && npm install
