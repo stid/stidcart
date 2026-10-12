@@ -6,7 +6,7 @@
 **Slug:** `gui-edit`
 **Created:** 2026-10-11
 **Related issue:** none
-**Status:** draft <!-- draft | approved | implemented | abandoned -->
+**Status:** approved <!-- draft | approved | implemented | abandoned -->
 
 ---
 

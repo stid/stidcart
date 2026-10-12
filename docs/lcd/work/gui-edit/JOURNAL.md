@@ -10,23 +10,32 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Second GUI slice: the viewer edits carts with the full `edit` set plus New, held in memory with undo, an unsaved-changes indicator and prompt, ⌘S/⌘⇧S, and saves byte-identical to `edit`/`build`.
-- **Next action:** run /lcd:plan gui-edit (spec awaiting user approval)
-- **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 18:30
+- **Next action:** run /lcd:tasks gui-edit (plan awaiting user approval)
+- **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 19:10
 
 ## STEPS
 - [x] S1 — triage (Deep) + recon dispatched + spec.md
-- [ ] S2 — /lcd:plan gui-edit  ← next
+- [x] S2 — plan.md (D-034, D-035)
+- [ ] S3 — /lcd:tasks gui-edit  ← next
 
 ## DECISIONS (this work-item)
 - ACs AC-59..AC-80 claimed (next free AC-81); GUI ACs use `RENDER`, byte parity `none`
-- Product choices → D-033
+- Product choices → D-033; classification in core → D-034; document = stack of saved images in Rust, CLI as lib for parity → D-035
+- First tasks: version bump 0.8.0 (both workspaces), then the ⌘Z/⌘O menu spike before any menu work
 
 ## OPEN QUESTIONS
 - none blocking; undo storage is a plan question
 
 ## EDIT BOUNDARY (paths this work may touch)
-- `docs/lcd/work/gui-edit/`
-- `docs/lcd/DECISIONS.md`
+- `Cargo.toml`, `Cargo.lock`, `README.md`
+- `crates/stidcart-cli/Cargo.toml`, `crates/stidcart-cli/src/lib.rs`, `crates/stidcart-cli/src/main.rs`
+- `crates/stidcart-core/src/lib.rs`, `crates/stidcart-core/tests/input.rs`
+- `gui/src-tauri/Cargo.toml`, `gui/src-tauri/Cargo.lock`, `gui/src-tauri/capabilities/default.json`
+- `gui/src-tauri/src/lib.rs`, `gui/src-tauri/src/document.rs`, `gui/src-tauri/src/menu.rs`
+- `gui/src-tauri/tests/document.rs`, `gui/src-tauri/tests/parity.rs`, `gui/src-tauri/tests/contract.rs`, `gui/src-tauri/tests/open.rs`
+- `gui/package.json`, `gui/package-lock.json`, `gui/src/App.svelte`, `gui/src/styles/tokens.css`
+- `gui/src/lib/` (types, host, viewer store, Listing, EntryMenu, EditableText, Toolbar, their tests, fixtures/document.json)
+- `docs/lcd/MAP.md`, `docs/lcd/DECISIONS.md`, `docs/lcd/SPEC.md`, `docs/lcd/triage-log.md`, `docs/lcd/work/gui-edit/`
 - `.claude/rules/lcd-conventions.md`
 <!-- /lcd-resume -->
 
@@ -41,10 +50,12 @@ See `spec.md` (AC-59..AC-80).
 - 2026-10-11 18:10 — triage → Deep (5 signals, hard: new stateful editing module; risk: multi-session). Recon (Tauri state, menus, close interception, save dialog, undo, bits-ui) dispatched.
 - 2026-10-11 18:20 — user: full edit set; explicit save; drops on an open cart add (incl. .crt); multi-drop adds atomically; New in scope → D-033.
 - 2026-10-11 18:25 — found: core `build()` already refuses alignment on non-xbank (`AlignNotXbank`); names truncate silently to field width (16 entry, 32 header). `input_entry`/`entry_name` are CLI-private and must be shared for AC-61/AC-80 (plan).
+- 2026-10-11 18:40 — recon (dated 2026-10-11): doc + snapshot undo in Rust behind one managed `Mutex<HashMap<window label, Doc>>`, removed on Destroyed. Rust `MenuBuilder` with custom Open/New/Save/Save As/Undo/Redo, `on_menu_event` → `emit_to` focused window; keep `PredefinedMenuItem` cut/copy/paste/select-all so text fields work. Close: `onCloseRequested` + preventDefault (allowed after awaits); ⌘Q path is `RunEvent::ExitRequested` + `prevent_exit` (verify). 3-button prompt: plugin-dialog `message(..., {buttons:{yes,no,cancel}})` returns the label (≥2.4, have 2.8.2); Esc result unverified. No document-edited API in 2.12 (objc2 `setDocumentEdited` unverified) → title marker fallback. Save: plugin-dialog `save()` + `tempfile` 3.27 `NamedTempFile::new_in(parent)`→sync_all→persist. bits-ui not installed; latest 2.19.5 (peer svelte ^5.33) for row ContextMenu/DropdownMenu.
+- 2026-10-11 19:05 — plan written. User picked CLI-as-library for the AC-80 oracle. Advisor: chain one `edit` per GUI step; reload property test; spike ⌘Z/⌘O first; bounds-check indexes (mutex poisoning); reject tempfile (0600); map prompt labels strictly; allow_exit flag against a double prompt.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ⬜  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->

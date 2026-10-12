@@ -8,7 +8,50 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-034 -->
+<!-- Next id: D-036 -->
+
+---
+
+## D-035 · 2026-10-11 · The GUI document is a stack of saved images in Rust; parity is proven against the CLI as a library
+- **Context:** the GUI editor (D-033) needs undo, an unsaved-changes state and a listing after each
+  edit, and AC-80 requires its saves to be byte-identical to `edit`/`build`.
+- **Decision:**
+  - The GUI crate holds the document. Each undo step is the image saving would write (bytes), plus
+    its `describe` listing. An edit loads the current image, applies the change, builds and
+    describes. A refusal changes nothing.
+  - Snapshot 0 of an opened cart is the file's own bytes, so it shows positions as stored, and a
+    Save As without edits is a verbatim copy.
+  - Soundness rests on `load(build(b)).build() == build(b)`, which a property test checks.
+  - `stidcart-cli` becomes a library plus a thin binary. The GUI tests dev-depend on it and check
+    each GUI step against one chained `edit` call (New with adds against `build`).
+- **Alternatives rejected:**
+  - Snapshots of `CartBuilder`: the same memory, but the listing would stop describing what a save
+    writes.
+  - Frontend-held state: the frontend would need the image bytes and format calls.
+  - Committed goldens written by a root CLI test: scenarios written twice, and goldens to regenerate
+    on each version bump.
+  - Comparing against direct core calls: tests core against core and misses front-end drift.
+  - `tempfile` for the atomic save: mode 0600 on every saved cart. The std temp-and-rename is
+    mirrored from the CLI instead.
+- **Scope:** `gui/src-tauri` (`Document`), `crates/stidcart-cli` (lib + bin)
+- **Status:** active
+
+---
+
+## D-034 · 2026-10-11 · Classifying an input file as a program or a cartridge entry is core logic
+- **Context:** `edit --add`/`--replace` and `build` decide what a file is in a CLI-private
+  `input_entry`: the CRT signature, `Cartridge::from_crt`, and the alignment checks. The GUI must
+  decide identically (gui-edit AC-61), and the MAP keeps format knowledge out of both front ends.
+- **Decision:** `Entry::from_input(name, data, aligned) -> Result<Entry, InputError>` in core, with
+  no I/O and no path. `InputError` reproduces the CLI's alignment messages verbatim, and front ends
+  prefix a cartridge refusal with `'<path>': ` as the CLI does. Reading the file and deriving the
+  name from the file stem stay in each front end.
+- **Alternatives rejected:**
+  - Duplicating the check in the GUI: two copies of format knowledge.
+  - The GUI depending on the CLI crate at runtime: the CLI is the test harness, not a library for
+    products.
+- **Scope:** `stidcart-core` (`lib.rs`), `stidcart-cli` (`input_entry`), `stidcart-gui`
+- **Status:** active
 
 ---
 
