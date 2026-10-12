@@ -216,12 +216,22 @@ impl Document {
         Ok(())
     }
 
+    /// Step back one edit; false when there is none to undo.
     pub fn undo(&mut self) -> bool {
-        false
+        if self.at == 0 {
+            return false;
+        }
+        self.at -= 1;
+        true
     }
 
+    /// Step forward one undone edit; false when there is none to redo.
     pub fn redo(&mut self) -> bool {
-        false
+        if self.at + 1 >= self.history.len() {
+            return false;
+        }
+        self.at += 1;
+        true
     }
 
     pub fn save(&mut self) -> Result<(), String> {
