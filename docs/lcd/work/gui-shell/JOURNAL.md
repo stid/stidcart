@@ -10,35 +10,35 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** First GUI slice: a read-only desktop viewer that opens a `.crt` (chooser or drop) and shows what `list` shows, with refusals as readable errors; macOS first, portable toolkit.
-- **Next action:** run lcd:redgreen-loop from T3 (core listing.rs); T1 done, T2/T10/T14/T16/T18/T20 tests written red
-- **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 14:05
+- **Next action:** user tries drag-and-drop (one file, two files) in the running app; then mark PR #33 ready, confirm checks, ask before adding `gui` to required checks
+- **Branch:** feat/gui-shell  ·  **Updated:** 2026-10-11 17:15
 
 ## STEPS
 - [x] S0 — triage, recon, spec (AC-51..58), D-030/031/032, plan approved, version 0.7.0, tasks.md
 - [x] S1 — T1 list golden (stdout/stderr/exit, every fixture)
 - [x] S2 — T2 failing core listing tests (AC-51); GUI AC tests also written (open.rs, *.test.ts), red until scaffold
-- [ ] S3 — T3 core listing.rs + lib.rs mod  ← next
-- [ ] S4 — T4 CLI list uses describe; golden green
-- [ ] S5 — T5 gui/src-tauri scaffold + root exclude
-- [ ] S6 — T6 frontend scaffold (Svelte 5, Vite, Vitest)
-- [ ] S7 — T7/T8 gui-gate.sh, run-test.sh
-- [ ] S8 — T9 lcd-conventions keys + /lcd:doctor
-- [ ] S9 — T10 failing open.rs (AC-51, AC-54, AC-58)
-- [ ] S10 — T11 gui lib.rs open/DTO/command
-- [ ] S11 — T12 contract.rs + golden JSON
-- [ ] S12 — T13 types.ts
-- [ ] S13 — T14 failing viewer.test.ts (AC-52..56)
-- [ ] S14 — T15 viewer.svelte.ts
-- [ ] S15 — T16/T17 Listing test + component (AC-51)
-- [ ] S16 — T18/T19 EmptyState (AC-57)
-- [ ] S17 — T20/T21 ErrorState (AC-54)
-- [ ] S18 — T22 host.ts adapter
-- [ ] S19 — T23–T25 tokens.css, App.svelte, main.ts
-- [ ] S20 — T26 CI gui job
-- [ ] S21 — T27 live check (screencapture)
-- [ ] S22 — T28–T30 MAP, CLAUDE.md, README
-- [ ] S23 — T31 PR green; ask user → required check
-- [ ] S24 — T-audit, T-reconcile, T-final
+- [x] S3 — T3 core listing.rs + lib.rs mod
+- [x] S4 — T4 CLI list uses describe; golden green
+- [x] S5 — T5 gui/src-tauri scaffold + root exclude
+- [x] S6 — T6 frontend scaffold (Svelte 5, Vite, Vitest)
+- [x] S7 — T7/T8 gui-gate.sh, run-test.sh
+- [x] S8 — T9 lcd-conventions keys + /lcd:doctor
+- [x] S9 — T10 failing open.rs (AC-51, AC-54, AC-58)
+- [x] S10 — T11 gui lib.rs open/DTO/command
+- [x] S11 — T12 contract.rs + golden JSON
+- [x] S12 — T13 types.ts
+- [x] S13 — T14 failing viewer.test.ts (AC-52..56)
+- [x] S14 — T15 viewer.svelte.ts
+- [x] S15 — T16/T17 Listing test + component (AC-51)
+- [x] S16 — T18/T19 EmptyState (AC-57)
+- [x] S17 — T20/T21 ErrorState (AC-54)
+- [x] S18 — T22 host.ts adapter
+- [x] S19 — T23–T25 tokens.css, App.svelte, main.ts
+- [x] S20 — T26 CI gui job
+- [x] S21 — T27 live check (screencapture)
+- [x] S22 — T28–T30 MAP, CLAUDE.md, README
+- [ ] S23 — T31 PR #33 green; ask user → required check  ← next
+- [x] S24 — T-audit PASS, T-reconcile, T-final (both gates green)
 
 ## DECISIONS (this work-item)
 - Platforms: macOS first, toolkit must stay portable since CI builds on Ubuntu (user, 2026-10-11)
@@ -92,9 +92,14 @@ See `spec.md`: AC-51..AC-58.
 
 - 2026-10-11 13:40 — plan.md written. User chose the listing in core (D-032). Verified in scratch: an `exclude`d nested workspace is not reached by `cargo test --workspace`. Frontend tests use a fake host adapter instead of mockIPC (refines D-030). No bits-ui/TanStack in this slice.
 
+- 2026-10-11 17:00 — live check (T27) via `npm run tauri dev`: empty state, ⌘O + native dialog → cxb16sub and cmixed listings (values match `list` goldens), in_8k refusal. Fixed: traffic lights vs title alignment, duplicate file name in title bar. Not exercised live: Finder drop (needs a human drag; unit-tested) and light mode.
+- 2026-10-11 17:05 — red-green: green in 9 iterations, 0 reverts.
+- 2026-10-11 17:10 — audit: PASS (first run). Closeout line appended.
+- 2026-10-11 17:15 — reconciled: folded AC-51..57 → SPEC.md/RENDER (3 rows, list row gains D-032), AC-58 → SPEC.md/Internal.
+
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
