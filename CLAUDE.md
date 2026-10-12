@@ -37,13 +37,13 @@ section you're about to touch. Non-trivial work routes through triage first (see
 cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace
 ```
 
+The compiler that runs it is pinned by `rust-toolchain.toml` (for both workspaces), and the pin binds only through
+rustup's shims — a Homebrew `cargo` ignores the file silently (D-010).
+
 The GUI (`gui/`) is its own Cargo workspace, so the gate above never builds it. Its gate is
 `docs/lcd/ci/gui-gate.sh` (CI job `gui`); run it before committing GUI changes. It builds the
 frontend first because Tauri embeds `gui/dist` at compile time, so a bare `cargo test` in
 `gui/src-tauri` fails until `npm run build` has run (D-030).
-
-The compiler that runs it is pinned by `rust-toolchain.toml`, and the pin binds only through
-rustup's shims — a Homebrew `cargo` ignores the file silently (D-010).
 
 - **Tests first.** Cargo collects `crates/*/tests/*.rs` and inline `#[cfg(test)]` modules
   automatically; nothing needs registering. (Not true of ndefpack, where a test missing from
