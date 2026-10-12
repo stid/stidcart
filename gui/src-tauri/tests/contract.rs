@@ -7,6 +7,7 @@
 
 use std::path::{Path, PathBuf};
 
+use stidcart_gui::document::{Document, Edit};
 use stidcart_gui::open;
 
 fn fixtures() -> PathBuf {
@@ -42,4 +43,15 @@ fn a_listing_serializes_to_the_frontend_golden() {
 fn a_refusal_serializes_to_the_frontend_golden() {
     let err = open(&fixtures().join("in_8k.crt")).unwrap_err();
     check("refused", serde_json::Value::from(err));
+}
+
+#[test]
+fn an_edited_document_serializes_to_the_frontend_golden() {
+    let mut doc = Document::open(&fixtures().join("cxb16.crt")).unwrap();
+    doc.apply(Edit::SetHidden {
+        index: 0,
+        hidden: true,
+    })
+    .unwrap();
+    check("document", serde_json::to_value(doc.dto()).unwrap());
 }

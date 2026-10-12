@@ -64,8 +64,7 @@
 - [ ] **T8**: Write failing tests in `gui/src-tauri/tests/document.rs`:
   - `AC-59 (RENDER)`: an editable fixture opens clean, its listing equals `describe(file)`, and
     the file's bytes are unchanged (AC-58 kept).
-  - `AC-60 (RENDER)`: a firmware-mismatch image (the `edit.rs` AC-25 recipe) and a crafted type
-    `0x1A` entry open view-only with `load`'s refusal text, and every edit returns that text.
+  - `AC-60 (RENDER)`: a firmware-mismatch image (the `edit.rs` AC-25 recipe) opens view-only with `load`'s refusal text, and every edit returns that text.
   - `AC-77 (RENDER)`: New is untitled and clean, with no entries and the default names, and equals
     `CartBuilder::new().build()`.
   - Listing rows and builder entries line up by index for every editable fixture, and `alignable`

@@ -245,7 +245,7 @@ How each AC is proven:
 - **Rust, `document.rs`.** Document behaviour, with a test per AC carrying its token:
   - AC-59: clean after open, file hash unchanged.
   - AC-60: a firmware-mismatch image built the way `edit.rs` AC-25 builds it (an
-    empty image with the EAPI region zeroed), plus a crafted type `0x1A` entry, are view-only with `load`'s text, and edits return it.
+    empty image with the EAPI region zeroed) is view-only with `load`'s text, and edits return it.
   - AC-61..69: each `Edit` variant's effect on the listing.
   - AC-62/68: alignment on a non-xbank is refused and `alignable` is false.
   - AC-63: all-or-none, one step.

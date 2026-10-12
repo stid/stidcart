@@ -10,16 +10,16 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Second GUI slice: the viewer edits carts with the full `edit` set plus New, held in memory with undo, an unsaved-changes indicator and prompt, ⌘S/⌘⇧S, and saves byte-identical to `edit`/`build`.
-- **Next action:** run /lcd:test-gen gui-edit
-- **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 19:25
+- **Next action:** run lcd:redgreen-loop (start at T2 spike, then T3 CLI split)
+- **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 20:10
 
 ## STEPS
 - [x] S1 — triage (Deep), recon, spec.md
 - [x] S2 — plan.md (D-034, D-035)
 - [x] S3 — tasks.md
-- [ ] S4 — /lcd:test-gen gui-edit  ← next
-- [ ] S5 — T1 version 0.8.0 (both workspaces)
-- [ ] S6 — T2 menu/⌘Z/⌘O/Esc spike → LOG
+- [x] S4 — /lcd:test-gen gui-edit (failing tests: input.rs, document.rs, parity.rs, contract.rs, viewer/EditableText/EntryMenu/Toolbar/Listing tests)
+- [x] S5 — T1 version 0.8.0 (both workspaces, 19b5b12)
+- [ ] S6 — T2 menu/⌘Z/⌘O/Esc spike → LOG  ← next
 - [ ] S7 — T3 CLI lib split
 - [ ] S8 — T4–T6 Entry::from_input in core (D-034), CLI uses it
 - [ ] S9 — T7 gui dev-dep on cli
@@ -54,7 +54,7 @@
 - `gui/src-tauri/src/lib.rs`, `gui/src-tauri/src/document.rs`, `gui/src-tauri/src/menu.rs`
 - `gui/src-tauri/tests/document.rs`, `gui/src-tauri/tests/parity.rs`, `gui/src-tauri/tests/contract.rs`, `gui/src-tauri/tests/open.rs`
 - `gui/package.json`, `gui/package-lock.json`, `gui/src/App.svelte`, `gui/src/styles/tokens.css`
-- `gui/src/lib/` (types, host, viewer store, Listing, EntryMenu, EditableText, Toolbar, their tests, fixtures/document.json)
+- `gui/src/lib/`
 - `docs/lcd/MAP.md`, `docs/lcd/DECISIONS.md`, `docs/lcd/SPEC.md`, `docs/lcd/triage-log.md`, `docs/lcd/work/gui-edit/`
 - `.claude/rules/lcd-conventions.md`
 <!-- /lcd-resume -->
@@ -72,10 +72,11 @@ See `spec.md` (AC-59..AC-80).
 - 2026-10-11 18:25 — found: core `build()` already refuses alignment on non-xbank (`AlignNotXbank`); names truncate silently to field width (16 entry, 32 header). `input_entry`/`entry_name` are CLI-private and must be shared for AC-61/AC-80 (plan).
 - 2026-10-11 18:40 — recon (dated 2026-10-11): doc + snapshot undo in Rust behind one managed `Mutex<HashMap<window label, Doc>>`, removed on Destroyed. Rust `MenuBuilder` with custom Open/New/Save/Save As/Undo/Redo, `on_menu_event` → `emit_to` focused window; keep `PredefinedMenuItem` cut/copy/paste/select-all so text fields work. Close: `onCloseRequested` + preventDefault (allowed after awaits); ⌘Q path is `RunEvent::ExitRequested` + `prevent_exit` (verify). 3-button prompt: plugin-dialog `message(..., {buttons:{yes,no,cancel}})` returns the label (≥2.4, have 2.8.2); Esc result unverified. No document-edited API in 2.12 (objc2 `setDocumentEdited` unverified) → title marker fallback. Save: plugin-dialog `save()` + `tempfile` 3.27 `NamedTempFile::new_in(parent)`→sync_all→persist. bits-ui not installed; latest 2.19.5 (peer svelte ^5.33) for row ContextMenu/DropdownMenu.
 - 2026-10-11 19:05 — plan written. User picked CLI-as-library for the AC-80 oracle. Advisor: chain one `edit` per GUI step; reload property test; spike ⌘Z/⌘O first; bounds-check indexes (mutex poisoning); reject tempfile (0600); map prompt labels strictly; allow_exit flag against a double prompt.
+- 2026-10-11 20:05 — test-gen: spec AC-60 amended. `inspect` refuses type 0x1A, so `list` can't describe it; firmware mismatch is the one describable-but-not-editable case (plan/tasks follow). Boundary bullet for gui/src/lib made plain (hook gotcha). Red confirmed: core `input` (no from_input), GUI cargo (no document module / stidcart_cli dep), vitest 24 failing + 3 missing components. Design pinned by tests: DocumentDto fields pub (file, untitled, listing, rows[].alignable, read_only, dirty, can_undo, can_redo), `Document::bytes()`; SetAligned on a non-xbank refused with the CLI `--align` text (core ignores it on programs); store API `add(aligned)`, `menu(id)`, `requestClose()`, `requestQuit()`, `editable`, `dirty`, `unsavedChoice`; components EditableText{value,label,oncommit}, EntryMenu{row,actions,onedit,onrename,onreplace}, Toolbar{doc,onadd,onopen}, Listing optional {readOnly,rows,onedit,onreplace}.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->

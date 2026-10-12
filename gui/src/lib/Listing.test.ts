@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/svelte';
-import { expect, test } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { expect, test, vi } from 'vitest';
 import two from './fixtures/two.json';
 import type { Listing as ListingData } from './types';
 import Listing from './Listing.svelte';
@@ -24,4 +24,59 @@ test('AC-51 (RENDER): every listing value is shown', () => {
 
   expect(screen.getByText(/2 entries/)).toBeInTheDocument();
   expect(screen.getByText(new RegExp(listing.freeText.replace(/[$()]/g, '\\$&')))).toBeInTheDocument();
+});
+
+function editable(extra: Record<string, unknown> = {}) {
+  const onedit = vi.fn();
+  const onreplace = vi.fn();
+  render(Listing, {
+    props: {
+      listing,
+      file: 'two.crt',
+      readOnly: null,
+      rows: listing.rows.map(() => ({ alignable: false })),
+      onedit,
+      onreplace,
+      ...extra,
+    },
+  });
+  return { onedit, onreplace };
+}
+
+test('AC-60 (RENDER): a view-only cart says why and offers no edits', () => {
+  const reason = 'reserved region EAPI differs from the embedded firmware, so it cannot be rebuilt unchanged';
+  editable({ readOnly: reason });
+  expect(screen.getByRole('status')).toHaveTextContent(reason);
+  expect(screen.queryByRole('button', { name: /edit cart name/i })).toBeNull();
+  expect(screen.queryByRole('button', { name: /actions for/i })).toBeNull();
+});
+
+test('AC-69 (RENDER): the cart name and the header name are edited separately', async () => {
+  const { onedit } = editable();
+  await fireEvent.click(screen.getByRole('button', { name: /edit cart name/i }));
+  const cart = screen.getByRole('textbox', { name: /cart name/i });
+  await fireEvent.input(cart, { target: { value: 'my menu' } });
+  await fireEvent.keyDown(cart, { key: 'Enter' });
+  expect(onedit).toHaveBeenLastCalledWith({ kind: 'setCartName', name: 'my menu' });
+
+  await fireEvent.click(screen.getByRole('button', { name: /edit header name/i }));
+  const header = screen.getByRole('textbox', { name: /header name/i });
+  await fireEvent.input(header, { target: { value: 'hand made' } });
+  await fireEvent.keyDown(header, { key: 'Enter' });
+  expect(onedit).toHaveBeenLastCalledWith({ kind: 'setHeaderName', name: 'hand made' });
+  expect(onedit).toHaveBeenCalledTimes(2);
+});
+
+test('AC-71 (RENDER): rows show the bank and layout they are given, after an edit re-placed them', () => {
+  const replaced: ListingData = {
+    ...listing,
+    rows: listing.rows.map((r, i) => ({ ...r, bank: `$0${i + 2}`, layout: `$${1000 + i}` })),
+  };
+  editable({ listing: replaced });
+  const rows = screen.getAllByRole('row').slice(1);
+  replaced.rows.forEach((r, i) => {
+    expect(within(rows[i]).getByText(r.bank)).toBeInTheDocument();
+    expect(within(rows[i]).getByText(r.layout)).toBeInTheDocument();
+  });
+  expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(replaced.rows.length);
 });

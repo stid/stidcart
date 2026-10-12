@@ -44,8 +44,9 @@ written.
 with nothing open), then it is shown as AC-51 describes, its edit commands are available, and it
 has no unsaved changes. Opening it still writes nothing (AC-58).
 
-**AC-60** (surfaces: RENDER): Given a cartridge `list` describes but `edit` refuses (a type `0x1A`
-entry, firmware regions that differ from the embedded ones), when it is opened, then its listing is
+**AC-60** (surfaces: RENDER): Given a cartridge `list` describes but `edit` refuses (firmware
+regions that differ from the embedded ones, the one rebuild precondition `list` does not apply),
+when it is opened, then its listing is
 shown as AC-51 describes, no edit command is available, and the window states the reason `edit`
 gives for refusing it.
 
