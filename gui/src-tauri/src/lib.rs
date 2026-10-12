@@ -6,6 +6,7 @@
 //! [`document::Document`], held here for the one window (D-035).
 
 pub mod document;
+mod menu;
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,7 +14,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::Serialize;
 use stidcart_core::listing::{self, Listing, Row};
-use tauri::{Emitter, Manager, RunEvent, State};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 
 use document::{Document, DocumentDto, Edit};
 
@@ -93,64 +94,82 @@ impl AppState {
     }
 }
 
-/// Run `f` on the open cart and answer with its new state.
+/// Run `f` on the open cart and answer with its new state, keeping the menu in step with it.
 fn with_doc(
+    app: &AppHandle,
     state: &State<AppState>,
     f: impl FnOnce(&mut Document) -> Result<(), String>,
 ) -> Result<DocumentDto, String> {
     let mut guard = state.doc();
     let doc = guard.as_mut().ok_or("no cartridge is open")?;
     f(doc)?;
-    Ok(doc.dto())
+    let dto = doc.dto();
+    menu::sync(app, Some(&dto));
+    Ok(dto)
 }
 
 #[tauri::command]
-fn open_document(path: String, state: State<AppState>) -> Result<DocumentDto, String> {
+fn open_document(
+    path: String,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<DocumentDto, String> {
     let mut guard = state.doc();
     match Document::open(Path::new(&path)) {
-        Ok(doc) => Ok(guard.insert(doc).dto()),
+        Ok(doc) => {
+            let dto = guard.insert(doc).dto();
+            menu::sync(&app, Some(&dto));
+            Ok(dto)
+        }
         Err(e) => {
             // The window now shows this refusal, not the cart before it.
             *guard = None;
+            menu::sync(&app, None);
             Err(e)
         }
     }
 }
 
 #[tauri::command]
-fn new_document(state: State<AppState>) -> DocumentDto {
-    state.doc().insert(Document::new()).dto()
+fn new_document(app: AppHandle, state: State<AppState>) -> DocumentDto {
+    let dto = state.doc().insert(Document::new()).dto();
+    menu::sync(&app, Some(&dto));
+    dto
 }
 
 #[tauri::command]
-fn apply_edit(edit: Edit, state: State<AppState>) -> Result<DocumentDto, String> {
-    with_doc(&state, |d| d.apply(edit))
+fn apply_edit(edit: Edit, app: AppHandle, state: State<AppState>) -> Result<DocumentDto, String> {
+    with_doc(&app, &state, |d| d.apply(edit))
 }
 
 #[tauri::command]
-fn undo(state: State<AppState>) -> Result<DocumentDto, String> {
-    with_doc(&state, |d| {
+fn undo(app: AppHandle, state: State<AppState>) -> Result<DocumentDto, String> {
+    with_doc(&app, &state, |d| {
         d.undo();
         Ok(())
     })
 }
 
 #[tauri::command]
-fn redo(state: State<AppState>) -> Result<DocumentDto, String> {
-    with_doc(&state, |d| {
+fn redo(app: AppHandle, state: State<AppState>) -> Result<DocumentDto, String> {
+    with_doc(&app, &state, |d| {
         d.redo();
         Ok(())
     })
 }
 
 #[tauri::command]
-fn save_document(state: State<AppState>) -> Result<DocumentDto, String> {
-    with_doc(&state, Document::save)
+fn save_document(app: AppHandle, state: State<AppState>) -> Result<DocumentDto, String> {
+    with_doc(&app, &state, Document::save)
 }
 
 #[tauri::command]
-fn save_document_as(path: String, state: State<AppState>) -> Result<DocumentDto, String> {
-    with_doc(&state, |d| d.save_as(Path::new(&path)))
+fn save_document_as(
+    path: String,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<DocumentDto, String> {
+    with_doc(&app, &state, |d| d.save_as(Path::new(&path)))
 }
 
 /// The unsaved-changes question has been answered; let the window close.
@@ -161,7 +180,7 @@ fn allow_exit(state: State<AppState>) {
 
 /// Quit, once the window has asked about unsaved changes.
 #[tauri::command]
-fn exit_app(app: tauri::AppHandle, state: State<AppState>) {
+fn exit_app(app: AppHandle, state: State<AppState>) {
     state.exit_allowed.store(true, Ordering::SeqCst);
     app.exit(0);
 }
@@ -170,6 +189,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .setup(|app| Ok(menu::install(app.handle())?))
         .invoke_handler(tauri::generate_handler![
             open_document,
             new_document,
