@@ -1,9 +1,10 @@
 //! The app's native menu (gui-edit).
 //!
 //! The custom items only announce themselves: each one emits `menu` with its id, and the window
-//! decides what it means (`viewer.svelte.ts`). Undo and Redo stay enabled, because they also undo
-//! inside a text field being edited, which the window routes to the field. Cut, Copy, Paste and
-//! Select All are the standard items, so text fields keep their native behaviour.
+//! decides what it means (`viewer.svelte.ts`); Quit is one of them (see `build`). Undo and Redo
+//! stay enabled, because they also undo inside a text field being edited, which the window routes
+//! to the field. Cut, Copy, Paste and Select All are the standard items, so text fields keep their
+//! native behaviour.
 
 use tauri::menu::{
     Menu, MenuBuilder, MenuItem, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
@@ -13,7 +14,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 use crate::document::DocumentDto;
 
 /// The ids the window listens for, as the `menu` event's payload.
-const IDS: [&str; 6] = ["new", "open", "save", "save-as", "undo", "redo"];
+const IDS: [&str; 7] = ["new", "open", "save", "save-as", "undo", "redo", "quit"];
 
 /// The items whose enabled state follows the open cart.
 pub struct DocumentItems {
@@ -42,7 +43,10 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&PredefinedMenuItem::hide(app, None)?)
         .item(&PredefinedMenuItem::hide_others(app, None)?)
         .separator()
-        .item(&PredefinedMenuItem::quit(app, None)?)
+        // Not the predefined Quit: it sends `terminate:`, which tao does not intercept, so the
+        // process would end with no `ExitRequested` and unsaved changes would be lost unasked.
+        // This one asks the window, which runs the unsaved-changes question first.
+        .item(&item("quit", "Quit stidcart", "CmdOrCtrl+Q")?)
         .build()?;
     let file = SubmenuBuilder::new(app, "File")
         .item(&item("new", "New", "CmdOrCtrl+N")?)

@@ -55,7 +55,7 @@ export type Edit =
 export type Unsaved = 'save' | 'discard' | 'cancel';
 
 /** The ids the native menu sends (gui/src-tauri/src/menu.rs). */
-export type MenuId = 'new' | 'open' | 'save' | 'save-as' | 'undo' | 'redo';
+export type MenuId = 'new' | 'open' | 'save' | 'save-as' | 'undo' | 'redo' | 'quit';
 
 export type ViewState =
   | { kind: 'empty' }

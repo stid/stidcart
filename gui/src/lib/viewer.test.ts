@@ -292,6 +292,18 @@ describe('editing (gui-edit)', () => {
       expect(host.exit).toHaveBeenCalledOnce();
     });
 
+    test('the Quit menu item goes through the same question before quitting', async () => {
+      const host = fakeHost();
+      const v = await opened(host, dirty);
+      await v.menu('quit');
+      expect(host.confirmUnsaved).toHaveBeenCalledOnce();
+      expect(host.exit).not.toHaveBeenCalled();
+
+      host.confirmUnsaved = vi.fn(async () => 'discard' as const);
+      await v.menu('quit');
+      expect(host.exit).toHaveBeenCalledOnce();
+    });
+
     test('Save saves first, then goes ahead', async () => {
       const host = fakeHost({ confirmUnsaved: vi.fn(async () => 'save' as const) });
       const v = await opened(host, dirty);

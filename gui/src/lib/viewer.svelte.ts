@@ -95,6 +95,10 @@ export function createViewer(host: Host) {
     await attempt(() => host.newDocument());
   }
 
+  async function quit() {
+    if (await settle()) await host.exit();
+  }
+
   async function undoRedo(which: 'undo' | 'redo') {
     if (editingText()) {
       document.execCommand(which);
@@ -160,6 +164,8 @@ export function createViewer(host: Host) {
         case 'undo':
         case 'redo':
           return undoRedo(id);
+        case 'quit':
+          return quit();
       }
     },
     /** The window is closing; true when it may. */
@@ -167,8 +173,6 @@ export function createViewer(host: Host) {
       return settle();
     },
     /** Quitting was held back for unsaved changes. */
-    async requestQuit() {
-      if (await settle()) await host.exit();
-    },
+    requestQuit: quit,
   };
 }
