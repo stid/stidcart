@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Second GUI slice: the viewer edits carts with the full `edit` set plus New, held in memory with undo, an unsaved-changes indicator and prompt, ⌘S/⌘⇧S, and saves byte-identical to `edit`/`build`.
-- **Next action:** redgreen-loop: T3 CLI lib split
+- **Next action:** redgreen-loop: T7 gui dev-dep on cli, then T8/T9 Document
 - **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 20:10
 
 ## STEPS
@@ -20,9 +20,9 @@
 - [x] S4 — /lcd:test-gen gui-edit (failing tests: input.rs, document.rs, parity.rs, contract.rs, viewer/EditableText/EntryMenu/Toolbar/Listing tests)
 - [x] S5 — T1 version 0.8.0 (both workspaces, 19b5b12)
 - [x] S6 — T2 menu/⌘Z/⌘O/Esc spike → LOG (plan's design holds)
-- [ ] S7 — T3 CLI lib split  ← next
-- [ ] S8 — T4–T6 Entry::from_input in core (D-034), CLI uses it
-- [ ] S9 — T7 gui dev-dep on cli
+- [x] S7 — T3 CLI lib split
+- [x] S8 — T4–T6 Entry::from_input in core (D-034), CLI uses it
+- [ ] S9 — T7 gui dev-dep on cli  ← next
 - [ ] S10 — T8/T9 Document open/new/dto (AC-59/60/77)
 - [ ] S11 — T10/T11 Document::apply (AC-61..71, reload property)
 - [ ] S12 — T12/T13 undo/redo/dirty (AC-72/73)

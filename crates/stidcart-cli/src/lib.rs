@@ -12,7 +12,7 @@ use std::path::Path;
 
 use stidcart_core::listing::{self, Listing};
 use stidcart_core::read;
-use stidcart_core::{crt, CartBuilder, Cartridge, Entry, Program};
+use stidcart_core::{CartBuilder, Entry, InputError};
 
 const USAGE: &str = "\
 usage: stidcart build [-e NAME] [--hide INPUT]... [--align INPUT]... -o OUTPUT INPUT...
@@ -267,29 +267,15 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     Ok(Some(destination))
 }
 
-/// Read an input file as the entry it is: a cartridge image if it starts with the CRT signature,
-/// a program otherwise. Content decides, not the file name — a program starts with a two-byte
-/// load address and an image with a fixed sixteen-byte signature, so the two cannot collide.
+/// Read an input file as the entry it is, named after its file stem. What the file *is* —
+/// program or cartridge image — is decided in the core, so every front end decides it the same
+/// way (D-034); this adds only the reading and the path in the error.
 fn input_entry(path: &str, aligned: bool) -> Result<Entry, String> {
     let data = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
-    let name = entry_name(path);
-    if data.starts_with(crt::MAGIC) {
-        let cart = Cartridge::from_crt(&data)
-            .map_err(|e| format!("'{path}': {e}"))?
-            .with_name(&name);
-        if aligned && !cart.kind.is_xbank() {
-            return Err(format!(
-                "'{name}' is not an xbank cartridge, so 64 KB alignment does not apply to it"
-            ));
-        }
-        Ok(cart.with_align_64k(aligned).into())
-    } else if aligned {
-        Err(format!(
-            "'{name}' is a program, not an xbank cartridge, so 64 KB alignment does not apply to it"
-        ))
-    } else {
-        Ok(Program::new(&name, data).into())
-    }
+    Entry::from_input(&entry_name(path), data, aligned).map_err(|e| match e {
+        InputError::Cartridge(e) => format!("'{path}': {e}"),
+        other => other.to_string(),
+    })
 }
 
 /// An entry index from the command line, with the option that wanted it named in the error.
