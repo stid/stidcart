@@ -8,7 +8,32 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-033 -->
+<!-- Next id: D-034 -->
+
+---
+
+## D-033 · 2026-10-11 · The GUI edits in memory with an explicit save; drops on an open cart add entries
+- **Context:** the second GUI slice brings the full `edit` set into the window. Changes could
+  either be written immediately, as `edit` without `-o` does, or held until the user saves. A
+  dropped file could also mean either "open this" or "add this".
+- **Decision:** (user's choice, following the recommendation)
+  - Edits are held in memory, with undo and redo and an unsaved-changes indicator. ⌘S replaces the
+    file and is unavailable when there are no changes, so a cart from another tool is never
+    silently re-placed.
+  - ⌘⇧S saves as. Closing, quitting, opening another cart or New asks first when there are
+    unsaved changes.
+  - With an editable cart open, every drop adds, `.crt` included. A multi-file drop adds all of
+    them or none, as one undo step. With nothing editable open, one dropped file opens, as before.
+  - New (⌘N) is in this slice.
+  - Each edit is applied whole or refused with the reason `edit` gives, and a saved cart is
+    byte-identical to `edit`/`build` for the same request.
+- **Alternatives rejected:**
+  - Write on every change: no undo, and it rewrites the original at the first click.
+  - Save As only: safe, but clumsy for the common case.
+  - A dropped `.crt` opens, or asks each time: adding cart images is the main reason to drop one on
+    an open cart, and opening is one ⌘O away.
+- **Scope:** `gui/` (gui-edit, AC-59..AC-80)
+- **Status:** active
 
 ---
 
