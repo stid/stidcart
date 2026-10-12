@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Second GUI slice: the viewer edits carts with the full `edit` set plus New, held in memory with undo, an unsaved-changes indicator and prompt, ⌘S/⌘⇧S, and saves byte-identical to `edit`/`build`.
-- **Next action:** redgreen-loop: T21 bits-ui, T22 types.ts, then the editor store (T23/T24)
+- **Next action:** T36 live check in `npm run tauri dev` (drops need the user)
 - **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 20:10
 
 ## STEPS
@@ -30,11 +30,11 @@
 - [x] S14 — T16 parity vs CLI (AC-80)
 - [x] S15 — T17/T18 DocumentDto golden + commands, exit guard
 - [x] S16 — T19/T20 menu.rs + capabilities
-- [ ] S17 — T21/T22 bits-ui, types.ts  ← next
-- [ ] S18 — T23/T24 editor store (AC-59/61/63/70/73..79)
-- [ ] S19 — T25–T32 EditableText, EntryMenu, Toolbar, Listing
-- [ ] S20 — T33–T35 host.ts, App.svelte, tokens
-- [ ] S21 — T36 live check
+- [x] S17 — T21/T22 bits-ui, types.ts
+- [x] S18 — T23/T24 editor store (AC-59/61/63/70/73..79)
+- [x] S19 — T25–T32 EditableText, EntryMenu, Toolbar, Listing
+- [x] S20 — T33–T35 host.ts, App.svelte, tokens
+- [ ] S21 — T36 live check  ← next
 - [ ] S22 — T37/T38 MAP, README
 - [ ] S23 — T-audit, T-final, reconcile, PR
 
@@ -75,10 +75,11 @@ See `spec.md` (AC-59..AC-80).
 - 2026-10-11 20:05 — test-gen: spec AC-60 amended. `inspect` refuses type 0x1A, so `list` can't describe it; firmware mismatch is the one describable-but-not-editable case (plan/tasks follow). Boundary bullet for gui/src/lib made plain (hook gotcha). Red confirmed: core `input` (no from_input), GUI cargo (no document module / stidcart_cli dep), vitest 24 failing + 3 missing components. Design pinned by tests: DocumentDto fields pub (file, untitled, listing, rows[].alignable, read_only, dirty, can_undo, can_redo), `Document::bytes()`; SetAligned on a non-xbank refused with the CLI `--align` text (core ignores it on programs); store API `add(aligned)`, `menu(id)`, `requestClose()`, `requestQuit()`, `editable`, `dirty`, `unsavedChoice`; components EditableText{value,label,oncommit}, EntryMenu{row,actions,onedit,onrename,onreplace}, Toolbar{doc,onadd,onopen}, Listing optional {readOnly,rows,onedit,onreplace}.
 - 2026-10-11 20:40 — T2 spike (tauri dev, throwaway, reverted): custom Undo item (⌘Z) receives the key; with an <input> focused, `document.execCommand('undo')` from the menu handler undoes the field one step (two edits → one ⌘Z restored the first, no double undo). ⌘O/⌘S: the menu accelerator fires AND the webview keydown still sees meta+key → handle each shortcut only via the menu (remove App's ⌘O keydown). Predefined Select All works in the field. `message()` with 3 custom buttons returns "Cancel" on Esc. Plan design kept; keydown fallback not needed. Live-driving gotcha: another app ("Web App") steals focus — raise with AXRaise and check the frontmost process in the same osascript before any keystroke.
 - 2026-10-11 21:30 — block B green: document.rs 20/20, parity 2/2 first run (no fix needed), contract 3/3 with document.json. Refinement: Undo/Redo menu items stay always enabled (a disabled Undo would swallow ⌘Z in a text field); only Save/Save As follow the document. Added `exit_app` command beside `allow_exit` (quit path), `core:window:allow-destroy` for the JS close path.
+- 2026-10-11 22:20 — red-green: all green (root gate; gui-gate 38 vitest + 28 GUI cargo). ~14 implement/fix iterations, 0 reverts, no STUCK. Deviations: bits-ui pinned 2.19.3 (2.19.5 only 8 days old); component tests add `afterEach(cleanup)` (vitest without globals); EditableText loads its value only when editing starts (rename from the row menu); T35 tokens not needed (existing tokens cover menu/banner/dot).
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
