@@ -26,8 +26,9 @@ this MAP is structural. Read `SPEC.md`'s surface section before scoping a change
 
 | Zone | Path | Responsibility | Don't put here |
 |---|---|---|---|
-| core | `crates/stidcart-core/` | Flash image model, EasyFS2 directory encoding **and decoding**, cartridge-image derivation (`cartridge.rs`), PETSCII, placement, CRT container **both directions**, firmware embedding and verification | Global mutable state, file dialogs, CLI arg parsing, anything that decides *policy* about I/O |
+| core | `crates/stidcart-core/` | Flash image model, EasyFS2 directory encoding **and decoding**, cartridge-image derivation (`cartridge.rs`), PETSCII, placement, CRT container **both directions**, firmware embedding and verification, the shared listing values (`listing.rs`, D-032) | Global mutable state, file dialogs, CLI arg parsing, anything that decides *policy* about I/O |
 | cli | `crates/stidcart-cli/` | Argument parsing, file reading/writing, human-facing output. The test harness for the core, not a product | Format knowledge, placement rules — those belong in core |
+| gui | `gui/` (frontend), `gui/src-tauri/` (crate `stidcart-gui`) | The desktop app: Tauri 2 + Svelte 5 (D-030, D-031), its **own Cargo workspace** excluded from the root, so the root gate never compiles webkit. Rust side reads files and maps `listing` to a serde DTO; frontend renders. `src/lib/host.ts` is the only Tauri importer | Format knowledge or listing values (core); serde in core; a second copy of a value `listing` already computes |
 | firmware | `firmware/` | zlib-licensed C64-side blobs, embedded as data | Any Rust source, anything GPL. The licence boundary runs through this directory |
 | fixtures | `fixtures/` | Frozen `ndeft`-built carts, their input PRGs, and the exact command line that produced each | Generated output, scratch carts, anything not reproducible from a recorded command |
 | tests | `crates/*/tests/` + inline `#[cfg(test)]` | Cargo collects both automatically; no registration step | — |
@@ -38,14 +39,15 @@ this MAP is structural. Read `SPEC.md`'s surface section before scoping a change
 
 - `cargo run -p stidcart-cli -- build -e "name" -o out.crt some.prg` → `crates/stidcart-cli/src/main.rs`
 - `cargo run -p stidcart-cli -- list out.crt` → same file; prints the directory as the image records it
+- `npm run tauri dev` in `gui/` → the desktop viewer (`gui/src-tauri/src/lib.rs`, `gui/src/App.svelte`); `docs/lcd/ci/gui-gate.sh` is its gate
 - `cargo test --workspace` → the full suite, including the parity test against the frozen fixtures
 - Library consumers start at `crates/stidcart-core/src/lib.rs`
 
 ## Surfaces in use
 
-`CLI` — the `stidcart` binary. `RENDER` — the `list` formatter (`render()` in
-`crates/stidcart-cli/src/main.rs`), deliberately split from the printing so tests assert on the
-string; a GUI crate would widen this surface, not open it. No HTTP, MCP, or DB surface. `EVAL` is
+`CLI` — the `stidcart` binary. `RENDER` — two renderers of one `listing::Listing` (D-032): the `list`
+formatter (`render()` in `crates/stidcart-cli/src/main.rs`, split from the printing so tests assert
+on the string) and the GUI viewer (`gui/src/lib/Listing.svelte` and its sibling states). No HTTP, MCP, or DB surface. `EVAL` is
 `n/a`: output is byte-exact images compared against frozen fixtures, never scored.
 
 ## Invariants (always-true rules for THIS project)
