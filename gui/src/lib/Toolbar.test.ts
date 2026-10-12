@@ -1,8 +1,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import two from './fixtures/two.json';
 import type { Document } from './types';
 import Toolbar from './Toolbar.svelte';
+
+// Vitest runs without globals here, so testing-library cannot unmount between tests by itself.
+afterEach(cleanup);
 
 function doc(overrides: Partial<Document> = {}): Document {
   return {

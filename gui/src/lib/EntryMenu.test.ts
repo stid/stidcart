@@ -1,8 +1,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import two from './fixtures/two.json';
 import type { Row, RowActions } from './types';
 import EntryMenu from './EntryMenu.svelte';
+
+// Vitest runs without globals here, so testing-library cannot unmount between tests by itself.
+afterEach(cleanup);
 
 const hello: Row = two.rows[0];
 

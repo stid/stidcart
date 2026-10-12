@@ -1,6 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
-import { expect, test, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import { afterEach, expect, test, vi } from 'vitest';
 import EditableText from './EditableText.svelte';
+
+// Vitest runs without globals here, so testing-library cannot unmount between tests by itself.
+afterEach(cleanup);
 
 function setup() {
   const oncommit = vi.fn();
