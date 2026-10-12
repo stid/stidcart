@@ -10,13 +10,33 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Second GUI slice: the viewer edits carts with the full `edit` set plus New, held in memory with undo, an unsaved-changes indicator and prompt, ⌘S/⌘⇧S, and saves byte-identical to `edit`/`build`.
-- **Next action:** run /lcd:tasks gui-edit (plan awaiting user approval)
-- **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 19:10
+- **Next action:** run /lcd:test-gen gui-edit
+- **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 19:25
 
 ## STEPS
-- [x] S1 — triage (Deep) + recon dispatched + spec.md
+- [x] S1 — triage (Deep), recon, spec.md
 - [x] S2 — plan.md (D-034, D-035)
-- [ ] S3 — /lcd:tasks gui-edit  ← next
+- [x] S3 — tasks.md
+- [ ] S4 — /lcd:test-gen gui-edit  ← next
+- [ ] S5 — T1 version 0.8.0 (both workspaces)
+- [ ] S6 — T2 menu/⌘Z/⌘O/Esc spike → LOG
+- [ ] S7 — T3 CLI lib split
+- [ ] S8 — T4–T6 Entry::from_input in core (D-034), CLI uses it
+- [ ] S9 — T7 gui dev-dep on cli
+- [ ] S10 — T8/T9 Document open/new/dto (AC-59/60/77)
+- [ ] S11 — T10/T11 Document::apply (AC-61..71, reload property)
+- [ ] S12 — T12/T13 undo/redo/dirty (AC-72/73)
+- [ ] S13 — T14/T15 save/save_as (AC-74..76)
+- [ ] S14 — T16 parity vs CLI (AC-80)
+- [ ] S15 — T17/T18 DocumentDto golden + commands, exit guard
+- [ ] S16 — T19/T20 menu.rs + capabilities
+- [ ] S17 — T21/T22 bits-ui, types.ts
+- [ ] S18 — T23/T24 editor store (AC-59/61/63/70/73..79)
+- [ ] S19 — T25–T32 EditableText, EntryMenu, Toolbar, Listing
+- [ ] S20 — T33–T35 host.ts, App.svelte, tokens
+- [ ] S21 — T36 live check
+- [ ] S22 — T37/T38 MAP, README
+- [ ] S23 — T-audit, T-final, reconcile, PR
 
 ## DECISIONS (this work-item)
 - ACs AC-59..AC-80 claimed (next free AC-81); GUI ACs use `RENDER`, byte parity `none`
@@ -57,5 +77,5 @@ See `spec.md` (AC-59..AC-80).
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
