@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+
   // Text that turns into a field to edit it. Enter or leaving the field commits, Esc puts the old
   // text back. Committing an unchanged value is not an edit, so it sends nothing.
   let {
@@ -17,7 +19,6 @@
   let draft = $state('');
 
   function start() {
-    draft = value;
     editing = true;
   }
 
@@ -32,9 +33,15 @@
     node.select();
   }
 
-  // Started from outside (the row menu's Rename): load the current value into the field.
+  // Load the current value whenever editing starts, from the click or from outside (the row
+  // menu's Rename) — and only then, so clearing the field doesn't refill it.
+  let wasEditing = false;
   $effect.pre(() => {
-    if (editing && draft === '') draft = value;
+    const now = editing;
+    untrack(() => {
+      if (now && !wasEditing) draft = value;
+      wasEditing = now;
+    });
   });
 </script>
 
