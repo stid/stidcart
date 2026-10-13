@@ -96,7 +96,7 @@ Changes stay in memory until you save:
 - Closing, quitting, opening another cart or New asks first.
 
 A cart `edit` refuses, such as firmware that differs from the embedded copy, opens view-only with
-the reason. The app needs Node 24 and, on Linux, the WebKitGTK packages the CI `gui` job installs.
+the reason. The app needs Node 24, pinned in `gui/.nvmrc` (`nvm use` in `gui/` picks it up, and CI reads the same file), and, on Linux, the WebKitGTK packages the CI `gui` job installs.
 
 ```bash
 cd gui && npm install
