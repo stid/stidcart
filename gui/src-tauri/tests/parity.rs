@@ -210,3 +210,51 @@ fn ac_80_a_new_cart_with_added_files_is_byte_identical_to_build() {
         std::fs::read(&built).unwrap()
     );
 }
+
+// AC-80: every editable fixture survives the reload-per-step model — an edit on it saves exactly
+// what `edit` writes, and the saved image reloads to itself.
+#[test]
+fn ac_80_every_editable_fixture_edits_byte_identically_to_edit() {
+    let mut checked = 0;
+    let mut fixtures: Vec<_> = std::fs::read_dir(fixtures())
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|x| x == "crt"))
+        .collect();
+    fixtures.sort();
+    for path in fixtures {
+        let bytes = std::fs::read(&path).unwrap();
+        if stidcart_core::read::load(&bytes).is_err() {
+            continue;
+        }
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let dir = scratch(&format!("every-{name}"));
+        let source = dir.join(&name);
+        std::fs::copy(&path, &source).unwrap();
+        let out = dir.join("edited.crt");
+        run(&[
+            s("edit"),
+            source.to_string_lossy().into_owned(),
+            s("-e"),
+            s("renamed"),
+            s("-o"),
+            out.to_string_lossy().into_owned(),
+        ]);
+
+        let mut doc = Document::open(&source).unwrap();
+        doc.apply(Edit::SetCartName { name: s("renamed") })
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert_eq!(
+            doc.bytes(),
+            std::fs::read(&out).unwrap().as_slice(),
+            "{name}: the window and edit disagree"
+        );
+        let reloaded = stidcart_core::read::load(doc.bytes())
+            .unwrap_or_else(|e| panic!("{name}: the saved image does not reload: {e}"))
+            .build()
+            .unwrap();
+        assert_eq!(reloaded, doc.bytes(), "{name}: reloading the step is lossy");
+        checked += 1;
+    }
+    assert!(checked >= 10, "only {checked} editable fixtures checked");
+}
