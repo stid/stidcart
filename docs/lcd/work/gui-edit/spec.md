@@ -126,7 +126,8 @@ untitled cart with no entries is shown, editable, with the default cart and head
 uses. Saving an untitled cart behaves as Save As.
 
 **AC-78** (surfaces: RENDER): Given a cart with unsaved changes, when the user closes the window,
-quits, opens another cart or chooses New, then the window asks whether to save, discard or cancel.
+quits from the app (⌘Q or its Quit menu item), opens another cart or chooses New, then the window
+asks whether to save, discard or cancel.
 - Save: saves first, asking for a path when the cart is untitled, then continues.
 - Discard: continues, and the changes are lost.
 - Cancel, a dismissed path chooser or a failed save: stops, with the cart, its unsaved changes and
@@ -158,6 +159,9 @@ order. Both hold over the frozen reference fixtures.
 - Verified support on Linux or Windows: it builds where CI builds, and only macOS is exercised by
   hand.
 - Detecting that the open file changed on disk behind the window's back.
+- Asking about unsaved changes when macOS itself ends the app: Quit from the Dock, logout, restart
+  or shutdown. These bypass the window (D-036), and catching them needs a native termination hook
+  of its own. It's a follow-up, found in the live check (amended 2026-10-12, user).
 - Anything `edit` can't do. The window offers the CLI's edit set and nothing more, and any new
   editing capability goes into both front ends in its own work-item.
 

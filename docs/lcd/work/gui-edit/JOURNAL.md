@@ -80,6 +80,7 @@ See `spec.md` (AC-59..AC-80).
 - 2026-10-11 22:15 — BUG found live, fixed c4dff08: predefined Quit sends `terminate:`, which tao 0.37 doesn't intercept (no applicationShouldTerminate) → ⌘Q exited with no ExitRequested and lost an unsaved edit. Quit is now a custom ⌘Q item routed through the store's guard (test added). Known gap: Dock → Quit still sends terminate: and bypasses the prompt (needs an app-delegate hook; out of this slice unless the user wants it). Cosmetic: a focused row shows a blue focus-ring line.
 - 2026-10-11 22:30 — audit: PASS (first run), 21/21 RENDER rows OK; AC-80 (none) in parity.rs. Closeout line appended.
 - 2026-10-11 22:30 — reconciled: folded AC-59..80 → SPEC.md/RENDER (6 new rows; drop row rewritten for AC-79; opening row reworded) and SPEC.md/none (AC-80). No supersede entry: the drop change is D-033.
+- 2026-10-12 00:10 — advisor pre-PR review: added every-editable-fixture parity + reload test (passes on all, incl. Ocean/512/wide/subdir); fixed stale ExitRequested comment and plan guard block (refined: ⌘Q is the custom Quit item). User chose to narrow AC-78 to in-app quit and list macOS-initiated termination (Dock/logout) as out of scope + follow-up → spec amended, SPEC row aligned, D-036.
 
 ## DEEP PIPELINE (Deep lane only)
 

@@ -4,7 +4,7 @@
 
 **Slug:** `gui-edit`
 **Spec:** [`spec.md`](./spec.md) • **Plan:** [`plan.md`](./plan.md) • **Tasks:** [`tasks.md`](./tasks.md)
-**Run:** 2026-10-11 22:14
+**Run:** 2026-10-12 21:34 (re-run after the AC-78 amendment)
 **Result:** PASS <!-- PASS | BLOCKED -->
 
 ---

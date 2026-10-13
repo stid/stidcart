@@ -161,9 +161,12 @@ action requested ──► dirty? ──no──► do it
                Don't Save ──► do it
                Cancel ──► stop (state unchanged)
 close:  onCloseRequested → preventDefault → guard(() => allow_exit then destroy window)
-quit:   RunEvent::ExitRequested(code=None) while dirty → prevent_exit, emit "exit-requested"
-        → guard(() => allow_exit + exit). allow_exit sets a flag, so a second ExitRequested
-        (closing the last window, or app.exit's own code=Some) passes without asking again
+quit:   ⌘Q is a custom menu item → emit "menu":"quit" → guard(() => exit_app). (Refined in the
+        live check: the predefined Quit sends terminate:, which tao 0.37 does not route to
+        ExitRequested, so it skipped the guard — D-036.)
+        RunEvent::ExitRequested(code=None) while dirty (closing the last window by an uncleared
+        path) → prevent_exit, emit "exit-requested" → guard(() => exit_app). exit_app/allow_exit
+        set a flag, so app.exit's own ExitRequested (code=Some) passes without asking again
 ```
 
 Only the two exact labels go ahead. Anything else counts as Cancel, and a unit test pins that

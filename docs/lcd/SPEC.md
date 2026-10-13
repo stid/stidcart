@@ -55,7 +55,7 @@
 | An edit `edit` would refuse shows `edit`'s reason and changes nothing — listing, unsaved state and undo history stay as they were | AC-70 | D-035 (gui-edit) |
 | After an edit the listing describes the cart as saving would write it: the whole set is re-placed, so an untouched entry may show a new position, and the free bytes are recomputed | AC-71 | D-035 (gui-edit) · D-011 |
 | Edits stay in memory: undo/redo walk every edit since opening (in a focused text field they act on its text), an Edited marker shows when the cart differs from the state last saved or opened, ⌘S replaces the file only when there are changes, ⌘⇧S writes elsewhere and adopts that file, an untitled cart saves through Save As, and a failed save leaves the destination whole and the changes unsaved | AC-72..AC-77 | D-033 · D-035 (gui-edit) |
-| Closing, quitting (⌘Q, the app's own Quit item), opening another cart or New with unsaved changes asks Save / Don't Save / Cancel; only the first two go ahead, and a dismissed or failed save stops. Quitting from the Dock does not ask yet | AC-78 | D-033 (gui-edit) |
+| Closing the window, quitting from the app (⌘Q, its Quit item), opening another cart or New with unsaved changes asks Save / Don't Save / Cancel; only the first two go ahead, and a dismissed or failed save stops. macOS ending the app (Dock Quit, logout) does not ask | AC-78 | D-033 · D-036 (gui-edit) |
 
 ### Internal (surface: none)
 

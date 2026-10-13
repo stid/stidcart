@@ -204,9 +204,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building the stidcart app")
         .run(|app, event| {
-            // Quitting (⌘Q, or closing the last window) with unsaved changes is stopped and handed
-            // to the window, which asks and then calls `exit_app` — or doesn't. An exit with a
-            // code is `exit_app`'s own and always goes through.
+            // An exit request with no code (closing the last window by a path the window did not
+            // clear) while there are unsaved changes is stopped and handed to the window, which
+            // asks and then calls `exit_app`, or doesn't. An exit with a code is `exit_app`'s own
+            // and always goes through. ⌘Q never arrives here: it is the menu's own Quit item
+            // (menu.rs), because the predefined one sends `terminate:`, which skips this event.
             if let RunEvent::ExitRequested {
                 code: None, api, ..
             } = event

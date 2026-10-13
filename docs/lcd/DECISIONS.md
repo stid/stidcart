@@ -8,7 +8,23 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-036 -->
+<!-- Next id: D-037 -->
+
+---
+
+## D-036 · 2026-10-12 · ⌘Q is the app's own Quit item; macOS ending the app does not ask yet
+- **Context:** the live check of gui-edit found that ⌘Q quit without asking about unsaved changes
+  and lost an edit. The predefined Quit menu item (muda) sends `terminate:`, and tao 0.37
+  implements no `applicationShouldTerminate`, so the process ends with no `RunEvent::ExitRequested`
+  and the guard never runs. Dock Quit, logout, restart and shutdown take the same path.
+- **Decision:** Quit is a custom ⌘Q menu item that sends `quit` to the window, which runs the
+  unsaved-changes guard and then calls `exit_app`. The paths macOS starts itself stay unguarded for
+  now. gui-edit AC-78 is narrowed to say so, and they are a follow-up (user's choice).
+- **Alternatives rejected:** a native `applicationShouldTerminate` hook in this slice. Its cost is
+  unknown (tao owns the app delegate), so it gets its own spike, not a delay to this PR. Keeping the
+  predefined item and relying on `ExitRequested` would leave ⌘Q silently losing work.
+- **Scope:** `gui/src-tauri/src/menu.rs`, `gui/src/lib/viewer.svelte.ts`
+- **Status:** active
 
 ---
 
