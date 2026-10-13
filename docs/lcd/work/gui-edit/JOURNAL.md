@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Second GUI slice: the viewer edits carts with the full `edit` set plus New, held in memory with undo, an unsaved-changes indicator and prompt, ⌘S/⌘⇧S, and saves byte-identical to `edit`/`build`.
-- **Next action:** full gate, then open the PR
+- **Next action:** done; PR #34 green (gate, gui, audit, claude-review) and awaits the user's merge
 - **Branch:** feat/gui-edit  ·  **Updated:** 2026-10-11 20:10
 
 ## STEPS
@@ -36,7 +36,7 @@
 - [x] S20 — T33–T35 host.ts, App.svelte, tokens
 - [x] S21 — T36 live check (one bug found and fixed: ⌘Q)
 - [x] S22 — T37/T38 MAP, README
-- [x] S23 — T-audit, T-final, reconcile  ·  PR next
+- [x] S23 — T-audit, T-final, reconcile, PR #34
 
 ## DECISIONS (this work-item)
 - ACs AC-59..AC-80 claimed (next free AC-81); GUI ACs use `RENDER`, byte parity `none`
@@ -81,6 +81,7 @@ See `spec.md` (AC-59..AC-80).
 - 2026-10-11 22:30 — audit: PASS (first run), 21/21 RENDER rows OK; AC-80 (none) in parity.rs. Closeout line appended.
 - 2026-10-11 22:30 — reconciled: folded AC-59..80 → SPEC.md/RENDER (6 new rows; drop row rewritten for AC-79; opening row reworded) and SPEC.md/none (AC-80). No supersede entry: the drop change is D-033.
 - 2026-10-12 00:10 — advisor pre-PR review: added every-editable-fixture parity + reload test (passes on all, incl. Ocean/512/wide/subdir); fixed stale ExitRequested comment and plan guard block (refined: ⌘Q is the custom Quit item). User chose to narrow AC-78 to in-app quit and list macOS-initiated termination (Dock/logout) as out of scope + follow-up → spec amended, SPEC row aligned, D-036.
+- 2026-10-12 00:40 — PR #34: gate 26s, gui 2m28s (first Linux run of the new tests, AC-76 included), audit, claude-review (no issues): all pass.
 
 ## DEEP PIPELINE (Deep lane only)
 
