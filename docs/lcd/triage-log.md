@@ -17,3 +17,5 @@
 2026-10-11 · subdir-entries · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 2 (scope narrowed after the ndeft experiment; one boundary-hook denial)
 2026-10-11 · gui-shell · 5 signals · Deep · hard:yes · risk:yes
 2026-10-11 · gui-shell · closeout · Deep · audit: PASS (first run) · re-routes: 0 · red-green iters: 9 · interventions: 2 (user relaxed the cargo-test criterion; live-check polish rework)
+2026-10-11 · gui-edit · 5 signals · Deep · hard:yes · risk:yes
+2026-10-11 · gui-edit · closeout · Deep · audit: PASS (first run) · re-routes: 0 · red-green iters: 15 · interventions: 2 (boundary-hook denial on an annotated bullet; user redid a drop test)

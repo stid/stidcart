@@ -3,6 +3,7 @@
   import EmptyState from './lib/EmptyState.svelte';
   import ErrorState from './lib/ErrorState.svelte';
   import Listing from './lib/Listing.svelte';
+  import Toolbar from './lib/Toolbar.svelte';
   import type { Host } from './lib/types';
   import { createViewer } from './lib/viewer.svelte';
 
@@ -11,33 +12,43 @@
   // The host is fixed for the window's lifetime, so capturing it once is the intent.
   // svelte-ignore state_referenced_locally
   const viewer = createViewer(host);
-  onMount(() => host.onDrop((paths) => void viewer.drop(paths)));
 
-  function onkeydown(e: KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'o') {
-      e.preventDefault();
-      void viewer.pick();
-    }
-  }
+  // Shortcuts (⌘N, ⌘O, ⌘S, ⌘⇧S, ⌘Z, ⌘⇧Z) arrive only through the native menu. The webview sees
+  // the same keydown too, so handling it here as well would run each command twice (T2 spike).
+  onMount(() => {
+    host.onDrop((paths) => void viewer.drop(paths));
+    host.onMenu((id) => void viewer.menu(id));
+    host.onCloseRequested(() => viewer.requestClose());
+    host.onExitRequested(() => void viewer.requestQuit());
+  });
+
+  const doc = $derived(viewer.state.kind === 'document' ? viewer.state.doc : null);
 </script>
-
-<svelte:window {onkeydown} />
 
 <div class="app">
   <header class="titlebar" data-tauri-drag-region>
-    <span class="title" data-tauri-drag-region>stidcart</span>
-    {#if viewer.state.kind !== 'empty'}
-      <button class="button" onclick={() => viewer.pick()}>Open…</button>
-    {/if}
+    <Toolbar
+      {doc}
+      opened={viewer.state.kind !== 'empty'}
+      onadd={(aligned) => void viewer.add(aligned)}
+      onopen={() => void viewer.pick()}
+    />
   </header>
 
   <main>
-    {#if viewer.state.kind === 'listing'}
-      <Listing listing={viewer.state.listing} file={viewer.state.file} />
+    {#if doc}
+      <Listing
+        listing={doc.listing}
+        file={doc.file}
+        readOnly={doc.readOnly}
+        rows={doc.rows}
+        onedit={(e) => void viewer.edit(e)}
+        onreplace={(index) => void viewer.replace(index)}
+      />
     {:else if viewer.state.kind === 'error'}
       <ErrorState file={viewer.state.file} message={viewer.state.message} />
     {:else}
-      <EmptyState onopen={() => viewer.pick()} />
+      <EmptyState onopen={() => void viewer.pick()} />
     {/if}
   </main>
 
@@ -62,12 +73,6 @@
     padding: 0 var(--space-4) 0 var(--titlebar-inset);
     border-bottom: 1px solid var(--border);
     background: var(--bg-subtle);
-  }
-
-  .title {
-    font-size: var(--text-md);
-    font-weight: 600;
-    color: var(--text-muted);
   }
 
   main {

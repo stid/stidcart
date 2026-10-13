@@ -8,7 +8,91 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-033 -->
+<!-- Next id: D-037 -->
+
+---
+
+## D-036 · 2026-10-12 · ⌘Q is the app's own Quit item; macOS ending the app does not ask yet
+- **Context:** the live check of gui-edit found that ⌘Q quit without asking about unsaved changes
+  and lost an edit. The predefined Quit menu item (muda) sends `terminate:`, and tao 0.37
+  implements no `applicationShouldTerminate`, so the process ends with no `RunEvent::ExitRequested`
+  and the guard never runs. Dock Quit, logout, restart and shutdown take the same path.
+- **Decision:** Quit is a custom ⌘Q menu item that sends `quit` to the window, which runs the
+  unsaved-changes guard and then calls `exit_app`. The paths macOS starts itself stay unguarded for
+  now. gui-edit AC-78 is narrowed to say so, and they are a follow-up (user's choice).
+- **Alternatives rejected:** a native `applicationShouldTerminate` hook in this slice. Its cost is
+  unknown (tao owns the app delegate), so it gets its own spike, not a delay to this PR. Keeping the
+  predefined item and relying on `ExitRequested` would leave ⌘Q silently losing work.
+- **Scope:** `gui/src-tauri/src/menu.rs`, `gui/src/lib/viewer.svelte.ts`
+- **Status:** active
+
+---
+
+## D-035 · 2026-10-11 · The GUI document is a stack of saved images in Rust; parity is proven against the CLI as a library
+- **Context:** the GUI editor (D-033) needs undo, an unsaved-changes state and a listing after each
+  edit, and AC-80 requires its saves to be byte-identical to `edit`/`build`.
+- **Decision:**
+  - The GUI crate holds the document. Each undo step is the image saving would write (bytes), plus
+    its `describe` listing. An edit loads the current image, applies the change, builds and
+    describes. A refusal changes nothing.
+  - Snapshot 0 of an opened cart is the file's own bytes, so it shows positions as stored, and a
+    Save As without edits is a verbatim copy.
+  - Soundness rests on `load(build(b)).build() == build(b)`, which a property test checks.
+  - `stidcart-cli` becomes a library plus a thin binary. The GUI tests dev-depend on it and check
+    each GUI step against one chained `edit` call (New with adds against `build`).
+- **Alternatives rejected:**
+  - Snapshots of `CartBuilder`: the same memory, but the listing would stop describing what a save
+    writes.
+  - Frontend-held state: the frontend would need the image bytes and format calls.
+  - Committed goldens written by a root CLI test: scenarios written twice, and goldens to regenerate
+    on each version bump.
+  - Comparing against direct core calls: tests core against core and misses front-end drift.
+  - `tempfile` for the atomic save: mode 0600 on every saved cart. The std temp-and-rename is
+    mirrored from the CLI instead.
+- **Scope:** `gui/src-tauri` (`Document`), `crates/stidcart-cli` (lib + bin)
+- **Status:** active
+
+---
+
+## D-034 · 2026-10-11 · Classifying an input file as a program or a cartridge entry is core logic
+- **Context:** `edit --add`/`--replace` and `build` decide what a file is in a CLI-private
+  `input_entry`: the CRT signature, `Cartridge::from_crt`, and the alignment checks. The GUI must
+  decide identically (gui-edit AC-61), and the MAP keeps format knowledge out of both front ends.
+- **Decision:** `Entry::from_input(name, data, aligned) -> Result<Entry, InputError>` in core, with
+  no I/O and no path. `InputError` reproduces the CLI's alignment messages verbatim, and front ends
+  prefix a cartridge refusal with `'<path>': ` as the CLI does. Reading the file and deriving the
+  name from the file stem stay in each front end.
+- **Alternatives rejected:**
+  - Duplicating the check in the GUI: two copies of format knowledge.
+  - The GUI depending on the CLI crate at runtime: the CLI is the test harness, not a library for
+    products.
+- **Scope:** `stidcart-core` (`lib.rs`), `stidcart-cli` (`input_entry`), `stidcart-gui`
+- **Status:** active
+
+---
+
+## D-033 · 2026-10-11 · The GUI edits in memory with an explicit save; drops on an open cart add entries
+- **Context:** the second GUI slice brings the full `edit` set into the window. Changes could
+  either be written immediately, as `edit` without `-o` does, or held until the user saves. A
+  dropped file could also mean either "open this" or "add this".
+- **Decision:** (user's choice, following the recommendation)
+  - Edits are held in memory, with undo and redo and an unsaved-changes indicator. ⌘S replaces the
+    file and is unavailable when there are no changes, so a cart from another tool is never
+    silently re-placed.
+  - ⌘⇧S saves as. Closing, quitting, opening another cart or New asks first when there are
+    unsaved changes.
+  - With an editable cart open, every drop adds, `.crt` included. A multi-file drop adds all of
+    them or none, as one undo step. With nothing editable open, one dropped file opens, as before.
+  - New (⌘N) is in this slice.
+  - Each edit is applied whole or refused with the reason `edit` gives, and a saved cart is
+    byte-identical to `edit`/`build` for the same request.
+- **Alternatives rejected:**
+  - Write on every change: no undo, and it rewrites the original at the first click.
+  - Save As only: safe, but clumsy for the common case.
+  - A dropped `.crt` opens, or asks each time: adding cart images is the main reason to drop one on
+    an open cart, and opening is one ⌘O away.
+- **Scope:** `gui/` (gui-edit, AC-59..AC-80)
+- **Status:** active
 
 ---
 

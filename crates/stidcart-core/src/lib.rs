@@ -27,6 +27,7 @@ pub mod read;
 pub mod reserved;
 
 pub use cartridge::Cartridge;
+use cartridge::CartridgeError;
 pub use image::FlashImage;
 pub use read::{inspect, load, CartInfo, ReadError};
 
@@ -112,6 +113,62 @@ impl Entry {
         }
     }
 }
+
+impl Entry {
+    /// Read an input file's contents as the entry it is, named `name`: a cartridge image if it
+    /// starts with the CRT signature, a program otherwise. Content decides, not the file name — a
+    /// program starts with a two-byte load address and an image with a fixed sixteen-byte
+    /// signature, so the two cannot collide. Every front end classifies through here (D-034).
+    pub fn from_input(name: &str, data: Vec<u8>, aligned: bool) -> Result<Entry, InputError> {
+        if data.starts_with(crt::MAGIC) {
+            let cart = Cartridge::from_crt(&data)
+                .map_err(InputError::Cartridge)?
+                .with_name(name);
+            if aligned && !cart.kind.is_xbank() {
+                return Err(InputError::AlignNotXbank {
+                    name: name.to_string(),
+                });
+            }
+            Ok(cart.with_align_64k(aligned).into())
+        } else if aligned {
+            Err(InputError::AlignProgram {
+                name: name.to_string(),
+            })
+        } else {
+            Ok(Program::new(name, data).into())
+        }
+    }
+}
+
+/// Why an input file cannot become an entry.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InputError {
+    /// A CRT image that does not derive to a cartridge. Front ends prefix it with the file's path.
+    Cartridge(CartridgeError),
+    /// 64 KB alignment requested for a program.
+    AlignProgram { name: String },
+    /// 64 KB alignment requested for a cartridge that is not an xbank.
+    AlignNotXbank { name: String },
+}
+
+impl std::fmt::Display for InputError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InputError::Cartridge(e) => write!(f, "{e}"),
+            InputError::AlignProgram { name } => write!(
+                f,
+                "'{name}' is a program, not an xbank cartridge, so 64 KB alignment does not apply \
+                 to it"
+            ),
+            InputError::AlignNotXbank { name } => write!(
+                f,
+                "'{name}' is not an xbank cartridge, so 64 KB alignment does not apply to it"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for InputError {}
 
 impl From<Program> for Entry {
     fn from(p: Program) -> Self {

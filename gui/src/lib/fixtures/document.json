@@ -1,0 +1,42 @@
+{
+  "canRedo": false,
+  "canUndo": true,
+  "dirty": true,
+  "file": "cxb16.crt",
+  "listing": {
+    "builtBy": "ndefpack 1.0.1",
+    "cart": "cxb16",
+    "free": 966554,
+    "freeText": "$0ebf9a (966554)",
+    "rows": [
+      {
+        "bank": "$05",
+        "flags": "H",
+        "index": 0,
+        "kind": "PRG",
+        "layout": "$0000",
+        "name": "hello",
+        "size": "$000066"
+      },
+      {
+        "bank": "$01",
+        "flags": "-",
+        "index": 1,
+        "kind": "XB16",
+        "layout": "L4@0,H4@0",
+        "name": "in_xb16",
+        "size": "$010000"
+      }
+    ]
+  },
+  "readOnly": null,
+  "rows": [
+    {
+      "alignable": false
+    },
+    {
+      "alignable": true
+    }
+  ],
+  "untitled": false
+}

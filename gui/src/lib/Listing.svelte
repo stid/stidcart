@@ -1,17 +1,94 @@
 <script lang="ts">
-  import type { Listing } from './types';
+  import EditableText from './EditableText.svelte';
+  import EntryMenu from './EntryMenu.svelte';
+  import type { Edit, Listing, Row, RowActions } from './types';
 
-  let { listing, file }: { listing: Listing; file: string } = $props();
+  let {
+    listing,
+    file,
+    readOnly = null,
+    rows = [],
+    onedit,
+    onreplace,
+  }: {
+    listing: Listing;
+    file: string;
+    /** Why the cart cannot be edited; the viewer shows it and offers no edits. */
+    readOnly?: string | null;
+    /** What each row may offer, from the Rust side. */
+    rows?: RowActions[];
+    /** Given (with `onreplace`), the listing offers edits. Without it, it only shows. */
+    onedit?: (e: Edit) => void;
+    onreplace?: (index: number) => void;
+  } = $props();
 
   const count = $derived(`${listing.rows.length} ${listing.rows.length === 1 ? 'entry' : 'entries'}`);
+  const editable = $derived(onedit !== undefined && readOnly === null);
+
+  /** The row whose name is being edited, started from its menu's Rename. */
+  let renaming = $state<number | null>(null);
+
+  function edit(e: Edit) {
+    onedit?.(e);
+  }
 </script>
 
+{#snippet cells(row: Row)}
+  <td class="num faint">{row.index}</td>
+  <td class="name">
+    {#if editable}
+      <EditableText
+        value={row.name}
+        label={`Name of entry ${row.index}`}
+        bind:editing={() => renaming === row.index, (on) => (renaming = on ? row.index : null)}
+        oncommit={(name) => edit({ kind: 'rename', index: row.index, name })}
+      />
+    {:else}
+      {row.name}
+    {/if}
+  </td>
+  <td>
+    {#if row.flags === '-'}<span class="faint">-</span>{:else}{#each row.flags.split('') as f (f)}<span
+          class="flag"
+          title={f === 'H' ? 'Hidden' : f === 'A' ? '64 KB aligned' : 'Subdirectory'}>{f}</span
+        >{/each}{/if}
+  </td>
+  <td><span class="kind">{row.kind}</span></td>
+  <td class="num mono">{row.bank}</td>
+  <td class="mono muted">{row.layout}</td>
+  <td class="num mono">{row.size}</td>
+{/snippet}
+
 <section class="listing">
+  {#if readOnly !== null}
+    <p class="banner" role="status">
+      <strong>View only.</strong> This cartridge can't be edited: {readOnly}
+    </p>
+  {/if}
+
   <header class="summary">
     <div class="names">
       <p class="file">{file}</p>
-      <h1 class="cart">{listing.cart}</h1>
-      <p class="built">built by <span>{listing.builtBy}</span></p>
+      <h1 class="cart">
+        {#if editable}
+          <EditableText
+            value={listing.cart}
+            label="Cart name"
+            oncommit={(name) => edit({ kind: 'setCartName', name })}
+          />
+        {:else}
+          {listing.cart}
+        {/if}
+      </h1>
+      <p class="built">
+        built by <span
+          >{#if editable}<EditableText
+              value={listing.builtBy}
+              label="Header name"
+              oncommit={(name) => edit({ kind: 'setHeaderName', name })}
+            />{:else}{listing.builtBy}{/if}</span
+        >
+      </p>
     </div>
     <dl class="stats">
       <div>
@@ -26,7 +103,7 @@
   </header>
 
   {#if listing.rows.length === 0}
-    <p class="none">No entries</p>
+    <p class="none">No entries{editable ? ' — drop programs or cartridge images here, or use Add…' : ''}</p>
   {:else}
     <div class="table-wrap">
       <table>
@@ -39,24 +116,26 @@
             <th class="num">Bank</th>
             <th>Layout</th>
             <th class="num">Size</th>
+            {#if editable}<th class="more-col"><span class="visually-hidden">Actions</span></th>{/if}
           </tr>
         </thead>
         <tbody>
-          {#each listing.rows as row (row.index)}
-            <tr>
-              <td class="num faint">{row.index}</td>
-              <td class="name">{row.name}</td>
-              <td>
-                {#if row.flags === '-'}<span class="faint">-</span>{:else}{#each row.flags.split('') as f (f)}<span
-                      class="flag"
-                      title={f === 'H' ? 'Hidden' : f === 'A' ? '64 KB aligned' : 'Subdirectory'}>{f}</span
-                    >{/each}{/if}
-              </td>
-              <td><span class="kind">{row.kind}</span></td>
-              <td class="num mono">{row.bank}</td>
-              <td class="mono muted">{row.layout}</td>
-              <td class="num mono">{row.size}</td>
-            </tr>
+          {#each listing.rows as row, i (row.index)}
+            {#if editable && onreplace}
+              {@const actions = rows[i] ?? { alignable: false }}
+              <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace}>
+                {#snippet children(props)}
+                  <tr {...props}>
+                    {@render cells(row)}
+                    <td class="more-col">
+                      <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} />
+                    </td>
+                  </tr>
+                {/snippet}
+              </EntryMenu>
+            {:else}
+              <tr>{@render cells(row)}</tr>
+            {/if}
           {/each}
         </tbody>
       </table>
@@ -65,6 +144,29 @@
 </section>
 
 <style>
+  .banner {
+    margin: 0;
+    padding: var(--space-2) var(--space-6);
+    border-bottom: 1px solid var(--border);
+    background: var(--danger-soft);
+    font-size: var(--text-sm);
+    color: var(--text);
+  }
+
+  .more-col {
+    width: 1%;
+    text-align: right;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .listing {
     display: flex;
     flex-direction: column;

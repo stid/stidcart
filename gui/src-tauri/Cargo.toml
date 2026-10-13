@@ -1,6 +1,6 @@
 [package]
 name = "stidcart-gui"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 license = "GPL-2.0-or-later"
 repository = "https://github.com/stid/stidcart"
@@ -24,3 +24,5 @@ serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 serde_json = "1"
+# The AC-80 oracle: the window's saves are held to what the real `edit` and `build` write (D-035).
+stidcart-cli = { path = "../../crates/stidcart-cli" }
