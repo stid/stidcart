@@ -39,6 +39,7 @@
 - `gui/src/lib/Listing.test.ts`
 - `gui/src/lib/types.ts`
 - `README.md`
+- `docs/lcd/ci/install-menu-tools.sh`
 - `Cargo.toml`
 - `Cargo.lock`
 - `gui/src-tauri/Cargo.toml`
@@ -84,4 +85,9 @@ edits, then the menu is shown as text and offers no choice.
   confirmed it works ("done - it's working").
 - 2026-11-07 — audit: PASS (test-presence). `AC-112 (RENDER)` and `AC-113 (RENDER)` are in `gui/src-tauri/tests/menu.rs` and `Listing.test.ts`, `AC-114 (RENDER)` in `Listing.test.ts`, green at 303c24b (GUI 33/0 cargo + 43/0 vitest, root 225/0). Closeout line appended.
 - 2026-11-07 — reconciled: folded AC-112..AC-114 → SPEC.md/RENDER, rewriting the editable-cart row in place ("does not switch it" is gone). D-042 records the refinement of D-037.
+- 2026-11-07 — CI `gate` failed on #40 in AC-4's boot: `x64sc` exited 132 (SIGILL) after 233 ms.
+  Cause, confirmed in VICE 3.10's `configure.ac:117,674-677`: the build defaults to
+  `-march=native`, so the cached binary only runs on CPUs like the runner that built it. Unrelated
+  to the picker. At the user's request the fix lands here: `--disable-arch` in
+  `install-menu-tools.sh`, whose hash keys the cache, so the next run rebuilds a portable VICE.
 
