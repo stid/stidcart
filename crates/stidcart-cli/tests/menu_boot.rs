@@ -132,8 +132,8 @@ fn ac_87_the_menu_lists_visible_entries_in_order_with_the_first_selected() {
 
     let shown = menu_screen(&dir, &cart);
     assert!(shows(&shown, "menu test"), "the cart name is not the title");
-    let alpha = vice::find(&shown, &vice::screen_text("alpha")).expect("ALPHA is not listed");
-    let charlie = vice::find(&shown, &vice::screen_text("charlie")).expect("CHARLIE is not listed");
+    let alpha = listed(&shown, "alpha").expect("ALPHA is not listed");
+    let charlie = listed(&shown, "charlie").expect("CHARLIE is not listed");
     assert!(alpha < charlie, "entries are not in directory order");
     assert!(!shows(&shown, "bravo"), "a hidden entry is listed");
     assert!(
@@ -175,9 +175,12 @@ fn ac_88_a_long_list_scrolls_and_the_last_entry_starts() {
     let cart = build(&dir, "long list", &[], &inputs);
 
     let first = menu_screen(&dir, &cart);
-    assert!(shows(&first, "e01"), "the first entry is not shown");
     assert!(
-        !shows(&first, "e30"),
+        listed(&first, "e01").is_some(),
+        "the first entry is not shown"
+    );
+    assert!(
+        listed(&first, "e30").is_none(),
         "all 30 entries fit; this cart does not exercise scrolling"
     );
 
@@ -190,8 +193,7 @@ fn ac_88_a_long_list_scrolls_and_the_last_entry_starts() {
     steps.push(idle());
     steps.push(screen());
     let scrolled = boot_or_panic(&dir, &cart, &steps).remove(0);
-    let at =
-        vice::find(&scrolled, &vice::screen_text("e30")).expect("e30 never scrolled into view");
+    let at = listed(&scrolled, "e30").expect("e30 never scrolled into view");
     assert!(
         vice::is_reversed(&scrolled, at, 3),
         "e30 is shown but not selected"
@@ -394,14 +396,16 @@ fn ac_94_ci_runs_the_boot_checks_instead_of_skipping() {
 
 // --- menu-search-sort: the filter and the sort toggle (AC-96..AC-101, D-039) -----------------
 //
-// The menu keeps the list on rows 2-21, shows the typed text on row 1 and the count and order on
-// row 23. Assertions about the list read rows 2-21 only, so a typed query or the status line can
-// never stand in for a listed name.
+// The menu keeps the list in columns 0-20 of rows 5-20, the position and order on row 22, and the
+// typed text with its match count on row 23 (D-041). Assertions about the list read only that
+// block, so the typed text, the status or the details pane, which repeats the selected name,
+// can never stand in for a listed name.
 
 const COLS: usize = 40;
-const LIST_ROWS: std::ops::Range<usize> = 2..22;
-const QUERY_ROW: usize = 1;
-const STATUS_ROW: usize = 23;
+const LIST_ROWS: std::ops::Range<usize> = 5..21;
+const LIST_COLS: std::ops::Range<usize> = 0..21;
+const STATUS_ROW: usize = 22;
+const QUERY_ROW: usize = 23;
 
 fn row(screen: &[u8], n: usize) -> &[u8] {
     &screen[n * COLS..(n + 1) * COLS]
@@ -411,14 +415,13 @@ fn row_shows(screen: &[u8], n: usize, text: &str) -> bool {
     vice::find(row(screen, n), &vice::screen_text(text)).is_some()
 }
 
-/// Where `text` is in the list rows, as an offset into the whole screen.
+/// Where `text` is in the list, as an offset into the whole screen.
 fn listed(screen: &[u8], text: &str) -> Option<usize> {
-    let start = LIST_ROWS.start * COLS;
-    vice::find(
-        &screen[start..LIST_ROWS.end * COLS],
-        &vice::screen_text(text),
-    )
-    .map(|at| at + start)
+    let pattern = vice::screen_text(text);
+    LIST_ROWS.into_iter().find_map(|n| {
+        let start = n * COLS + LIST_COLS.start;
+        vice::find(&screen[start..n * COLS + LIST_COLS.end], &pattern).map(|at| at + start)
+    })
 }
 
 /// Assert every name is listed, in this order, and return where each one is.
@@ -514,7 +517,7 @@ fn ac_96_typing_filters_to_visible_entries_containing_the_text() {
         "the typed text is not shown"
     );
     assert!(
-        row_shows(shown, STATUS_ROW, "2 of 3"),
+        row_shows(shown, QUERY_ROW, "2 of 3 match"),
         "the match count is not shown"
     );
 }
@@ -558,7 +561,10 @@ fn ac_97_del_and_clr_home_edit_the_text() {
     for (i, what) in [(2, "HOME"), (3, "CLR"), (4, "DEL with no text")] {
         assert_listed_in_order(&dumps[i], &["alpha", "alpine", "beta"], what);
         assert!(blank(&dumps[i]), "{what}: the text row is not empty");
-        assert!(row_shows(&dumps[i], STATUS_ROW, "3 of 3"), "{what}: count");
+        assert!(
+            row_shows(&dumps[i], STATUS_ROW, "1 of 3"),
+            "{what}: position"
+        );
     }
 
     let x = vice::screen_text("x")[0];
@@ -749,7 +755,7 @@ fn ac_101_filter_and_sort_combine() {
         vice::is_reversed(&dumps[1], at[0], 7),
         "F1: the first match is not selected"
     );
-    assert!(row_shows(&dumps[1], STATUS_ROW, "3 of 4"), "F1: count");
+    assert!(row_shows(&dumps[1], QUERY_ROW, "3 of 4 match"), "F1: count");
 
     let mut keys = vec![key::F1];
     keys.extend(typed("an"));
@@ -758,61 +764,236 @@ fn ac_101_filter_and_sort_combine() {
     assert_not_listed(&dumps[0], &["kiwi"], "F1, then an");
 }
 
-// --- menu-look: colours and bars (AC-102..AC-104, D-040) -------------------------------------
+// --- the look: layout C (AC-104..AC-111, D-040, D-041) -----------------------------------------
 //
-// Row 0 is a cyan reverse title bar and row 24 a grey reverse help bar. The selection is a cyan
-// reverse bar over columns 1-38. Colours are read from colour RAM and the VIC's border and
-// background registers, low nybble only: VICE fills the high nybble from the bus. The menu shows
-// the ROM's mixed-case character set, so names keep their capitals; programs get the upper-case
-// set back.
+// The menu draws from a RAM copy of the ROM's mixed-case set at $3800 that carries its own glyphs:
+// type badges, the rule, the scroll track and thumb, and the logo's quarter-block cells. Tests
+// find a glyph by its bitmap, so they hold the approved pixels (the "Stidcart Menu Layouts" mockup,
+// layout C) and never the code numbers. Colours are read from colour RAM and the VIC's registers,
+// low nybble only: VICE fills the high nybble from the bus.
 
 const COLOUR_RAM: (u16, u16) = (0xd800, 0xdbe7);
 /// `$D018` (the character set) through `$D021` (the background): `[0]` and `[8..=9]` are used.
 const VIC: (u16, u16) = (0xd018, 0xd021);
-/// `$D018` with the screen at `$0400` and the ROM's upper-case or mixed-case set; bit 0 reads 1.
+/// `$D018` with the screen at `$0400` and the ROM's upper-case set; bit 0 reads 1.
 const UPPER_CASE: u8 = 0x15;
-const MIXED_CASE: u8 = 0x17;
+/// `$D018` with the screen at `$0400` and characters from RAM at `$3800`.
+const RAM_CHARSET: u8 = 0x1f;
+const CHARSET: (u16, u16) = (0x3800, 0x3fff);
+/// The character ROM's mixed-case half, where the CPU sees it with the ROM banked in.
+const ROM_MIXED_CASE: (u16, u16) = (0xd800, 0xdfff);
 const TEXT_COLOUR: (u16, u16) = (0x0286, 0x0286);
 /// The KERNAL's SHIFT+C= lock: bit 7 set stops the keys switching the character set.
 const SHIFT_LOCK: (u16, u16) = (0x0291, 0x0291);
+const LOGO_COL: usize = 4;
+const NAME_ROW: usize = 3;
+const RULE_ROWS: [usize; 2] = [4, 21];
+const TRACK_COL: usize = 21;
+const PANE_COL: usize = 23;
+const VALUE_COL: usize = 29;
 const HELP_ROW: usize = 24;
-const SELECTION_BAR: std::ops::RangeInclusive<usize> = 1..=38;
+const SELECTION_BAR: std::ops::RangeInclusive<usize> = 1..=20;
+/// The menu's own codes: names never produce them (D-041).
+const OWN_CODES: std::ops::Range<usize> = 0x60..0x80;
 
 mod colour {
     pub const BLACK: u8 = 0;
+    pub const WHITE: u8 = 1;
     pub const CYAN: u8 = 3;
+    pub const PURPLE: u8 = 4;
     pub const BLUE: u8 = 6;
     pub const YELLOW: u8 = 7;
+    pub const LIGHT_RED: u8 = 10;
+    pub const DARK_GREY: u8 = 11;
     pub const GREY: u8 = 12;
+    pub const LIGHT_GREEN: u8 = 13;
     pub const LIGHT_BLUE: u8 = 14;
     pub const LIGHT_GREY: u8 = 15;
 }
 
-/// A menu screen with its colours, each colour masked to its low nybble.
+type Glyph = [&'static str; 8];
+
+/// A type badge: a 16×8 pill with the kind's name knocked out, over two characters (D-041).
+type Badge = [Glyph; 2];
+
+const PRG: Badge = [
+    [
+        "........", ".XXXXXXX", "XX...X..", "XX.X.X.X", "XX...X..", "XX.XXX.X", "XX.XXX.X",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", ".X...XXX", ".X.XXXXX", "XX.X.XXX", ".X.X.XXX", ".X...XXX",
+        "XXXXXXX.",
+    ],
+];
+const K8: Badge = [
+    [
+        "........", ".XXXXXXX", "XXXX...X", "XXXX.X.X", "XXXX...X", "XXXX.X.X", "XXXX...X",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", ".X.XXXXX", ".X.XXXXX", "..XXXXXX", ".X.XXXXX", ".X.XXXXX",
+        "XXXXXXX.",
+    ],
+];
+const K16: Badge = [
+    [
+        "........", ".XXXXXXX", "XXX.XX..", "XX..XX.X", "XXX.XX..", "XXX.XX.X", "XX...X..",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", ".X.X.XXX", "XX.X.XXX", ".X..XXXX", ".X.X.XXX", ".X.X.XXX",
+        "XXXXXXX.",
+    ],
+];
+const ULT: Badge = [
+    [
+        "........", ".XXXXXXX", "XX.X.X.X", "XX.X.X.X", "XX.X.X.X", "XX.X.X.X", "XX...X..",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", "XX...XXX", "XXX.XXXX", "XXX.XXXX", "XXX.XXXX", ".XX.XXXX",
+        "XXXXXXX.",
+    ],
+];
+const XB: Badge = [
+    [
+        "........", ".XXXXXXX", "XXXX.X.X", "XXXX.X.X", "XXXXX.XX", "XXXX.X.X", "XXXX.X.X",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", "..XXXXXX", ".X.XXXXX", "..XXXXXX", ".X.XXXXX", "..XXXXXX",
+        "XXXXXXX.",
+    ],
+];
+const RULE: Glyph = [
+    "........", "........", "........", "XXXXXXXX", "........", "........", "........", "........",
+];
+const TRACK: Glyph = ["...X...."; 8];
+const THUMB: Glyph = ["..XXXX.."; 8];
+const BADGES: [Badge; 5] = [PRG, K8, K16, ULT, XB];
+
+/// Every badge half, left and right.
+fn badge_halves() -> Vec<[u8; 8]> {
+    BADGES.iter().flatten().map(|g| bits(g)).collect()
+}
+
+/// Block letters on a 6×6 grid of quarter-cells: three characters wide and three tall.
+fn letter(c: char) -> [&'static str; 6] {
+    match c {
+        'S' => [".XXXXX", "XX....", ".XXXX.", "....XX", "....XX", "XXXXX."],
+        'T' => ["XXXXXX", "..XX..", "..XX..", "..XX..", "..XX..", "..XX.."],
+        'I' => [".XXXX.", "..XX..", "..XX..", "..XX..", "..XX..", ".XXXX."],
+        'D' => ["XXXXX.", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XXXXX."],
+        'C' => [".XXXXX", "XX....", "XX....", "XX....", "XX....", ".XXXXX"],
+        'A' => [".XXXX.", "XX..XX", "XX..XX", "XXXXXX", "XX..XX", "XX..XX"],
+        'R' => ["XXXXX.", "XX..XX", "XX..XX", "XXXXX.", "XX.XX.", "XX..XX"],
+        other => panic!("no block letter for {other}"),
+    }
+}
+
+fn bits(rows: &[&str]) -> [u8; 8] {
+    let mut out = [0u8; 8];
+    for (y, r) in rows.iter().enumerate() {
+        for (x, p) in r.bytes().enumerate() {
+            if p == b'X' {
+                out[y] |= 0x80 >> x;
+            }
+        }
+    }
+    out
+}
+
+fn inverse(g: [u8; 8]) -> [u8; 8] {
+    g.map(|b| !b)
+}
+
+/// The 8×8 bitmap of cell (cx, cy) of a block letter: four quarter-cells of 4×4 pixels.
+fn letter_cell(c: char, cx: usize, cy: usize) -> [u8; 8] {
+    let g = letter(c);
+    let mut out = [0u8; 8];
+    for (y, row) in out.iter_mut().enumerate() {
+        for x in 0..8 {
+            if g[cy * 2 + y / 4].as_bytes()[cx * 2 + x / 4] == b'X' {
+                *row |= 0x80 >> x;
+            }
+        }
+    }
+    out
+}
+
+const LOGO: &str = "STIDCART";
+const LOGO_COLOURS: [u8; 3] = [colour::WHITE, colour::CYAN, colour::LIGHT_BLUE];
+
+/// Every glyph the menu adds, without repeats: icons, rule, track, thumb and the logo's cells.
+fn own_glyphs() -> Vec<[u8; 8]> {
+    let mut all = badge_halves();
+    all.extend([bits(&RULE), bits(&TRACK), bits(&THUMB)]);
+    for c in LOGO.chars() {
+        for cy in 0..3 {
+            for cx in 0..3 {
+                all.push(letter_cell(c, cx, cy));
+            }
+        }
+    }
+    let mut seen = Vec::new();
+    for g in all {
+        if g != [0; 8] && !seen.contains(&g) {
+            seen.push(g);
+        }
+    }
+    seen
+}
+
+/// A menu screen with its colours and character set, each colour masked to its low nybble.
 struct Look {
     screen: Vec<u8>,
     colour: Vec<u8>,
+    chars: Vec<u8>,
     border: u8,
     background: u8,
     charset: u8,
 }
 
 impl Look {
-    fn from_dumps(screen: Vec<u8>, colour: Vec<u8>, vic: Vec<u8>) -> Look {
+    fn from_dumps(screen: Vec<u8>, colour: Vec<u8>, vic: Vec<u8>, chars: Vec<u8>) -> Look {
         Look {
             screen,
             colour: colour.iter().map(|c| c & 0x0f).collect(),
+            chars,
             charset: vic[0] | 1,
             border: vic[8] & 0x0f,
             background: vic[9] & 0x0f,
         }
     }
 
-    /// The colour of every cell of `text` where it first shows in row `n`, or `None` if it doesn't.
-    fn colours_of(&self, n: usize, text: &str) -> Option<&[u8]> {
-        let at = vice::find(row(&self.screen, n), &vice::screen_text(text))?;
+    /// The bitmap the VIC shows at a cell: its code's eight bytes in the RAM set.
+    fn bitmap(&self, cell: usize) -> [u8; 8] {
+        let code = self.screen[cell] as usize;
+        self.chars[code * 8..code * 8 + 8].try_into().unwrap()
+    }
+
+    /// The colour of every cell of `text` where it first shows in row `n` from column `from`, or
+    /// `None` if it doesn't.
+    fn colours_of(&self, n: usize, from: usize, text: &str) -> Option<&[u8]> {
+        let at = vice::find(&row(&self.screen, n)[from..], &vice::screen_text(text))? + from;
         Some(&self.colour[n * COLS + at..n * COLS + at + text.len()])
     }
+
+    /// The ten cells of a pane value, as screen codes without reverse.
+    fn value(&self, n: usize) -> Vec<u8> {
+        self.screen[n * COLS + VALUE_COL..n * COLS + VALUE_COL + 10]
+            .iter()
+            .map(|b| b & 0x7f)
+            .collect()
+    }
+}
+
+/// `text` padded with spaces to the pane's ten value cells.
+fn value_cells(text: &str) -> Vec<u8> {
+    let mut v = vice::screen_text(text);
+    v.resize(10, 0x20);
+    v
 }
 
 /// Boot, then for each group press its keys and read the look once the menu is idle again. An
@@ -828,36 +1009,21 @@ fn looks_after(dir: &Path, cart: &Path, groups: &[Vec<u8>]) -> Vec<Look> {
         steps.push(screen());
         steps.push(Step::Dump(COLOUR_RAM.0, COLOUR_RAM.1));
         steps.push(Step::Dump(VIC.0, VIC.1));
+        steps.push(Step::Dump(CHARSET.0, CHARSET.1));
     }
     let mut dumps = boot_or_panic(dir, cart, &steps).into_iter();
     groups
         .iter()
         .map(|_| {
-            let (s, c, v) = (dumps.next(), dumps.next(), dumps.next());
-            Look::from_dumps(s.unwrap(), c.unwrap(), v.unwrap())
+            let mut next = || dumps.next().unwrap();
+            let (s, c, v, ch) = (next(), next(), next(), next());
+            Look::from_dumps(s, c, v, ch)
         })
         .collect()
 }
 
-/// A whole row in reverse video and one colour.
-fn check_bar(l: &Look, n: usize, want: u8, what: &str) -> Result<(), String> {
-    let cells = n * COLS..(n + 1) * COLS;
-    if !vice::is_reversed(&l.screen, cells.start, COLS) {
-        return Err(format!(
-            "{what}: row {n} is not reversed across all 40 columns"
-        ));
-    }
-    if let Some(i) = cells.clone().find(|&i| l.colour[i] != want) {
-        return Err(format!(
-            "{what}: row {n} column {} is colour {}, not {want}",
-            i - cells.start,
-            l.colour[i]
-        ));
-    }
-    Ok(())
-}
-
-/// What every menu screen has: a black screen, the title bar, the status row and the help bar.
+/// What every menu screen has: black, the RAM set, the logo, the cart name, both rules and the help
+/// bar.
 fn check_frame(l: &Look, title: &str) -> Result<(), String> {
     if (l.border, l.background) != (colour::BLACK, colour::BLACK) {
         return Err(format!(
@@ -865,30 +1031,42 @@ fn check_frame(l: &Look, title: &str) -> Result<(), String> {
             l.border, l.background
         ));
     }
-    if l.charset != MIXED_CASE {
-        return Err(format!(
-            "$D018 is {:02x}, not the mixed-case set",
-            l.charset
-        ));
+    if l.charset != RAM_CHARSET {
+        return Err(format!("$D018 is {:02x}, not the RAM set", l.charset));
     }
-    check_bar(l, 0, colour::CYAN, "title bar")?;
-    for text in ["stidcart", title] {
-        if !row_shows(&l.screen, 0, text) {
-            return Err(format!("the title bar does not show '{text}'"));
+    for (i, c) in LOGO.chars().enumerate() {
+        for (cy, &row_colour) in LOGO_COLOURS.iter().enumerate() {
+            for cx in 0..3 {
+                let cell = cy * COLS + LOGO_COL + i * 4 + cx;
+                let want = letter_cell(c, cx, cy);
+                if l.bitmap(cell) != want {
+                    return Err(format!(
+                        "logo letter {c}, cell {cx},{cy} shows the wrong pixels"
+                    ));
+                }
+                if want != [0; 8] && l.colour[cell] != row_colour {
+                    return Err(format!("logo row {cy} is colour {}", l.colour[cell]));
+                }
+            }
         }
     }
-    let status = row(&l.screen, STATUS_ROW);
-    let used: Vec<usize> = (0..COLS).filter(|&i| status[i] & 0x7f != 0x20).collect();
-    if used.is_empty() {
-        return Err("row 23 shows no status".into());
+    if !row_shows(&l.screen, NAME_ROW, title) {
+        return Err(format!("row 3 does not show the cart name '{title}'"));
     }
-    if let Some(&i) = used
-        .iter()
-        .find(|&&i| l.colour[STATUS_ROW * COLS + i] != colour::GREY)
-    {
-        return Err(format!("status column {i} is not grey"));
+    for n in RULE_ROWS {
+        for c in 0..COLS {
+            let cell = n * COLS + c;
+            if l.bitmap(cell) != bits(&RULE) || l.colour[cell] != colour::DARK_GREY {
+                return Err(format!("row {n} column {c} is not the dark grey rule"));
+            }
+        }
     }
-    check_bar(l, HELP_ROW, colour::GREY, "help bar")?;
+    if !vice::is_reversed(&l.screen, HELP_ROW * COLS, COLS) {
+        return Err("the help bar is not reversed across all 40 columns".into());
+    }
+    if let Some(c) = (0..COLS).find(|&c| l.colour[HELP_ROW * COLS + c] != colour::GREY) {
+        return Err(format!("help bar column {c} is not grey"));
+    }
     for text in ["return", "f1", "run/stop"] {
         if !row_shows(&l.screen, HELP_ROW, text) {
             return Err(format!("the help bar does not name '{text}'"));
@@ -897,91 +1075,147 @@ fn check_frame(l: &Look, title: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// `selected` sits in a cyan reverse bar over columns 1-38, and each of `others` is light grey
-/// and not reversed.
-fn check_list(l: &Look, selected: &str, others: &[&str]) -> Result<(), String> {
-    let at = listed(&l.screen, selected).ok_or(format!("'{selected}' is not listed"))?;
-    let n = at / COLS;
-    for c in SELECTION_BAR {
-        let i = n * COLS + c;
-        if l.screen[i] & 0x80 == 0 || l.colour[i] != colour::CYAN {
+/// Column 21 of the list rows: the thumb over `at..at + len`, the track elsewhere.
+fn check_track(l: &Look, len: usize, at: usize) -> Result<(), String> {
+    for (k, n) in LIST_ROWS.enumerate() {
+        let cell = n * COLS + TRACK_COL;
+        let thumb = (at..at + len).contains(&k);
+        let (want, c) = if thumb {
+            (bits(&THUMB), colour::LIGHT_GREY)
+        } else {
+            (bits(&TRACK), colour::DARK_GREY)
+        };
+        if l.bitmap(cell) != want || l.colour[cell] != c {
             return Err(format!(
-                "'{selected}': column {c} of its row is not in the cyan selection bar"
+                "track row {k}: want the {}",
+                if thumb { "thumb" } else { "track" }
             ));
-        }
-    }
-    for name in others {
-        let at = listed(&l.screen, name).ok_or(format!("'{name}' is not listed"))?;
-        let cells = at..at + name.len();
-        if vice::is_reversed(&l.screen, at, 1) {
-            return Err(format!("'{name}' is reversed but not selected"));
-        }
-        if l.colour[cells].iter().any(|&c| c != colour::LIGHT_GREY) {
-            return Err(format!("'{name}' is not light grey"));
         }
     }
     Ok(())
 }
 
-/// The negative control for the checks above: a screen in the C64's own colours, with the right
-/// text in the right rows, fails every one of them.
+/// The thumb for `n` listed with `top` first on screen: its length and its row on the track.
+fn thumb(n: usize, top: usize) -> (usize, usize) {
+    let rows = LIST_ROWS.len();
+    if n <= rows {
+        return (0, 0);
+    }
+    let len = ((2 * rows * rows + n) / (2 * n)).max(1);
+    let span = n - rows;
+    (len, (2 * (rows - len) * top + span) / (2 * span))
+}
+
+/// The negative control for the frame check: a screen in the ROM set and the C64's own colours,
+/// with the right text in the right rows, fails it.
 #[test]
-fn the_look_checks_reject_the_default_screen() {
+fn the_frame_check_rejects_a_plain_screen() {
     let mut screen = vec![0x20u8; 1000];
-    let mut put = |n: usize, col: usize, text: &str, reverse: bool| {
-        for (i, b) in vice::screen_text(text).iter().enumerate() {
-            screen[n * COLS + col + i] = if reverse { b | 0x80 } else { *b };
-        }
-    };
-    put(0, 1, "stidcart", false);
-    put(0, 20, "plain", false);
-    put(2, 2, "alpha", true);
-    put(3, 2, "bravo", false);
-    put(STATUS_ROW, 0, "2 of 2   cart order", false);
-    put(HELP_ROW, 1, "return start  f1 sort  run/stop basic", false);
+    for (i, b) in vice::screen_text("stidcart").iter().enumerate() {
+        screen[LOGO_COL + i] = *b;
+    }
+    for (i, b) in vice::screen_text("plain").iter().enumerate() {
+        screen[NAME_ROW * COLS + 17 + i] = *b;
+    }
+    for (i, b) in vice::screen_text(" return start  f1 sort  run/stop basic")
+        .iter()
+        .enumerate()
+    {
+        screen[HELP_ROW * COLS + i] = *b;
+    }
     let plain = Look {
         screen,
         colour: vec![colour::LIGHT_BLUE; 1000],
+        chars: vec![0; 2048],
         border: colour::LIGHT_BLUE,
         background: colour::BLUE,
-        charset: UPPER_CASE,
+        charset: 0x17,
     };
     assert!(check_frame(&plain, "plain").is_err());
-    assert!(check_list(&plain, "alpha", &["bravo"]).is_err());
-
-    // Each check fails on its own, not only on the border: black border alone is not enough.
     let black = Look {
         border: colour::BLACK,
         background: colour::BLACK,
+        charset: RAM_CHARSET,
         ..plain
     };
     assert!(check_frame(&black, "plain").is_err());
-    assert!(check_list(&black, "alpha", &["bravo"]).is_err());
+    assert!(check_track(&black, 0, 0).is_err());
 }
 
-// AC-102: a black screen, a cyan title bar, light grey entries in a cyan selection bar, a grey
-// status row and a grey help bar, with the bars there on an empty cart too
 #[test]
-fn ac_102_the_menu_has_its_colours_and_bars() {
+fn the_thumb_follows_the_rounding_the_spec_gives() {
+    assert_eq!(thumb(16, 0), (0, 0));
+    assert_eq!(thumb(40, 0), (6, 0)); // 256/40 = 6.4
+    assert_eq!(thumb(40, 24), (6, 10));
+    assert_eq!(thumb(40, 5), (6, 2)); // 10*5/24 = 2.08
+    assert_eq!(thumb(255, 0), (1, 0)); // 256/255 rounds to 1
+}
+
+// AC-105: the menu draws from a RAM copy of the ROM's mixed-case set carrying its own glyphs
+#[test]
+fn ac_105_the_menu_draws_from_a_ram_charset_with_its_own_glyphs() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-102: skipping — x64sc is not installed");
+        eprintln!("AC-105: skipping — x64sc is not installed");
         return;
     }
-    let dir = scratch("ac102");
-    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
-    let inputs = ["alpha", "bravo", "charlie"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
-    let cart = build(&dir, "look test", &[], &inputs);
+    let dir = scratch("ac105");
+    let cart = build(&dir, "charset", &[], &[fixtures().join("hello.prg")]);
+    let dumps = boot_or_panic(
+        &dir,
+        &cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Dump(VIC.0, VIC.1),
+            Step::Dump(CHARSET.0, CHARSET.1),
+            Step::Raw("bank rom".into()),
+            Step::Dump(ROM_MIXED_CASE.0, ROM_MIXED_CASE.1),
+            Step::Raw("bank cpu".into()),
+        ],
+    );
+    let (vic, ram, rom) = (&dumps[0], &dumps[1], &dumps[2]);
+    assert_eq!(vic[0] | 1, RAM_CHARSET, "$D018 does not point at $3800");
+    let glyph = |code: usize| -> [u8; 8] { ram[code * 8..code * 8 + 8].try_into().unwrap() };
 
-    let looks = looks_after(&dir, &cart, &[vec![], vec![key::DOWN]]);
-    for (l, selected, others, what) in [
-        (&looks[0], "alpha", ["bravo", "charlie"], "boot"),
-        (&looks[1], "bravo", ["alpha", "charlie"], "CRSR down"),
-    ] {
-        check_frame(l, "look test").unwrap_or_else(|e| panic!("{what}: {e}"));
-        check_list(l, selected, &others).unwrap_or_else(|e| panic!("{what}: {e}"));
+    for code in 0..256 {
+        if !OWN_CODES.contains(&(code & 0x7f)) {
+            assert_eq!(
+                glyph(code),
+                rom[code * 8..code * 8 + 8],
+                "code ${code:02x} differs from the ROM's mixed-case set"
+            );
+        }
     }
+    for g in own_glyphs() {
+        let code = OWN_CODES
+            .clone()
+            .find(|&c| glyph(c) == g)
+            .unwrap_or_else(|| panic!("no code in $60-$7F holds {g:02x?}"));
+        if badge_halves().contains(&g) {
+            assert_eq!(
+                glyph(code + 0x80),
+                inverse(g),
+                "icon ${code:02x}: code+$80 is not its inverse"
+            );
+        }
+    }
+}
 
-    let empty_dir = scratch("ac102-empty");
+// AC-106: the logo, the cart name, the rules and the help bar, on a black screen, empty cart too
+#[test]
+fn ac_106_the_frame_has_the_logo_rules_and_help_bar() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-106: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac106");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "bravo"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "frame test", &[], &inputs);
+    let l = looks_after(&dir, &cart, &[vec![]]).remove(0);
+    check_frame(&l, "frame test").unwrap_or_else(|e| panic!("{e}"));
+
+    let empty_dir = scratch("ac106-empty");
     let only = fixtures().join("hello.prg");
     let empty = build(
         &empty_dir,
@@ -990,43 +1224,305 @@ fn ac_102_the_menu_has_its_colours_and_bars() {
         std::slice::from_ref(&only),
     );
     let l = looks_after(&empty_dir, &empty, &[vec![]]).remove(0);
-    assert!(shows(&l.screen, "no entries"), "empty cart: no message");
+    assert!(
+        listed(&l.screen, "no entries").is_some(),
+        "empty cart: no message"
+    );
     check_frame(&l, "empty").unwrap_or_else(|e| panic!("empty cart: {e}"));
 }
 
-// AC-103: typed text is yellow after a grey label, and row 1 is empty without text
+// AC-107: each entry has its kind's badge in its kind's colour, and the selection reverses it
 #[test]
-fn ac_103_the_filter_text_is_yellow_after_a_grey_label() {
+fn ac_107_entries_carry_their_kind_icon() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-103: skipping — x64sc is not installed");
+        eprintln!("AC-107: skipping — x64sc is not installed");
         return;
     }
-    let dir = scratch("ac103");
-    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
-    let inputs = ["alpha", "bravo"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
-    let cart = build(&dir, "filter look", &[], &inputs);
+    let dir = scratch("ac107");
+    let mut inputs = vec![write(
+        &dir,
+        "prog.prg",
+        &std::fs::read(fixtures().join("hello.prg")).unwrap(),
+    )];
+    let kinds = [
+        ("eight", CartKind::K8, K8, colour::YELLOW),
+        ("sixteen", CartKind::K16, K16, colour::LIGHT_RED),
+        ("ultimax", CartKind::Ultimax8, ULT, colour::PURPLE),
+        ("ultisixteen", CartKind::Ultimax16, ULT, colour::PURPLE),
+        ("xbank", CartKind::Xbank8, XB, colour::LIGHT_BLUE),
+        ("xbsixteen", CartKind::Xbank16, XB, colour::LIGHT_BLUE),
+        ("xbulti", CartKind::XbankUltimax, XB, colour::LIGHT_BLUE),
+    ];
+    for (name, kind, _, _) in &kinds {
+        let m = markers::cart(*kind, "ICON");
+        inputs.push(write(&dir, &format!("{name}.crt"), &m.bytes));
+    }
+    let cart = build(&dir, "icons", &[], &inputs);
+    let mut all = vec![("prog", PRG, colour::LIGHT_GREEN)];
+    all.extend(kinds.iter().map(|(n, _, g, c)| (*n, *g, *c)));
 
-    let looks = looks_after(&dir, &cart, &[vec![], typed("al")]);
+    let looks = looks_after(&dir, &cart, &[vec![], vec![key::DOWN]]);
+    for (l, selected, what) in [(&looks[0], 0, "boot"), (&looks[1], 1, "CRSR down")] {
+        for (i, (name, glyph, c)) in all.iter().enumerate() {
+            let at =
+                listed(&l.screen, name).unwrap_or_else(|| panic!("{what}: '{name}' is not listed"));
+            let (n, col) = (at / COLS, at % COLS);
+            assert_eq!(col, 4, "{what}: '{name}' does not start in column 4");
+            let cells = [n * COLS + 1, n * COLS + 2];
+            if i == selected {
+                for (cell, half) in cells.iter().zip(glyph) {
+                    assert_eq!(
+                        l.bitmap(*cell),
+                        inverse(bits(half)),
+                        "{what}: '{name}' is selected but its badge is not reversed"
+                    );
+                }
+                for c in SELECTION_BAR {
+                    let cell = n * COLS + c;
+                    assert!(
+                        l.screen[cell] & 0x80 != 0 && l.colour[cell] == colour::CYAN,
+                        "{what}: '{name}': column {c} is not in the cyan bar"
+                    );
+                }
+            } else {
+                for (cell, half) in cells.iter().zip(glyph) {
+                    assert_eq!(
+                        l.bitmap(*cell),
+                        bits(half),
+                        "{what}: '{name}' has the wrong badge"
+                    );
+                    assert_eq!(l.colour[*cell], *c, "{what}: '{name}' badge colour");
+                }
+                let name_colours = &l.colour[at..at + name.len()];
+                assert!(
+                    name_colours.iter().all(|&x| x == colour::LIGHT_GREY),
+                    "{what}: '{name}' is not light grey"
+                );
+            }
+        }
+    }
+}
+
+// AC-108: the pane shows the selection's name, type, size, load address or bank, and how it starts
+#[test]
+fn ac_108_the_pane_describes_the_selection() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-108: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac108");
+    let low = markers::basic_prg("LOW");
+    let high = markers::high_prg("HIGH");
+    let eight = markers::cart(CartKind::K8, "EIGHT");
+    let inputs = [
+        write(&dir, "low.prg", &low.bytes),
+        write(&dir, "high.prg", &high.bytes),
+        write(&dir, "eight.crt", &eight.bytes),
+    ];
+    let cart = build(&dir, "pane", &[], &inputs);
+    let listing = Command::new(env!("CARGO_BIN_EXE_stidcart"))
+        .arg("list")
+        .arg(&cart)
+        .output()
+        .unwrap();
+    let listing = String::from_utf8(listing.stdout).unwrap();
+    let bank = listing
+        .lines()
+        .find(|l| l.split_whitespace().nth(1) == Some("eight"))
+        .and_then(|l| l.split_whitespace().find(|w| w.starts_with('$')))
+        .map(|w| u32::from_str_radix(&w[1..], 16).unwrap())
+        .expect("list shows no bank for eight");
+
+    let looks = looks_after(&dir, &cart, &[vec![], vec![key::DOWN], vec![key::DOWN]]);
+    let bank = bank.to_string();
+    for (l, name, facts) in [
+        (
+            &looks[0],
+            "low",
+            [
+                ("type", "program"),
+                ("size", "1K"),
+                ("load", "$07F0"),
+                ("start", "RUN"),
+            ],
+        ),
+        (
+            &looks[1],
+            "high",
+            [
+                ("type", "program"),
+                ("size", "1K"),
+                ("load", "$C000"),
+                ("start", "SYS 49152"),
+            ],
+        ),
+        (
+            &looks[2],
+            "eight",
+            [
+                ("type", "8K cart"),
+                ("size", "8K"),
+                ("bank", bank.as_str()),
+                ("start", "reset"),
+            ],
+        ),
+    ] {
+        let at = l
+            .colours_of(6, PANE_COL, name)
+            .unwrap_or_else(|| panic!("the pane does not name '{name}'"));
+        assert!(
+            at.iter().all(|&c| c == colour::WHITE),
+            "'{name}': the name is not white"
+        );
+        for (i, (key, value)) in facts.iter().enumerate() {
+            let n = 8 + 2 * i;
+            let label = l
+                .colours_of(n, PANE_COL, key)
+                .unwrap_or_else(|| panic!("'{name}': row {n} has no '{key}'"));
+            assert!(
+                label.iter().all(|&c| c == colour::GREY),
+                "'{name}': '{key}' is not grey"
+            );
+            assert_eq!(
+                l.value(n),
+                value_cells(value),
+                "'{name}': {key} is not exactly '{value}'"
+            );
+        }
+    }
+}
+
+// AC-109: a thumb on the track in column 21 shows the share of the list in view and where it is
+#[test]
+fn ac_109_the_scroll_bar_shows_where_the_view_is() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-109: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac109");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs: Vec<PathBuf> = (1..=40)
+        .map(|i| write(&dir, &format!("e{i:02}.prg"), &hello))
+        .collect();
+    let cart = build(&dir, "forty", &[], &inputs);
+
+    let looks = looks_after(
+        &dir,
+        &cart,
+        &[
+            vec![],
+            vec![key::DOWN; 20],
+            vec![key::DOWN; 19],
+            typed("e1"),
+        ],
+    );
+    for (l, (len, at), what) in [
+        (&looks[0], thumb(40, 0), "boot"),
+        (&looks[1], thumb(40, 5), "20 down"),
+        (&looks[2], thumb(40, 24), "at the end"),
+        (&looks[3], thumb(11, 0), "filtered to 11"),
+    ] {
+        check_track(l, len, at).unwrap_or_else(|e| panic!("{what}: {e}"));
+    }
+
+    let few_dir = scratch("ac109-few");
+    let few: Vec<PathBuf> = ["a", "b", "c"]
+        .iter()
+        .map(|n| write(&few_dir, &format!("{n}.prg"), &hello))
+        .collect();
+    let few_cart = build(&few_dir, "few", &[], &few);
+    let l = looks_after(&few_dir, &few_cart, &[vec![]]).remove(0);
+    check_track(&l, 0, 0).unwrap_or_else(|e| panic!("three entries: {e}"));
+}
+
+// AC-110: row 22 shows the position and order; row 23 the typed text and its match count
+#[test]
+fn ac_110_the_status_shows_the_position_and_the_filter_its_matches() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-110: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac110");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "alpine", "beta"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "status", &[], &inputs);
+
+    let looks = looks_after(&dir, &cart, &[vec![], vec![key::DOWN], typed("al")]);
+    let grey = |l: &Look, n: usize, text: &str| {
+        l.colours_of(n, 0, text)
+            .unwrap_or_else(|| panic!("row {n} does not show '{text}'"))
+            .iter()
+            .all(|&c| c == colour::GREY)
+    };
+    assert!(
+        grey(&looks[0], STATUS_ROW, "1 of 3   cart order"),
+        "boot: status"
+    );
     assert!(
         row(&looks[0].screen, QUERY_ROW)
             .iter()
             .all(|b| b & 0x7f == 0x20),
-        "row 1 shows something with no text typed"
+        "boot: row 23 shows something with no text typed"
     );
-    let text = looks[1]
-        .colours_of(QUERY_ROW, "al")
-        .expect("the typed text is not on row 1");
+    assert!(grey(&looks[1], STATUS_ROW, "2 of 3"), "CRSR down: position");
+
+    let l = &looks[2];
+    assert!(
+        grey(l, STATUS_ROW, "1 of 2"),
+        "al: position among the matches"
+    );
+    assert!(grey(l, QUERY_ROW, "find:"), "al: the label is not grey");
+    let text = l
+        .colours_of(QUERY_ROW, 6, "al")
+        .expect("al: the text is not shown");
     assert!(
         text.iter().all(|&c| c == colour::YELLOW),
-        "the typed text is not yellow: {text:?}"
+        "al: the text is not yellow"
     );
-    let label = looks[1]
-        .colours_of(QUERY_ROW, "find:")
-        .expect("no label before the typed text");
+    assert!(grey(l, QUERY_ROW, "2 of 3 match"), "al: the match count");
+}
+
+// AC-111: a cursor move that doesn't scroll leaves the other list rows alone
+#[test]
+fn ac_111_a_cursor_move_rewrites_only_the_rows_it_changes() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-111: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac111");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs =
+        ["alpha", "bravo", "charlie", "delta"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "sentinel", &[], &inputs);
+
+    // A star in column 15 of charlie's and delta's rows (7 and 8), past their names.
+    let cells = [7 * COLS + 15, 8 * COLS + 15];
+    let pokes: String = cells
+        .iter()
+        .map(|c| format!("> ${:04x} 2a\n", 0x0400 + c))
+        .collect();
+    let steps = vec![
+        Step::Labels(vice::menu_labels()),
+        idle(),
+        Step::Raw(pokes),
+        Step::Keys(vec![key::DOWN]),
+        idle(),
+        screen(),
+    ];
+    let shown = boot_or_panic(&dir, &cart, &steps).remove(0);
+    let bravo = listed(&shown, "bravo").expect("bravo is not listed");
     assert!(
-        label.iter().all(|&c| c == colour::GREY),
-        "the label is not grey: {label:?}"
+        vice::is_reversed(&shown, bravo, 5),
+        "the DOWN did not select bravo"
     );
+    for c in cells {
+        assert_eq!(
+            shown[c],
+            0x2a,
+            "row {} was rewritten by a move that touched rows 5 and 6",
+            c / COLS
+        );
+    }
 }
 
 // AC-104: a program started from the menu, and BASIC after RUN/STOP, find the C64's own colours

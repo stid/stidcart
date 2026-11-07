@@ -8,7 +8,39 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-041 -->
+<!-- Next id: D-042 -->
+
+---
+
+## D-041 · 2026-11-07 · The menu is layout C: block logo, type badges, a details pane and a scroll bar, from a RAM character set
+- **Context:** menu-details. After D-040 the user asked for type icons drawn as pixel graphics, a
+  scroll bar for long lists, and an end to the flicker. Three layouts were mocked up pixel for
+  pixel (artifact "Stidcart Menu Layouts"). The user chose C, the logo-and-details layout, with
+  the scroll bar it gained in review. The first build used the page's default pictogram icons; the
+  user then asked for the badges, which replaced them before merge.
+- **Decision:**
+  - The ROM's mixed-case set is copied to RAM at `$3800` (`$D018=$1E`) at boot. The menu's own
+    glyphs (a two-character badge per kind, "PRG", "8K", "16K", "ULT" and "XB", then the rule,
+    track, thumb and 16 quarter-block cells for the logo) replace screen codes `$60-$7F`, each badge
+    half with its inverse at code+`$80`. The bitmaps are the mockup's,
+    byte for byte. This supersedes D-040's "ROM font only": the text is still the ROM's.
+  - PETSCII `$A0-$BF` in a name now shows as `?`, since its screen codes are the menu's glyphs.
+    stidcart never writes those bytes into a name.
+  - The screen: logo on rows 0-2, cart name on row 3, rules on rows 4 and 21, and 16 list rows
+    (5-20, columns 1-20), each with its badge in columns 1-2. The scroll track runs down column 21, and the
+    details pane for the selection (type, size, load address or bank, how it starts) sits in
+    columns 23-38. Row 22 holds the position and order, row 23 the filter text with its match
+    count, and row 24 the help bar.
+  - The status counts the position ("17 of 40") instead of matches. The match count moves next to
+    the filter text so it isn't lost (D-039 had both on one line).
+  - Flicker: every cell is written once, never cleared first. A cursor move that doesn't scroll
+    redraws only the two rows it changes, the pane, the status and the scroll bar. Drawing starts
+    below the visible screen.
+- **Alternatives rejected:** layouts A and B, and the pictograms (user's choice). Sprites for
+  icons, which can't cover 16 rows without multiplexing. The ROM's own PETSCII graphics for icons,
+  which can't draw a disk or a cartridge. Dropping the match count, which nobody asked for.
+- **Scope:** `menu/src/menu.s`, `menu/README.md`, boot tests
+- **Status:** active · supersedes D-040 in part (font, layout) · refines D-039 (status line)
 
 ---
 
@@ -41,7 +73,7 @@
   amber palettes. Rewriting the status line to match the preview, which moves four tests and SPEC
   for no gain.
 - **Scope:** `menu/src/menu.s`, `menu/README.md`, boot tests
-- **Status:** active · refines D-037
+- **Status:** superseded in part by D-041 (font and layout) · refines D-037
 
 ---
 

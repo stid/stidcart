@@ -26,3 +26,5 @@
 2026-11-07 · menu-search-sort · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · red-green iters: 4 · interventions: 0
 2026-11-07 · menu-look · 2 signals · Standard · hard:no · risk:no
 2026-11-07 · menu-look · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
+2026-11-07 · menu-details · 3 signals · Standard · hard:no · risk:no
+2026-11-07 · menu-details · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 1
