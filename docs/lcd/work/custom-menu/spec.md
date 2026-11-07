@@ -6,7 +6,7 @@
 **Slug:** `custom-menu`
 **Created:** 2026-11-07
 **Related issue:** none (D-005, D-037)
-**Status:** draft <!-- draft | approved | implemented | abandoned -->
+**Status:** approved <!-- draft | approved | implemented | abandoned -->
 
 ---
 
@@ -93,9 +93,18 @@ the space the menu loader has. A check fails when the two differ or the menu out
 **AC-94** (surfaces: none): In the checks required on every change under review, the emulator
 boot checks run rather than skip. An emulator missing there is a failure.
 
+**AC-95** (surfaces: CLI): Given a program that, once loaded, would occupy any address from `$D000`
+to `$DFFF`, when a request would leave it on a cart carrying our menu (`build` with our menu,
+`edit` asking for our menu, or `edit` adding or replacing such a program on a cart carrying it),
+then the request is refused with an error naming that entry, and nothing is written.
+*(Added 2026-11-07 during planning, after approval; the user was told. The menu starts programs
+from that area of memory, so it can't load one over it.)*
+
 ## Out of scope
 
 - Ocean-mode carts with our menu. They are refused (AC-84) until a later item.
+- Starting programs that load into `$D000`–`$DFFF` from our menu. They are refused at build time
+  (AC-95) until a later item needs them.
 - Choosing the menu in the window. The window recognises it, shows it and keeps it (AC-85, AC-86).
   Switching stays a command-line action.
 - A designed look: custom font, colours, sprites or animation. A readable text listing is enough

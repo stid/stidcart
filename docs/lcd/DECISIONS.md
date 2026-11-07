@@ -8,7 +8,34 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-038 -->
+<!-- Next id: D-039 -->
+
+---
+
+## D-038 · 2026-11-07 · The menu is a builder property detected from the loader slot; boots are proven in VICE built in CI
+- **Context:** custom-menu plan. Recon found three things: VICE can inject keys only into the KERNAL
+  buffer, apt's VICE and 64tass versions follow the runner image, and `ubuntu-latest` moves to 26.04
+  this month. EasyLoader's PRG start copies only after a BASIC cold start, through a CHRIN trap
+  (`easyloader.asm:2091-2260`).
+- **Decision:**
+  - `CartBuilder` carries a `Menu` (EasyLoader default, or Stidcart). `verify_regions` reports which
+    menu the loader slot holds, keeping EAPI/boot/magic strict. `inspect` reports it as an
+    `Option` and never refuses on it (D-011). `load` sets it, so edits preserve it.
+  - Our menu refuses two things at build time: an Ocean entry, and a program whose loaded extent
+    touches `$D000-$DFFF` (the copier lives at `$DF00`). Spec AC-95 was added for the second.
+  - The menu reads keys only through GETIN and starts programs in EasyLoader's order (partial reset
+    with the cart off, BASIC cold start, CHRIN trap, copy). The code is ours, and the technique is
+    cited.
+  - CI's `gate` job pins `ubuntu-24.04` and builds VICE 3.10 (`--enable-headlessui`) and 64tass
+    1.60.3243 from source, cached by tool, version and image. `STIDCART_REQUIRE_TOOLS=1` turns the
+    harness's skip into a failure. The first task proves the existing AC-4 boot on Linux before any
+    menu code (user chose the source build over apt or a macOS job).
+- **Alternatives rejected:** a CIA-matrix key scan (no test could drive it). Copying before BASIC
+  init (RAMTAS clears pages 0/2/3). A menu-side workaround for `$D000` programs (it needs a second
+  copier in low RAM). apt's vice, which drifts and lacks 3.10's breakpoint fix. A macOS CI job
+  (10x minutes, no version pin). A separate CI job, which would need a branch-protection change.
+- **Scope:** `menu/`, `crates/stidcart-core` (`menu.rs`, `reserved.rs`, `read.rs`, `listing.rs`), CLI `--menu`, GUI DTO, `ci.yml`
+- **Status:** active
 
 ---
 

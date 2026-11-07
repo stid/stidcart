@@ -10,29 +10,37 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Our own C64 menu, first slice: it lists a cart's entries and boots them, is chosen opt-in at build/edit, and load/edit/GUI recognise it (D-037)
-- **Next action:** user approves spec.md, then run /lcd:plan custom-menu (fold the recon digest from LOG into the plan)
+- **Next action:** run /lcd:tasks custom-menu (task 1 must be the CI spike: AC-4 green on ubuntu-24.04 with VICE 3.10 headless)
 - **Branch:** feat/custom-menu  ·  **Updated:** 2026-11-07
 
 ## STEPS
 - [x] S1 — triage (Deep), D-037, spec.md
-- [ ] S2 — /lcd:plan custom-menu  ← next
-- [ ] S3 — /lcd:tasks, /lcd:test-gen, red-green, audit
+- [x] S2 — plan.md, D-038, spec amended with AC-95
+- [ ] S3 — /lcd:tasks custom-menu  ← next
+- [ ] S4 — /lcd:test-gen, red-green (CI spike first), audit
 
 ## DECISIONS (this work-item)
 - Scope forks (Ocean refused, GUI recognise-only, VICE in CI, no hardware gate) → D-037
+- Menu as builder property, GETIN input, EasyLoader-order PRG start, $D000 refusal, CI tool build → D-038
 
 ## OPEN QUESTIONS
-- none blocking; key bindings and the boot-check key injection are left for plan.md
+- none blocking; headless VICE's build deps and `script` behaviour come from the CI spike
 
 ## EDIT BOUNDARY (paths this work may touch)
-- `menu/` (new), `crates/stidcart-core/`, `crates/stidcart-cli/`, `gui/`, `.github/workflows/ci.yml`, `docs/`, `README.md`
+- `menu/` (README.md, build.sh, src/menu.s, src/launch.s, menu.bin, menu.lbl)
+- `crates/stidcart-core/src/{menu,lib,reserved,read,listing}.rs`, `crates/stidcart-core/tests/{menu,listing}.rs`
+- `crates/stidcart-cli/src/lib.rs`, `crates/stidcart-cli/tests/{menu_cli,menu_boot,boot,list,list_golden}.rs`, `crates/stidcart-cli/tests/support/`, `crates/stidcart-cli/tests/golden/`
+- `gui/src-tauri/src/lib.rs`, `gui/src-tauri/tests/{menu,contract}.rs`, `gui/src/lib/{types.ts,Listing.svelte,Listing.test.ts}`, `gui/src/lib/fixtures/`
+- `Cargo.toml`, `Cargo.lock`, `gui/src-tauri/Cargo.toml`, `gui/src-tauri/Cargo.lock`
+- `.github/workflows/ci.yml`, `docs/lcd/ci/install-menu-tools.sh`
+- `docs/format/easyflash-cart-format.md`, `docs/lcd/{MAP,DECISIONS}.md`, `docs/lcd/work/custom-menu/`, `.claude/rules/lcd-conventions.md`, `README.md`
 <!-- /lcd-resume -->
 
 ---
 
 ## Acceptance criteria
 
-AC-81..AC-94 live in `spec.md`.
+AC-81..AC-95 live in `spec.md`.
 
 ## LOG (append-only; not read on resume)
 
@@ -61,10 +69,15 @@ AC-81..AC-94 live in `spec.md`.
     Tests can `ll` the labels and `break .label` instead of boot.rs's ignore-count.
   - `boot.rs` (AC-4) matches EasyLoader's screen codes. It stays valid because EasyLoader stays the
     default, but the new boot tests need their own matcher.
+- 2026-11-07 — Spec approved by the user. Plan written → D-038. Reading EasyLoader's actual PRG
+  start (`easyloader.asm:2091-2260`) corrected the recon summary's order: the program is copied
+  only *after* a BASIC cold start, through a CHRIN trap, not before the KERNAL init. Spec amended
+  with AC-95 (programs touching `$D000-$DFFF` refused with our menu), called out to the user. CI:
+  the user chose to build VICE 3.10 headless from source, cached, over apt or a macOS job.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ⬜  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
