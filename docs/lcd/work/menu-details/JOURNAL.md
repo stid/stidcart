@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Layout C for our C64 menu: block logo, type pictograms, details pane, scroll bar, from a RAM character set, without flicker (D-041)
-- **Next action:** S7, VICE live run for the user, audit, reconcile, PR
+- **Next action:** done; the PR awaits CI and the user's live check and merge (after #38)
 - **Branch:** feat/menu-details (stacked on feat/menu-look, PR #38) · **Updated:** 2026-11-07
 
 ## STEPS
@@ -23,7 +23,7 @@
 - [x] S4 — the new screen: logo, rules, list with icons in columns 1-20, help bar, write-once rows (AC-106, AC-107). The test row constants move and `listed()` reads columns 0-20 only; AC-102/103 retire
 - [x] S5 — details pane (AC-108), scroll bar (AC-109), status and filter rows (AC-110)
 - [x] S6 — partial redraw on a cursor move, raster wait (AC-111)
-- [ ] S7 — README, VICE screenshots and a live run for the user, full gate, audit, reconcile, PR based on `feat/menu-look`
+- [x] S7 — README, VICE screenshots and a live run for the user, full gate, audit, reconcile, PR based on `feat/menu-look`
 
 ## DECISIONS (this work-item)
 
@@ -115,3 +115,6 @@ AC-102 and AC-103 (menu-look) are superseded by AC-105..AC-110. AC-104 stands.
 - 2026-11-07 — VICE screenshots (boot, scrolled 20 rows, "ra" with A-Z) match the approved mockup.
   The partial redraw is proven by AC-111. Write-once and the raster wait aren't visible in dumps,
   so the live run is the check for flicker.
+- 2026-11-07 — audit: PASS (test-presence). All seven ACs are surface `none`, so there is no token row. Their tests are `ac_105`..`ac_111` in `menu_boot.rs`, plus the controls `the_frame_check_rejects_a_plain_screen` and `the_thumb_follows_the_rounding_the_spec_gives`, green at 280f474 with STIDCART_REQUIRE_TOOLS=1 (root 225/0, GUI 31/0 + 40/0). Closeout line appended.
+- 2026-11-07 — reconciled: folded AC-105..AC-111 → SPEC.md/Internal. Replaced in place: the boot row (16 rows), the filter row (text and match count on row 23, position on row 22, AC-110), and the menu-look row (now layout C, AC-104..AC-111). D-041 records the supersede of D-040 and the refinement of D-039.
+
