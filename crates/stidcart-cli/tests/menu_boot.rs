@@ -275,7 +275,12 @@ fn every_marker_cart_runs_on_its_own() {
         eprintln!("marker control: skipping — x64sc is not installed");
         return;
     }
-    let generic = [CartKind::K8, CartKind::K16, CartKind::Ultimax8, CartKind::Ultimax16];
+    let generic = [
+        CartKind::K8,
+        CartKind::K16,
+        CartKind::Ultimax8,
+        CartKind::Ultimax16,
+    ];
     for kind in generic {
         let dir = scratch(&format!("marker-{}", kind.name()));
         let m = markers::cart(kind, "MARKER RAN");
