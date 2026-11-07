@@ -12,17 +12,17 @@
 
 - **Lane:** Standard
 - **Goal:** Layout C for our C64 menu: block logo, type pictograms, details pane, scroll bar, from a RAM character set, without flicker (D-041)
-- **Next action:** S3, the RAM character set (AC-105)
+- **Next action:** S7, VICE live run for the user, audit, reconcile, PR
 - **Branch:** feat/menu-details (stacked on feat/menu-look, PR #38) · **Updated:** 2026-11-07
 
 ## STEPS
 
 - [x] S1 — version 0.11.0 → 0.12.0 (first commit on the branch)
 - [x] S2 — triage, D-041, AC-105..AC-111 claimed, this JOURNAL
-- [ ] S3 — RAM character set at `$3800` with the menu's glyphs and icon inverses (AC-105). Tests: `MIXED_CASE` reads `$1F`
-- [ ] S4 — the new screen: logo, rules, list with icons in columns 1-20, help bar, write-once rows (AC-106, AC-107). The test row constants move and `listed()` reads columns 0-20 only; AC-102/103 retire
-- [ ] S5 — details pane (AC-108), scroll bar (AC-109), status and filter rows (AC-110)
-- [ ] S6 — partial redraw on a cursor move, raster wait (AC-111)
+- [x] S3 — RAM character set at `$3800` with the menu's glyphs and icon inverses (AC-105). Tests: `MIXED_CASE` reads `$1F`
+- [x] S4 — the new screen: logo, rules, list with icons in columns 1-20, help bar, write-once rows (AC-106, AC-107). The test row constants move and `listed()` reads columns 0-20 only; AC-102/103 retire
+- [x] S5 — details pane (AC-108), scroll bar (AC-109), status and filter rows (AC-110)
+- [x] S6 — partial redraw on a cursor move, raster wait (AC-111)
 - [ ] S7 — README, VICE screenshots and a live run for the user, full gate, audit, reconcile, PR based on `feat/menu-look`
 
 ## DECISIONS (this work-item)
@@ -105,3 +105,13 @@ AC-102 and AC-103 (menu-look) are superseded by AC-105..AC-110. AC-104 stands.
   selected name, write the icon inverses at code+$80, keep I/O untouched while CHAREN is clear,
   pad write-once rows to their end column, and prove the partial redraw with a sentinel cell.
   AC-105..AC-111 claimed, next free AC-112.
+- 2026-11-07 — Red run: 15 of 29 failed for the expected reasons (no RAM set, nothing at the new
+  positions, every row rewritten on a move). The 14 that passed don't depend on the layout.
+- 2026-11-07 — Refined: S3-S6 landed as one change, because the row map, the write-once drawing
+  and the partial redraw share `draw`. A split would have needed an interim layout that no test
+  describes. Green after one fix to the test, not the menu: AC-108 expected `$0801` for
+  `basic_prg`, which loads at `$07F0` on purpose (only `RUN` starts it). Root gate 225/0 with
+  STIDCART_REQUIRE_TOOLS=1, GUI 31/0 cargo + 40/0 vitest.
+- 2026-11-07 — VICE screenshots (boot, scrolled 20 rows, "ra" with A-Z) match the approved mockup.
+  The partial redraw is proven by AC-111. Write-once and the raster wait aren't visible in dumps,
+  so the live run is the check for flicker.

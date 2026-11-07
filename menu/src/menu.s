@@ -12,20 +12,41 @@
 ;
 ; Typed characters filter the list to the entries whose name contains them, and F1 switches between
 ; directory order and A-Z (D-039). Both compare letters through fold, so case never matters.
+;
+; The screen is layout C (D-041): a block logo, the list with a type icon per entry, a scroll bar and
+; a pane describing the selection, drawn from a RAM copy of the ROM's mixed-case set that carries
+; the menu's own glyphs.
 
 GETIN   = $ffe4
 
 SCREEN  = $0400
 COLOURS = $d800                 ; colour RAM
-CHARSET = $d018                 ; VIC memory setup: $15 the upper-case set, $17 mixed case
+CHARSET = $d018                 ; VIC memory setup: $15 the upper-case set, $1E ours at $3800
 SHIFT_LOCK = $0291              ; bit 7 set: SHIFT+C= doesn't switch the set
+RASTER  = $d012
 BORDER  = $d020
 BACKGROUND = $d021
-BLACK      = 0                  ; the colours the menu uses (D-040)
+CHAR_ROM = $d800                ; the ROM's mixed-case set, with the character ROM banked in
+CHAR_RAM = $3800                ; our copy, which the VIC reads in its bank 0
+BLACK      = 0                  ; the colours the menu uses (D-040, D-041)
+WHITE      = 1
 CYAN       = 3
+PURPLE     = 4
 YELLOW     = 7
+LIGHT_RED  = 10
+DARK_GREY  = 11
 GREY       = 12
+LIGHT_GREEN = 13
+LIGHT_BLUE = 14
 LIGHT_GREY = 15
+
+; The menu's own screen codes, in $60-$7F, which names never produce (screen_code turns PETSCII
+; $A0-$BF into "?"). Each icon's code+$80 holds its inverse, for the selection bar.
+ICON    = $60                   ; five: program, 8K, 16K, Ultimax, multi-bank
+RULE    = $65
+TRACK   = $66
+THUMB   = $67
+QUARTER = $68                   ; sixteen: the quarter-block cells of the logo
 
 BANK    = $de00                 ; EasyFlash bank register
 CONTROL = $de02                 ; EasyFlash mode register
@@ -37,8 +58,13 @@ MODE_16K = $07
 DIR     = $a000                 ; EasyFS2 directory, 24-byte slots
 EFNAME  = $bb08                 ; cart name, 16 bytes PETSCII, NUL padded
 SLOT    = 24
-ROWS    = 20                    ; entries shown at once, on screen rows 2-21
-STATUS  = 23                    ; the screen row with the count and the order
+ROWS    = 16                    ; entries shown at once, on screen rows 5-20
+LIST    = 5                     ; the first list row
+TRACK_COL = 21                  ; the scroll bar's column
+PANE    = 23                    ; the details pane's first column
+VALUE   = 29                    ; where its values start
+STATUS  = 22                    ; the screen row with the position and the order
+FIND    = 23                    ; the screen row with the filter text and its matches
 HELP    = 24                    ; the screen row with the keys
 QMAX    = 16                    ; the longest text the filter takes, a whole name
 
@@ -89,6 +115,19 @@ sx      = $c126                 ; the length of the status text so far
 etmp    = $c127
 nlen    = $c128
 sbuf    = $c130                 ; the status text, "200 of 200   cart order" and its NUL
+srow    = $c150                 ; the screen row a list row goes to
+kind    = $c151                 ; the entry's kind: 0 program, 1 8K, 2 16K, 3 Ultimax, 4 multi-bank
+ipen    = $c152                 ; the icon's colour
+old     = $c153                 ; the selection before a move
+nlo     = $c154                 ; 16-bit number for mul8, div16 and dec16
+nhi     = $c155
+den     = $c156
+ma      = $c157
+mlo     = $c158
+mhi     = $c159
+tmpd    = $c15a
+tlen    = $c15b                 ; the scroll bar's thumb: its length and its first row
+tat     = $c15c
 sorted  = $c200                 ; the visible entries' slot numbers, A-Z
 shown   = $c300                 ; the ones listed: visible or sorted, filtered
 name_lo = $c400                 ; each directory slot's address, by slot number
@@ -108,19 +147,21 @@ entry:
         jmp kernal_init         ; comes back to back_from_init with the KERNAL initialised
 
 back_from_init:
+        jsr charset_init        ; interrupts are still off, as it needs
         cli
         lda #BLACK
         sta BORDER
         sta BACKGROUND
-        lda #$17                ; mixed case, so names keep their capitals (D-040)
+        lda #$1e                ; the screen at $0400, our set at $3800 (D-041)
         sta CHARSET
         lda #$80
-        sta SHIFT_LOCK
+        sta SHIFT_LOCK          ; SHIFT+C= would switch the VIC to $3000
         lda #0
         sta qlen
         sta order
         sta sorted_ok
         jsr scan
+        jsr draw_frame
         jmp refresh
 
 loop:
@@ -184,7 +225,13 @@ refresh:
         lda #0
         sta sel
         sta top
-        jmp redraw
+        jsr vsync
+        jsr draw_list
+        jsr draw_track
+        jsr draw_pane
+        jsr draw_status
+        jsr draw_find
+        jmp loop
 
 down:
         ldx sel
@@ -192,27 +239,46 @@ down:
         cpx nshown
         bcc +
         jmp loop                ; already on the last entry
-+       stx sel
++       lda sel
+        sta old
+        stx sel
         txa
         sec
         sbc top
         cmp #ROWS
-        bcc redraw
+        bcc moved
         inc top
-redraw:
-        jsr draw
-        jmp loop
+        jmp scrolled
 
 up:
         lda sel
         bne +
         jmp loop                ; already on the first entry
-+       dec sel
++       sta old
+        dec sel
         lda sel
         cmp top
-        bcs redraw
+        bcs moved
         sta top
-        jmp redraw
+
+; The view moved: every list row changes, and the thumb.
+scrolled:
+        jsr vsync
+        jsr draw_list
+        jsr draw_track
+        jmp described
+
+; The selection moved within the view: only its old and new rows change (AC-111).
+moved:
+        jsr vsync
+        lda old
+        jsr draw_index
+        lda sel
+        jsr draw_index
+described:
+        jsr draw_pane
+        jsr draw_status
+        jmp loop
 
 ; --- starting the selected entry --------------------------------------------------------------
 
@@ -277,9 +343,21 @@ _cart:
         ldy cur
         jmp cart_go
 
-; A program: bytes 19-20 are its offset in the bank, bit 13 selecting ROMH, so in 16K mode its
-; first byte is at $8000 + (offset & $3fff). Types $01-$03 differ only in where a bank runs out.
 start_prg:
+        jsr prg_params
+        jsr read_load
+        jmp copy_prg
+
+; The copy parameters of the program in the slot at ptr, its type in cur. Bytes 17-18 are its
+; first bank and 19-20 its offset in the bank, bit 13 selecting ROMH, so in 16K mode its first
+; byte is at $8000 + (offset & $3fff). Types $01-$03 differ only in where a bank runs out.
+prg_params:
+        ldy #17
+        lda (ptr),y
+        sta p_bank
+        iny
+        lda (ptr),y
+        sta p_bank+1
         ldy #19
         lda (ptr),y
         sta p_src
@@ -302,7 +380,9 @@ start_prg:
         iny
         lda (ptr),y
         sta p_size+2
-        jsr read_load
+        rts
+
+copy_prg:
         sec                     ; the load address is not copied
         lda p_size
         sbc #2
@@ -684,9 +764,62 @@ _yes:
 
 ; --- the screen -------------------------------------------------------------------------------
 ;
-; Row 0 the title bar, row 1 the filter text, rows 2-21 the list, row 23 the count and order, row
-; 24 the help bar (D-040). Everything is written straight into screen and colour RAM: a 40-column
-; row printed through CHROUT links into the next line, and reaching the last cell scrolls.
+; Layout C (D-041): rows 0-2 the logo, row 3 the cart name, rows 4 and 21 rules, rows 5-20 the list
+; in columns 1-20 with the scroll bar in column 21 and the details pane in columns 23-38, row 22 the
+; position and order, row 23 the filter text, row 24 the help bar. Everything is written straight
+; into screen and colour RAM, each cell once per update, never cleared first: a cleared cell can
+; be on screen for a frame, which is the flicker D-041 removes.
+
+; Copy the ROM's mixed-case set to $3800 and put the menu's glyphs into it. Runs with interrupts
+; off: the character ROM replaces I/O while it is banked in, so nothing here may touch $Dxxx.
+charset_init:
+        lda $01
+        pha
+        lda #$33                ; the character ROM at $D000, BASIC, KERNAL and the cart as they were
+        sta $01
+        lda #<CHAR_ROM
+        sta ptr
+        lda #>CHAR_ROM
+        sta ptr+1
+        lda #<CHAR_RAM
+        sta dst
+        lda #>CHAR_RAM
+        sta dst+1
+        ldx #8                  ; 2 KiB
+        ldy #0
+-       lda (ptr),y
+        sta (dst),y
+        iny
+        bne -
+        inc ptr+1
+        inc dst+1
+        dex
+        bne -
+        pla
+        sta $01
+        ldx #0
+-       lda glyphs,x
+        sta CHAR_RAM + ICON * 8,x
+        inx
+        cpx #glyphs_end - glyphs
+        bne -
+        ldx #0
+-       lda glyphs,x            ; the icons' inverses, for the selection bar
+        eor #$ff
+        sta CHAR_RAM + (ICON + $80) * 8,x
+        inx
+        cpx #5 * 8
+        bne -
+        rts
+
+; Wait until the beam is below the visible screen, so an update starts where no row is being shown.
+vsync:
+-       bit $d011
+        bmi -                   ; lines 256-311: wait for the next frame
+-       lda RASTER
+        cmp #251
+        bcc -
+        rts
 
 ; Point scr at column A of screen row X, and clr at the same cell of colour RAM.
 at:
@@ -724,8 +857,22 @@ line:
         ldx #40
         jmp fill
 
+; Write spaces from scr+Y up to scr+A-1, in colour pen, reversed if rvs is $80.
+pad:
+        sta wmax
+-       cpy wmax
+        bcs +
+        lda #" " & $3f
+        ora rvs
+        sta (scr),y
+        lda pen
+        sta (clr),y
+        iny
+        bne -
++       rts
+
 ; Write the PETSCII text at dst from scr, in colour pen, reversed if rvs is $80: up to its NUL, or
-; up to X characters with write_n.
+; up to X characters with write_n. Y ends as the number written.
 write:
         ldx #40
 write_n:
@@ -751,8 +898,8 @@ say:
         jmp write
 
 ; The screen code for PETSCII A, as CHROUT would print it, or "?" for a control code. In the
-; mixed-case set the menu uses, $41-$5A show lower case and $61-$7A and $C1-$DA upper case. Keeps X
-; and Y.
+; mixed-case set, $41-$5A show lower case and $61-$7A and $C1-$DA upper case. $A0-$BF, the PETSCII
+; graphics whose codes are the menu's own glyphs, show as "?" too (D-041). Keeps X and Y.
 screen_code:
         cmp #$20
         bcc _bad
@@ -762,10 +909,8 @@ screen_code:
         bcc _less40             ; $40-$5F: $00-$1F
         cmp #$80
         bcc _less20             ; $60-$7F: $40-$5F
-        cmp #$a0
-        bcc _bad                ; $80-$9F: control codes
         cmp #$c0
-        bcc _less40             ; $A0-$BF: $60-$7F
+        bcc _bad                ; $80-$9F control codes, $A0-$BF the menu's glyphs
         cmp #$ff
         beq _pi
         and #$7f                ; $C0-$FE: $40-$7E
@@ -786,7 +931,9 @@ _bad:
 _done:
         rts
 
-; Append A to the status text. Keeps X and Y.
+; --- building a line of text in sbuf ----------------------------------------------------------
+
+; Append A to the text. Keeps X and Y.
 emit:
         stx etmp
         ldx sx
@@ -809,56 +956,161 @@ append:
 
 ; Append A in decimal, without leading zeros.
 decimal:
-        sta dnum
+        sta nlo
+        lda #0
+        sta nhi
+; Append nlo/nhi in decimal, without leading zeros.
+dec16:
         lda #0
         sta dlead
-        ldx #0
-_digit:
-        ldy #"0"
+        ldy #0
+_pow:
+        ldx #"0"
 _sub:
-        lda dnum
-        cmp tens,x
+        lda nlo
+        sec
+        sbc pow_lo,y
+        sta tmpd
+        lda nhi
+        sbc pow_hi,y
         bcc _emit
-        sbc tens,x
-        sta dnum
-        iny
+        sta nhi
+        lda tmpd
+        sta nlo
+        inx
         bne _sub
 _emit:
-        cpy #"0"
+        cpx #"0"
         bne _put
         lda dlead
         bne _put
-        cpx #2
+        cpy #4
         bne _skip               ; a leading zero, and not the last digit
 _put:
-        tya
+        txa
         jsr emit
         lda #1
         sta dlead
 _skip:
-        inx
-        cpx #3
-        bne _digit
+        iny
+        cpy #5
+        bne _pow
         rts
 
-tens:
-        .byte 100, 10, 1
+; Append A as two hex digits, in upper case.
+hex2:
+        pha
+        lsr a
+        lsr a
+        lsr a
+        lsr a
+        tax
+        lda hex_digits,x
+        jsr emit
+        pla
+        and #$0f
+        tax
+        lda hex_digits,x
+        jmp emit
 
-draw:
-        ; row 0: the title bar, "stidcart" on the left and the cart name on the right
-        lda #CYAN
-        sta pen
-        ldx #0
-        lda #$a0                ; a reverse space
-        jsr line
-        lda #$80
-        sta rvs
-        ldx #0
-        lda #1
+; Start the text afresh.
+begin:
+        lda #0
+        sta sx
+        rts
+
+; End the text and write it at column A of row X, in colour pen, then pad to column 39.
+finish:
+        pha
+        lda #0
+        jsr emit
+        pla
+        sta tmpd
         jsr at
-        lda #<title_text
-        ldy #>title_text
+        lda #<sbuf
+        ldy #>sbuf
         jsr say
+        lda #39
+        sec
+        sbc tmpd
+        jmp pad
+
+; --- arithmetic for the scroll bar -------------------------------------------------------------
+
+; nlo/nhi = A * den.
+mul8:
+        sta ma
+        lda #0
+        sta nlo
+        sta nhi
+        sta mhi
+        lda den
+        sta mlo
+-       lsr ma
+        bcc +
+        clc
+        lda nlo
+        adc mlo
+        sta nlo
+        lda nhi
+        adc mhi
+        sta nhi
++       asl mlo
+        rol mhi
+        lda ma
+        bne -
+        rts
+
+; nlo/nhi = nlo/nhi / den, rounded down.
+div16:
+        lda #0
+        ldx #16
+-       asl nlo
+        rol nhi
+        rol a
+        bcs +
+        cmp den
+        bcc ++
++       sbc den
+        inc nlo
++       dex
+        bne -
+        rts
+
+; --- the frame, drawn once -------------------------------------------------------------------
+
+draw_frame:
+        lda #0
+        sta rvs
+        ; rows 0-2: the logo
+        ldx #0
+_logo:
+        lda logo_colours,x
+        sta pen
+        stx row
+        lda #4
+        jsr at
+        ldx row
+        lda logo_lo,x
+        sta dst
+        lda logo_hi,x
+        sta dst+1
+        ldy #0
+-       lda (dst),y
+        sta (scr),y
+        lda pen
+        sta (clr),y
+        iny
+        cpy #31
+        bne -
+        ldx row
+        inx
+        cpx #3
+        bne _logo
+
+        ; row 3: the cart name, centred
+        lda #LIGHT_GREY
+        sta pen
         ldy #0
 -       lda EFNAME,y
         beq +
@@ -866,10 +1118,11 @@ draw:
         cpy #16
         bne -
 +       sty nlen
-        lda #39
+        lda #40
         sec
         sbc nlen
-        ldx #0
+        lsr a
+        ldx #3
         jsr at
         lda #<EFNAME
         sta dst
@@ -878,156 +1131,21 @@ draw:
         ldx #16
         jsr write_n
 
-        ; row 1: the filter text, after a label, when there is any
-        lda #0
-        sta rvs
-        ldx #1
-        lda #" "
+        ; rows 4 and 21: the rules
+        lda #DARK_GREY
+        sta pen
+        ldx #4
+        lda #RULE
         jsr line
-        lda qlen
-        beq _list
-        lda #GREY
-        sta pen
-        ldx #1
-        lda #1
-        jsr at
-        lda #<find_text
-        ldy #>find_text
-        jsr say
-        lda #YELLOW
-        sta pen
-        ldx #1
-        lda #7
-        jsr at
-        lda #<query
-        sta dst
-        lda #>query
-        sta dst+1
-        ldx qlen
-        jsr write_n
-
-        ; rows 2-21: the list, or why there is none
-_list:
-        lda #0
-        sta row
-_row:
-        lda #LIGHT_GREY
-        sta pen
-        lda #0
-        sta rvs
-        lda row
-        clc
-        adc #2
-        tax
-        lda #" "
+        ldx #21
+        lda #RULE
         jsr line
-        lda count
-        bne +
-        lda #<no_entries
-        ldy #>no_entries
-        jmp _say
-+       lda nshown
-        bne _entry
-        lda #<no_matches
-        ldy #>no_matches
-_say:
-        ldx row
-        bne _next               ; the message goes on the first row only
-        pha
-        tya
-        pha
-        ldx #2
-        lda #2
-        jsr at
-        pla
-        tay
-        pla
-        jsr say
-        jmp _next
-_entry:
-        lda row
-        clc
-        adc top
-        cmp nshown
-        bcs _next               ; past the last entry
-        sta cur
-        cmp sel
-        bne _name
-        lda #CYAN               ; the selected entry: a reverse bar over columns 1-38
-        sta pen
-        lda row
-        clc
-        adc #2
-        tax
-        lda #1
-        jsr at
-        lda #$a0
-        ldx #38
-        jsr fill
-        lda #$80
-        sta rvs
-_name:
-        lda row
-        clc
-        adc #2
-        tax
-        lda #2
-        jsr at
-        ldx cur
-        lda shown,x
-        jsr slot_ptr
-        lda ptr
-        sta dst
-        lda ptr+1
-        sta dst+1
-        ldx #16
-        jsr write_n
-_next:
-        inc row
-        lda row
-        cmp #ROWS
-        bcs +
-        jmp _row
-+
-        ; row 22 empty, row 23 the count and the order
-        lda #0
-        sta rvs
-        ldx #22
-        lda #" "
-        jsr line
-        lda #GREY
-        sta pen
-        ldx #STATUS
-        lda #" "
-        jsr line
-        lda #0
-        sta sx
-        lda nshown
-        jsr decimal
-        lda #<of_text
-        ldy #>of_text
-        jsr append
-        lda count
-        jsr decimal
-        lda #<cart_order
-        ldy #>cart_order
-        ldx order
-        beq +
-        lda #<az_order
-        ldy #>az_order
-+       jsr append
-        lda #0
-        jsr emit
-        ldx #STATUS
-        lda #1
-        jsr at
-        lda #<sbuf
-        ldy #>sbuf
-        jsr say
 
         ; row 24: the help bar
+        lda #GREY
+        sta pen
         ldx #HELP
-        lda #$a0
+        lda #$a0                ; a reverse space
         jsr line
         lda #$80
         sta rvs
@@ -1036,15 +1154,575 @@ _next:
         jsr at
         lda #<help_text
         ldy #>help_text
+        jsr say
+        lda #0
+        sta rvs
+        rts
+
+; --- the list ---------------------------------------------------------------------------------
+
+; Every list row.
+draw_list:
+        lda #0
+        sta row
+-       jsr list_row
+        inc row
+        lda row
+        cmp #ROWS
+        bne -
+        rts
+
+; The list row of entry A in shown, which is on screen.
+draw_index:
+        sec
+        sbc top
+        sta row
+
+; List row `row` (0-15): columns 1-20 of screen row 5 + row.
+list_row:
+        lda row
+        clc
+        adc #LIST
+        sta srow
+        lda #0
+        sta rvs
+        lda #LIGHT_GREY
+        sta pen
+        lda count
+        bne +
+        lda #<no_entries
+        ldy #>no_entries
+        jmp _message
++       lda nshown
+        bne _entry
+        lda #<no_matches
+        ldy #>no_matches
+_message:
+        ldx row
+        bne _blank              ; the message goes on the first row only
+        pha
+        tya
+        pha
+        ldx srow
+        lda #1
+        jsr at
+        ldy #0
+        lda #3
+        jsr pad
+        ldx srow
+        lda #4
+        jsr at
+        pla
+        tay
+        pla
+        jsr say
+        lda #17
+        jmp pad
+_entry:
+        lda row
+        clc
+        adc top
+        cmp nshown
+        bcc _listed
+_blank:
+        ldx srow
+        lda #1
+        jsr at
+        ldy #0
+        lda #20
+        jmp pad
+_listed:
+        sta cur
+        tax
+        lda shown,x
+        jsr slot_ptr
+        jsr entry_kind
+        ldx kind
+        lda kind_colours,x
+        sta ipen
+        lda cur
+        cmp sel
+        bne +
+        lda #$80                ; the selection: a cyan reverse bar over columns 1-20
+        sta rvs
+        lda #CYAN
+        sta pen
+        sta ipen
++       ldx srow
+        lda #1
+        jsr at
+        ldy #0
+        lda #1
+        jsr pad                 ; column 1
+        lda kind
+        clc
+        adc #ICON
+        ora rvs
+        sta (scr),y             ; column 2, the icon
+        lda ipen
+        sta (clr),y
+        iny
+        lda #3
+        jsr pad                 ; column 3
+        ldx srow
+        lda #4
+        jsr at
+        lda ptr
+        sta dst
+        lda ptr+1
+        sta dst+1
+        ldx #16
+        jsr write_n             ; columns 4-19, the name
+        lda #17
+        jmp pad                 ; to column 20
+
+; kind = the kind of the entry in the slot at ptr: 0 program ($01-$03), 1 8K ($10), 2 16K ($11),
+; 3 Ultimax ($12, $13), 4 multi-bank ($1C-$1E).
+entry_kind:
+        ldy #16
+        lda (ptr),y
+        and #$1f
+        ldx #0
+        cmp #$04
+        bcc +
+        inx
+        cmp #$10
+        beq +
+        inx
+        cmp #$11
+        beq +
+        inx
+        cmp #$12
+        beq +
+        cmp #$13
+        beq +
+        inx
++       stx kind
+        rts
+
+; --- the scroll bar ---------------------------------------------------------------------------
+
+; Column 21 of the list rows: the track, with a thumb of round(256/n) cells (at least 1)
+; round((16-len)*top/(n-16)) rows down when more than 16 are listed (AC-109).
+draw_track:
+        lda #0
+        sta tlen
+        sta tat
+        lda nshown
+        cmp #ROWS + 1
+        bcc _draw
+        sta den                 ; len = (256 + n/2) / n
+        lsr a
+        sta nlo
+        lda #1
+        sta nhi
+        jsr div16
+        lda nlo
+        bne +
+        lda #1
++       sta tlen
+        lda nshown              ; at = ((16-len)*top + span/2) / span, span = n-16
+        sec
+        sbc #ROWS
+        sta den
+        lda top
+        sta tmpd
+        lda #ROWS
+        sec
+        sbc tlen
+        ldx den
+        stx etmp
+        ldx tmpd
+        stx den
+        jsr mul8                ; (16-len) * top
+        lda etmp
+        sta den
+        lsr a
+        clc
+        adc nlo
+        sta nlo
+        bcc +
+        inc nhi
++       jsr div16
+        lda nlo
+        sta tat
+_draw:
+        lda #0
+        sta row
+_cell:
+        lda row
+        clc
+        adc #LIST
+        tax
+        lda #TRACK_COL
+        jsr at
+        ldx #TRACK
+        lda #DARK_GREY
+        sta pen
+        lda row
+        sec
+        sbc tat
+        bcc +                   ; above the thumb
+        cmp tlen
+        bcs +                   ; below it
+        ldx #THUMB
+        lda #LIGHT_GREY
+        sta pen
++       txa
+        ldy #0
+        sta (scr),y
+        lda pen
+        sta (clr),y
+        inc row
+        lda row
+        cmp #ROWS
+        bne _cell
+        rts
+
+; --- the details pane --------------------------------------------------------------------------
+
+; Rows 6-14 of columns 23-38: the selection's name, then type, size, load address or bank, and
+; how it starts, on every other row (AC-108).
+draw_pane:
+        lda #0
+        sta rvs
+        lda nshown
+        bne _some
+        ldx #6
+-       stx row
+        lda #PANE
+        jsr at
+        ldy #0
+        lda #16
+        jsr pad
+        ldx row
+        inx
+        inx
+        cpx #16
+        bne -
+        rts
+_some:
+        ldx sel
+        lda shown,x
+        jsr slot_ptr
+        jsr entry_kind
+        lda #WHITE
+        sta pen
+        ldx #6
+        lda #PANE
+        jsr at
+        lda ptr
+        sta dst
+        lda ptr+1
+        sta dst+1
+        ldx #16
+        jsr write_n
+        lda #16
+        jsr pad
+
+        ; type
+        ldx #8
+        lda #<type_text
+        ldy #>type_text
+        jsr fact
+        ldx kind
+        lda kind_lo,x
+        ldy kind_hi,x
+        jsr append
+        ldx #8
+        jsr value
+
+        ; size in KB, rounded up: (bytes + 1023) / 1024
+        ldx #10
+        lda #<size_text
+        ldy #>size_text
+        jsr fact
+        ldy #21
+        lda (ptr),y
+        clc
+        adc #$ff
+        iny
+        lda (ptr),y
+        adc #$03
+        sta nlo
+        iny
+        lda (ptr),y
+        adc #0
+        sta nhi
+        lsr nhi
+        ror nlo
+        lsr nhi
+        ror nlo
+        jsr dec16
+        lda #"K"
+        jsr emit
+        ldx #10
+        jsr value
+
+        lda kind
+        beq _program
+
+        ; a cartridge: its first bank, and a reset
+        ldx #12
+        lda #<bank_text
+        ldy #>bank_text
+        jsr fact
+        ldy #17
+        lda (ptr),y
+        sta nlo
+        iny
+        lda (ptr),y
+        sta nhi
+        jsr dec16
+        ldx #12
+        jsr value
+        ldx #14
+        lda #<start_text
+        ldy #>start_text
+        jsr fact
+        lda #<reset_text
+        ldy #>reset_text
+        jsr append
+        ldx #14
+        jmp value
+
+        ; a program: its load address, and RUN or SYS as start uses them
+_program:
+        ldy #16
+        lda (ptr),y
+        and #$1f
+        sta cur
+        jsr prg_params
+        jsr read_load           ; moves ptr: everything from the slot is read by now
+        ldx #12
+        lda #<load_text
+        ldy #>load_text
+        jsr fact
+        lda #"$"
+        jsr emit
+        lda p_load+1
+        jsr hex2
+        lda p_load
+        jsr hex2
+        ldx #12
+        jsr value
+        ldx #14
+        lda #<start_text
+        ldy #>start_text
+        jsr fact
+        lda p_load+1
+        cmp #$08
+        bcc _run
+        bne _sys
+        lda p_load
+        cmp #$02
+        bcc _run
+_sys:
+        lda #<sys_word
+        ldy #>sys_word
+        jsr append
+        lda p_load
+        sta nlo
+        lda p_load+1
+        sta nhi
+        jsr dec16
+        ldx #14
+        jmp value
+_run:
+        lda #<run_word
+        ldy #>run_word
+        jsr append
+        ldx #14
+        jmp value
+
+; Row X of the pane: the label at A (low), Y (high) in grey across columns 23-28, then start the
+; value's text.
+fact:
+        sta dst
+        sty dst+1
+        lda dst
+        pha
+        lda dst+1
+        pha
+        lda #GREY
+        sta pen
+        lda #PANE
+        jsr at
+        pla
+        sta dst+1
+        pla
+        sta dst
+        jsr write
+        lda #6
+        jsr pad
+        jmp begin
+
+; Write the value's text in row X, columns 29-38, in the kind's colour.
+value:
+        lda #0
+        jsr emit
+        ldy kind
+        lda kind_colours,y
+        sta pen
+        lda #VALUE
+        jsr at
+        lda #<sbuf
+        ldy #>sbuf
+        jsr say
+        lda #10
+        jmp pad
+
+; --- the status and the filter text ------------------------------------------------------------
+
+; Row 22: the selection's position among those listed, and the order in use (AC-110).
+draw_status:
+        lda #0
+        sta rvs
+        lda #GREY
+        sta pen
+        jsr begin
+        lda nshown
+        beq +
+        lda sel
+        clc
+        adc #1
++       jsr decimal
+        lda #<of_text
+        ldy #>of_text
+        jsr append
+        lda nshown
+        jsr decimal
+        lda #<cart_order
+        ldy #>cart_order
+        ldx order
+        beq +
+        lda #<az_order
+        ldy #>az_order
++       jsr append
+        ldx #STATUS
+        lda #1
+        jmp finish
+
+; Row 23: with text typed, a grey label, the text in yellow, and the matches out of the visible
+; entries at the right; without, nothing.
+draw_find:
+        lda #0
+        sta rvs
+        lda #GREY
+        sta pen
+        ldx #FIND
+        lda #1
+        jsr at
+        ldy #0
+        lda qlen
+        bne +
+        lda #38
+        jmp pad
++       lda #<find_text
+        ldy #>find_text
+        jsr say
+        lda #YELLOW
+        sta pen
+        ldx #FIND
+        lda #7
+        jsr at
+        lda #<query
+        sta dst
+        lda #>query
+        sta dst+1
+        ldx qlen
+        jsr write_n
+        tya
+        pha
+        jsr begin
+        lda nshown
+        jsr decimal
+        lda #<of_text
+        ldy #>of_text
+        jsr append
+        lda count
+        jsr decimal
+        lda #<match_text
+        ldy #>match_text
+        jsr append
+        lda #0
+        jsr emit
+        lda #GREY               ; pad from the text to where the count starts, at 39 - its length
+        sta pen
+        lda #39 + 1
+        sec
+        sbc sx                  ; sx counts the NUL too
+        sta nlen
+        sec
+        sbc #7
+        tax
+        pla
+        tay
+        txa
+        jsr pad
+        ldx #FIND
+        lda nlen
+        jsr at
+        lda #<sbuf
+        ldy #>sbuf
         jmp say
+
+; --- data -------------------------------------------------------------------------------------
 
 row_lo:
         .byte <(SCREEN + range(25) * 40)
 row_hi:
         .byte >(SCREEN + range(25) * 40)
 
-title_text:
-        .null "stidcart"
+; The glyphs, in code order from ICON. The pixels are the approved mockup's (D-041).
+glyphs:
+        .byte %11111110, %11000111, %11000111, %11111111, %10000001, %10111101, %10000001, %11111111 ; program: a disk
+        .byte %11111111, %10000001, %10111101, %10111101, %10000001, %11111111, %01111110, %01011010 ; 8K: a cartridge
+        .byte %11111111, %10111101, %10000001, %10111101, %10000001, %11111111, %01111110, %01011010 ; 16K: two labels
+        .byte %11111111, %10100101, %10100101, %10011001, %10000001, %11111111, %01111110, %01011010 ; Ultimax: a U
+        .byte %00111111, %00100001, %11111101, %10000111, %10000100, %11111100, %01111000, %01010000 ; multi-bank: two
+        .byte %00000000, %00000000, %00000000, %11111111, %00000000, %00000000, %00000000, %00000000 ; rule
+        .fill 8, %00010000      ; track
+        .fill 8, %00111100      ; thumb
+        ; The sixteen quarter-block cells: bit 3 top left, 2 top right, 1 bottom left, 0 bottom right.
+        .for q := 0, q < 16, q += 1
+        .fill 4, ((q >> 3) & 1) * $f0 | ((q >> 2) & 1) * $0f
+        .fill 4, ((q >> 1) & 1) * $f0 | (q & 1) * $0f
+        .next
+glyphs_end:
+
+; "STIDCART" in block letters on a 6x6 grid of quarter cells, three characters a letter and one
+; between, as screen codes: the space, or QUARTER + the cell's four quarters.
+logo_0:
+        .byte $6f, $74, $74, $20, $74, $77, $74, $20, $6c, $77, $70, $20, $77, $74, $73, $20
+        .byte $6f, $74, $74, $20, $6f, $74, $73, $20, $77, $74, $73, $20, $74, $77, $74
+logo_1:
+        .byte $6c, $74, $73, $20, $20, $77, $20, $20, $20, $77, $20, $20, $77, $20, $77, $20
+        .byte $77, $20, $20, $20, $77, $6b, $77, $20, $77, $6b, $76, $20, $20, $77, $20
+logo_2:
+        .byte $6b, $6b, $76, $20, $20, $77, $20, $20, $69, $77, $6a, $20, $77, $6b, $76, $20
+        .byte $75, $6b, $6b, $20, $77, $20, $77, $20, $77, $6c, $73, $20, $20, $77, $20
+logo_lo:
+        .byte <logo_0, <logo_1, <logo_2
+logo_hi:
+        .byte >logo_0, >logo_1, >logo_2
+logo_colours:
+        .byte WHITE, CYAN, LIGHT_BLUE
+
+kind_colours:
+        .byte LIGHT_GREEN, YELLOW, LIGHT_RED, PURPLE, LIGHT_BLUE
+kind_lo:
+        .byte <kind_0, <kind_1, <kind_2, <kind_3, <kind_4
+kind_hi:
+        .byte >kind_0, >kind_1, >kind_2, >kind_3, >kind_4
+kind_0: .null "program"
+kind_1: .null "8K cart"
+kind_2: .null "16K cart"
+kind_3: .null "Ultimax"
+kind_4: .null "multi-bank"
+
+hex_digits:
+        .text "0123456789ABCDEF"
 help_text:
         .null "return start  f1 sort  run/stop basic"
 no_entries:
@@ -1055,10 +1733,28 @@ find_text:
         .null "find: "
 of_text:
         .null " of "
+match_text:
+        .null " match"
 cart_order:
         .null "   cart order"
 az_order:
         .null "   a-z order"
+type_text:
+        .null "type"
+size_text:
+        .null "size"
+load_text:
+        .null "load"
+bank_text:
+        .null "bank"
+start_text:
+        .null "start"
+reset_text:
+        .null "reset"
+run_word:
+        .null "RUN"
+sys_word:
+        .null "SYS "
 
         .include "launch.s"
 

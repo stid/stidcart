@@ -13,7 +13,7 @@ code.
 
 | Key             | Does                                                       |
 | --------------- | ---------------------------------------------------------- |
-| CRSR ↓ / CRSR ↑ | move the selection. The list scrolls past 20 rows          |
+| CRSR ↓ / CRSR ↑ | move the selection. The list scrolls past 16 rows          |
 | RETURN          | start the selected entry                                   |
 | letters, digits | filter: list only the entries whose name contains the text |
 | DEL             | remove the last character of the filter text               |
@@ -21,11 +21,16 @@ code.
 | F1              | switch between the cart's own order and A-Z                |
 | RUN/STOP        | leave to BASIC with the cartridge switched off             |
 
-The screen is black, in the ROM's mixed-case character set so names keep their capitals (D-040).
-Row 0 is a cyan bar with the cart name, the selected entry sits in a cyan bar, and row 24 is a grey
-bar naming the keys. Hidden entries are not listed. The filter and A-Z both ignore case. The filter takes up to 16
-characters, any printable one except `"`, and shows them in yellow on the row above the list. The
-row above the key bar shows how many entries match out of those listed, and which order is in use. Every boot starts in
+The screen is black (D-041). A block-letter logo and the cart name sit above 16 list rows. Each
+entry shows an icon for its kind: a disk for a program, a cartridge for 8K and 16K, a cartridge
+marked U for Ultimax, and two stacked cartridges for multi-bank. The selected entry sits in a cyan
+bar. When the list is longer than the screen, the divider to its right becomes a scroll bar: the
+thumb's length is the share of the list in view, and its place is where the view is. The pane on the
+right describes the selection: its type, size, load address (program) or first bank (cartridge),
+and how it starts. Below the list are the position ("17 of 40") and the order in use, then the
+filter text in yellow with the number of matches out of the visible entries, then a grey bar naming the
+keys. Hidden entries are not listed. The filter and A-Z both ignore case. The filter takes up to 16
+characters, any printable one except `"`. Every boot starts in
 the cart's own order, which is the order they were built in (D-039). A program that loads at or below `$0801` is started with `RUN`,
 and any other with `SYS` to its load address. It finds the C64's own colours and upper-case
 character set, as after a reset. The tool refuses to put this menu on a cart with an
@@ -39,9 +44,13 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
 
 - `src/menu.s` runs from ROM. It copies `src/launch.s` to the cartridge's I/O2 RAM at `$DF02` and
   initialises the KERNAL from there with the cartridge off, so the top of memory comes out right.
-  It then scans the EasyFS2 directory at `$A000` and draws the screen straight into screen and
-  colour RAM. CHROUT can't draw the bars, because a full 40-column row links into the next line and
-  the last cell of row 24 scrolls the screen.
+  It copies the ROM's mixed-case character set to `$3800` and adds the menu's own glyphs to it in
+  codes `$60-$7F`: the icons (with their inverses at `$E0` and up, for the selection bar), the rule,
+  the scroll bar and the logo's quarter-block cells. It then scans the EasyFS2 directory at `$A000`
+  and draws straight into screen and colour RAM, writing each cell once per update. A cursor move
+  that doesn't scroll redraws only the two rows it changes, and drawing starts below the visible
+  screen, so nothing flickers. CHROUT isn't used: a full 40-column row links into the next line,
+  and the last cell of row 24 scrolls the screen.
 - Keys come only from GETIN, the KERNAL keyboard buffer, because that is the only place VICE can
   inject keys for the boot tests. `menu_idle` is the point where the menu waits with an empty
   buffer, and the tests break there.
