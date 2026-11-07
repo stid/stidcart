@@ -22,3 +22,5 @@
 2026-10-12 · pin-node-24 · 0 signals · Quick · hard:no · risk:no
 2026-11-07 · custom-menu-firmware · 5 signals · Deep · hard:yes · risk:yes
 2026-11-07 · custom-menu · closeout · Deep · audit: PASS (first run) · re-routes: 0 · red-green iters: 9 · interventions: 1 (boundary-hook denial: brace-glob EDIT BOUNDARY)
+2026-11-07 · menu-search-sort · 4 signals · Standard · hard:no · risk:no
+2026-11-07 · menu-search-sort · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · red-green iters: 4 · interventions: 0

@@ -1,5 +1,6 @@
 //! custom-menu: our menu on the C64, proven by booting carts in VICE (AC-87..AC-92), and the CI
-//! requirement that these boots run rather than skip (AC-94).
+//! requirement that these boots run rather than skip (AC-94). menu-search-sort adds its filter and
+//! sort toggle (AC-96..AC-101).
 //!
 //! The reference tool knows nothing of this menu, so the oracle has decayed to the emulator (MAP
 //! invariant). Every wait is a `break exec` on the menu's `menu_idle` label or on a marker's fixed
@@ -389,4 +390,370 @@ fn ac_94_ci_runs_the_boot_checks_instead_of_skipping() {
         std::panic::catch_unwind(|| vice::require_tool_in("stidcart-no-such-tool", true)).is_err(),
         "a required but missing tool did not fail"
     );
+}
+
+// --- menu-search-sort: the filter and the sort toggle (AC-96..AC-101, D-039) -----------------
+//
+// The menu keeps the list on rows 2-21, shows the typed text on row 1 and the count and order on
+// row 23. Assertions about the list read rows 2-21 only, so a typed query or the status line can
+// never stand in for a listed name.
+
+const COLS: usize = 40;
+const LIST_ROWS: std::ops::Range<usize> = 2..22;
+const QUERY_ROW: usize = 1;
+const STATUS_ROW: usize = 23;
+
+fn row(screen: &[u8], n: usize) -> &[u8] {
+    &screen[n * COLS..(n + 1) * COLS]
+}
+
+fn row_shows(screen: &[u8], n: usize, text: &str) -> bool {
+    vice::find(row(screen, n), &vice::screen_text(text)).is_some()
+}
+
+/// Where `text` is in the list rows, as an offset into the whole screen.
+fn listed(screen: &[u8], text: &str) -> Option<usize> {
+    let start = LIST_ROWS.start * COLS;
+    vice::find(
+        &screen[start..LIST_ROWS.end * COLS],
+        &vice::screen_text(text),
+    )
+    .map(|at| at + start)
+}
+
+/// Assert every name is listed, in this order, and return where each one is.
+fn assert_listed_in_order(screen: &[u8], names: &[&str], what: &str) -> Vec<usize> {
+    let at: Vec<usize> = names
+        .iter()
+        .map(|n| listed(screen, n).unwrap_or_else(|| panic!("{what}: '{n}' is not listed")))
+        .collect();
+    assert!(
+        at.windows(2).all(|w| w[0] < w[1]),
+        "{what}: the list is not in the order {names:?}"
+    );
+    at
+}
+
+fn assert_not_listed(screen: &[u8], names: &[&str], what: &str) {
+    for n in names {
+        assert!(listed(screen, n).is_none(), "{what}: '{n}' is listed");
+    }
+}
+
+/// The key codes GETIN returns for `text` typed without shift: letters `$41-$5A`, the rest as is.
+fn typed(text: &str) -> Vec<u8> {
+    text.bytes().map(|b| b.to_ascii_uppercase()).collect()
+}
+
+/// Boot, then for each group press its keys and dump the screen once the menu is idle again. An
+/// empty group dumps the screen as it is.
+fn screens_after(dir: &Path, cart: &Path, groups: &[Vec<u8>]) -> Vec<Vec<u8>> {
+    let mut steps = vec![Step::Labels(vice::menu_labels())];
+    for group in groups {
+        for chunk in group.chunks(10) {
+            steps.push(idle());
+            steps.push(Step::Keys(chunk.to_vec()));
+        }
+        steps.push(idle());
+        steps.push(screen());
+    }
+    boot_or_panic(dir, cart, &steps)
+}
+
+/// `name.prg` in a directory of its own, so names equal but for case can share one cart on a
+/// case-insensitive file system.
+fn write_in(dir: &Path, sub: &str, name: &str, bytes: &[u8]) -> PathBuf {
+    let d = dir.join(sub);
+    std::fs::create_dir_all(&d).unwrap();
+    write(&d, &format!("{name}.prg"), bytes)
+}
+
+// AC-96: typed text narrows the list to the visible entries containing it, ignoring case
+#[test]
+fn ac_96_typing_filters_to_visible_entries_containing_the_text() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-96: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac96");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    // SCALPEL is stored as $61-$7A (the tool swaps case), matches only past its first letter, and
+    // is typed with a shifted L: all three letter ranges meet in one match.
+    let inputs =
+        ["alpha", "beta", "SCALPEL", "alpaca"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(
+        &dir,
+        "filter",
+        &["--hide", inputs[3].to_str().unwrap()],
+        &inputs,
+    );
+
+    let mut query = typed("a");
+    query.push(0xcc); // shifted L
+    query.extend(typed("p"));
+    let dumps = screens_after(&dir, &cart, &[vec![], query]);
+
+    // Negative control: unfiltered, the non-matching entry is there.
+    assert_listed_in_order(&dumps[0], &["alpha", "beta", "SCALPEL"], "before typing");
+    assert_not_listed(&dumps[0], &["alpaca"], "before typing");
+
+    let shown = &dumps[1];
+    let at = assert_listed_in_order(shown, &["alpha", "SCALPEL"], "after typing alp");
+    assert_not_listed(shown, &["beta"], "after typing alp");
+    assert_not_listed(shown, &["alpaca"], "a hidden entry matching the text");
+    assert!(
+        vice::is_reversed(shown, at[0], 5),
+        "the first match is not selected"
+    );
+    assert!(
+        !vice::is_reversed(shown, at[1], 7),
+        "the second match is selected too"
+    );
+    assert!(
+        row_shows(shown, QUERY_ROW, "alp"),
+        "the typed text is not shown"
+    );
+    assert!(
+        row_shows(shown, STATUS_ROW, "2 of 3"),
+        "the match count is not shown"
+    );
+}
+
+// AC-97: DEL removes the last character, CLR/HOME clears the text, and the text stops at 16
+#[test]
+fn ac_97_del_and_clr_home_edit_the_text() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-97: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac97");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "alpine", "beta"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "editing", &[], &inputs);
+
+    let mut clr = typed("be");
+    clr.push(key::CLR);
+    let dumps = screens_after(
+        &dir,
+        &cart,
+        &[
+            typed("alpi"),
+            vec![key::DEL],
+            vec![key::HOME],
+            clr,
+            vec![key::DEL],
+            typed(&"x".repeat(18)),
+        ],
+    );
+    let blank = |s: &[u8]| row(s, QUERY_ROW).iter().all(|b| b & 0x7f == 0x20);
+
+    assert_listed_in_order(&dumps[0], &["alpine"], "alpi");
+    assert_not_listed(&dumps[0], &["alpha", "beta"], "alpi");
+    assert!(row_shows(&dumps[0], QUERY_ROW, "alpi"));
+
+    assert_listed_in_order(&dumps[1], &["alpha", "alpine"], "DEL");
+    assert_not_listed(&dumps[1], &["beta"], "DEL");
+    assert!(row_shows(&dumps[1], QUERY_ROW, "alp") && !row_shows(&dumps[1], QUERY_ROW, "alpi"));
+
+    for (i, what) in [(2, "HOME"), (3, "CLR"), (4, "DEL with no text")] {
+        assert_listed_in_order(&dumps[i], &["alpha", "alpine", "beta"], what);
+        assert!(blank(&dumps[i]), "{what}: the text row is not empty");
+        assert!(row_shows(&dumps[i], STATUS_ROW, "3 of 3"), "{what}: count");
+    }
+
+    let x = vice::screen_text("x")[0];
+    let xs = row(&dumps[5], QUERY_ROW)
+        .iter()
+        .filter(|&&b| b & 0x7f == x)
+        .count();
+    assert_eq!(xs, 16, "the text did not stop at 16 characters");
+}
+
+// AC-98: CRSR moves through the matches only, and RETURN starts the selected match
+#[test]
+fn ac_98_the_selection_moves_through_matches_and_starts_one() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-98: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac98");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let alpine = markers::basic_prg("ALPINE RAN");
+    // Unfiltered, the second DOWN would select beta, which is not a marker and never spins.
+    let inputs = vec![
+        write(&dir, "alpha.prg", &hello),
+        write(&dir, "alpine.prg", &alpine.bytes),
+        write(&dir, "beta.prg", &hello),
+    ];
+    let cart = build(&dir, "pick", &[], &inputs);
+
+    let mut steps = vec![Step::Labels(vice::menu_labels())];
+    steps.extend([idle(), Step::Keys(typed("alp")), idle(), screen()]);
+    steps.extend([Step::Keys(vec![key::DOWN, key::DOWN]), idle(), screen()]);
+    steps.extend([
+        Step::Keys(vec![key::RETURN]),
+        Step::Break(Target::Addr(alpine.spin)),
+        screen(),
+    ]);
+    let dumps = boot_or_panic(&dir, &cart, &steps);
+
+    let at = assert_listed_in_order(&dumps[0], &["alpha", "alpine"], "alp");
+    assert_not_listed(&dumps[0], &["beta"], "alp");
+    assert!(
+        vice::is_reversed(&dumps[0], at[0], 5),
+        "the first match is not selected"
+    );
+
+    let at = assert_listed_in_order(&dumps[1], &["alpha", "alpine"], "two DOWNs");
+    assert!(
+        vice::is_reversed(&dumps[1], at[1], 6) && !vice::is_reversed(&dumps[1], at[0], 5),
+        "the selection did not stop on the last match"
+    );
+    assert_marker(&dumps[2], &alpine);
+}
+
+// AC-99: nothing matching says so, RETURN does nothing, DEL recovers, RUN/STOP leaves
+#[test]
+fn ac_99_no_match_says_so_and_recovers() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-99: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac99");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "beta"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "nothing", &[], &inputs);
+
+    let dumps = screens_after(
+        &dir,
+        &cart,
+        &[
+            vec![],
+            typed("zz"),
+            vec![key::RETURN],
+            vec![key::DEL, key::DEL],
+        ],
+    );
+    assert!(
+        listed(&dumps[0], "no matches").is_none(),
+        "says no matches before typing"
+    );
+    for (i, what) in [(1, "zz"), (2, "RETURN with no match")] {
+        assert!(
+            listed(&dumps[i], "no matches").is_some(),
+            "{what}: no 'no matches'"
+        );
+        assert!(
+            listed(&dumps[i], "no entries").is_none(),
+            "{what}: says the cart is empty"
+        );
+        assert_not_listed(&dumps[i], &["alpha", "beta"], what);
+        assert!(
+            row_shows(&dumps[i], QUERY_ROW, "zz"),
+            "{what}: the text is gone"
+        );
+    }
+    assert_listed_in_order(&dumps[3], &["alpha", "beta"], "DEL DEL");
+
+    let mut keys = typed("zz");
+    keys.push(key::STOP);
+    let mut steps = press_then_wait(&keys, BASIC_MAIN);
+    steps.push(screen());
+    let basic = boot_or_panic(&dir, &cart, &steps).remove(0);
+    assert!(
+        shows(&basic, "ready."),
+        "RUN/STOP with text typed did not reach BASIC"
+    );
+}
+
+// AC-100: F1 lists A-Z ignoring case, ties in directory order, and F1 again restores the order
+#[test]
+fn ac_100_f1_toggles_between_directory_order_and_a_to_z() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-100: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac100");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    // ALPHA is stored as $61-$7A and would sort last without folding. ALPHA and alpha are equal
+    // folded, so their order shows whether ties keep directory order.
+    let inputs = [
+        ("1", "delta"),
+        ("2", "ALPHA"),
+        ("3", "charlie"),
+        ("4", "alpha"),
+        ("5", "bravo"),
+    ]
+    .map(|(sub, n)| write_in(&dir, sub, n, &hello));
+    let cart = build(&dir, "sorting", &[], &inputs);
+
+    let dumps = screens_after(&dir, &cart, &[vec![], vec![key::F1], vec![key::F1]]);
+    let cart_order = ["delta", "ALPHA", "charlie", "alpha", "bravo"];
+
+    let at = assert_listed_in_order(&dumps[0], &cart_order, "at boot");
+    assert!(
+        vice::is_reversed(&dumps[0], at[0], 5),
+        "boot: the first entry is not selected"
+    );
+    assert!(
+        row_shows(&dumps[0], STATUS_ROW, "cart order"),
+        "boot: the order is not shown"
+    );
+
+    let at = assert_listed_in_order(
+        &dumps[1],
+        &["ALPHA", "alpha", "bravo", "charlie", "delta"],
+        "after F1",
+    );
+    assert!(
+        vice::is_reversed(&dumps[1], at[0], 5),
+        "F1: the first entry is not selected"
+    );
+    assert!(
+        !vice::is_reversed(&dumps[1], at[4], 5),
+        "F1: the old selection is kept"
+    );
+    assert!(
+        row_shows(&dumps[1], STATUS_ROW, "a-z order"),
+        "F1: the order is not shown"
+    );
+
+    assert_listed_in_order(&dumps[2], &cart_order, "after F1 twice");
+    assert!(
+        row_shows(&dumps[2], STATUS_ROW, "cart order"),
+        "F1 twice: the order is not shown"
+    );
+}
+
+// AC-101: the filter and the order combine, whichever comes first, and F1 keeps the text
+#[test]
+fn ac_101_filter_and_sort_combine() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-101: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac101");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs =
+        ["mango", "banana", "kiwi", "anchovy"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "both", &[], &inputs);
+    let a_z = ["anchovy", "banana", "mango"];
+
+    let dumps = screens_after(&dir, &cart, &[typed("an"), vec![key::F1]]);
+    assert_listed_in_order(&dumps[0], &["mango", "banana", "anchovy"], "an");
+    assert_not_listed(&dumps[0], &["kiwi"], "an");
+    let at = assert_listed_in_order(&dumps[1], &a_z, "an, then F1");
+    assert_not_listed(&dumps[1], &["kiwi"], "an, then F1");
+    assert!(row_shows(&dumps[1], QUERY_ROW, "an"), "F1 dropped the text");
+    assert!(
+        vice::is_reversed(&dumps[1], at[0], 7),
+        "F1: the first match is not selected"
+    );
+    assert!(row_shows(&dumps[1], STATUS_ROW, "3 of 4"), "F1: count");
+
+    let mut keys = vec![key::F1];
+    keys.extend(typed("an"));
+    let dumps = screens_after(&dir, &cart, &[keys]);
+    assert_listed_in_order(&dumps[0], &a_z, "F1, then an");
+    assert_not_listed(&dumps[0], &["kiwi"], "F1, then an");
 }

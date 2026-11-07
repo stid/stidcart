@@ -9,9 +9,13 @@
 ; Keys are read only through GETIN, i.e. the KERNAL keyboard buffer, which is also the only place
 ; VICE can inject them (D-038). menu_idle is reached only when that buffer is empty: the boot tests
 ; break there before pressing anything.
+;
+; Typed characters filter the list to the entries whose name contains them, and F1 switches between
+; directory order and A-Z (D-039). Both compare letters through fold, so case never matters.
 
 CHROUT  = $ffd2
 GETIN   = $ffe4
+PLOT    = $fff0
 
 BANK    = $de00                 ; EasyFlash bank register
 CONTROL = $de02                 ; EasyFlash mode register
@@ -23,15 +27,21 @@ MODE_16K = $07
 DIR     = $a000                 ; EasyFS2 directory, 24-byte slots
 EFNAME  = $bb08                 ; cart name, 16 bytes PETSCII, NUL padded
 SLOT    = 24
-ROWS    = 20                    ; entries shown at once
+ROWS    = 20                    ; entries shown at once, on screen rows 2-21
+STATUS  = 23                    ; the screen row with the count and the order
+QMAX    = 16                    ; the longest text the filter takes, a whole name
 
 KEY_DOWN   = $11
 KEY_UP     = $91
 KEY_RETURN = $0d
 KEY_STOP   = $03
+KEY_DEL    = $14
+KEY_HOME   = $13
+KEY_CLR    = $93
+KEY_F1     = $85
 
 ptr     = $fb                   ; 2 bytes: a directory slot, later the copy source
-dst     = $fd                   ; 2 bytes: the copy destination
+dst     = $fd                   ; 2 bytes: the copy destination; in the menu, a second pointer
 ; make_keys runs after the copy, when $C000 may hold the program, so it keeps to zero page:
 num     = $fb                   ; 2 bytes, the SYS number (ptr is free by then)
 digit   = $fd                   ; (dst is free by then)
@@ -41,10 +51,28 @@ tmp     = $02
 ; The menu's own variables. Nothing here outlives the menu: a program it starts may load over them.
 visible = $c000                 ; slot numbers of the visible entries, in directory order
 count   = $c100                 ; how many are visible
-sel     = $c101                 ; the selected one, an index into visible
+sel     = $c101                 ; the selected one, an index into shown
 top     = $c102                 ; the first one on screen
 row     = $c103
 cur     = $c104
+nshown  = $c105                 ; how many are shown
+qlen    = $c106                 ; the length of the filter text
+order   = $c107                 ; 0 directory order, 1 A-Z
+sorted_ok = $c108               ; non-zero once sorted holds the A-Z order
+si      = $c109                 ; loop counters and scratch for refilter, sort_az and match
+skey    = $c10b
+mstart  = $c10c
+fchar   = $c10d
+dnum    = $c10e
+dlead   = $c10f
+query   = $c110                 ; QMAX bytes, the filter text, folded
+slo     = $c120                 ; sort_az's search bounds
+shi     = $c121
+smid    = $c122
+sorted  = $c200                 ; the visible entries' slot numbers, A-Z
+shown   = $c300                 ; the ones listed: visible or sorted, filtered
+name_lo = $c400                 ; each directory slot's address, by slot number
+name_hi = $c500
 
         * = $8000
         .word entry
@@ -62,10 +90,11 @@ entry:
 back_from_init:
         cli
         lda #0
-        sta sel
-        sta top
+        sta qlen
+        sta order
+        sta sorted_ok
         jsr scan
-        jsr draw
+        jmp refresh
 
 loop:
         jsr GETIN
@@ -77,19 +106,66 @@ key:
         cmp #KEY_DOWN
         beq down
         cmp #KEY_UP
-        beq up
-        cmp #KEY_RETURN
-        beq start
-        cmp #KEY_STOP
-        bne loop
+        bne +
+        jmp up
++       cmp #KEY_RETURN
+        bne +
+        jmp start
++       cmp #KEY_STOP
+        bne +
         jmp leave
++       cmp #KEY_F1
+        beq toggle
+        cmp #KEY_DEL
+        beq erase
+        cmp #KEY_HOME
+        beq clear
+        cmp #KEY_CLR
+        beq clear
+        jsr typable
+        bcc loop
+        ldx qlen
+        cpx #QMAX
+        bcs loop                ; the text is full
+        sta query,x
+        inc qlen
+        jmp refresh
+
+toggle:
+        lda order
+        eor #1
+        sta order
+        beq refresh
+        lda sorted_ok
+        bne refresh
+        jsr sort_az             ; once: the directory never changes while the menu runs
+        jmp refresh
+
+erase:
+        lda qlen
+        beq loop
+        dec qlen
+        jmp refresh
+
+clear:
+        lda #0
+        sta qlen
+
+; The text or the order changed: list again from the first match.
+refresh:
+        jsr refilter
+        lda #0
+        sta sel
+        sta top
+        jmp redraw
 
 down:
         ldx sel
         inx
-        cpx count
-        bcs loop                ; already on the last entry
-        stx sel
+        cpx nshown
+        bcc +
+        jmp loop                ; already on the last entry
++       stx sel
         txa
         sec
         sbc top
@@ -102,8 +178,9 @@ redraw:
 
 up:
         lda sel
-        beq loop
-        dec sel
+        bne +
+        jmp loop                ; already on the first entry
++       dec sel
         lda sel
         cmp top
         bcs redraw
@@ -113,10 +190,11 @@ up:
 ; --- starting the selected entry --------------------------------------------------------------
 
 start:
-        lda count
-        beq loop
-        ldx sel
-        lda visible,x
+        lda nshown
+        bne +
+        jmp loop                ; nothing listed, nothing to start
++       ldx sel
+        lda shown,x
         jsr slot_ptr
         ldy #16
         lda (ptr),y
@@ -339,6 +417,10 @@ scan:
         sta count
         ldx #0
 _next:
+        lda ptr
+        sta name_lo,x
+        lda ptr+1
+        sta name_hi,x
         ldy #16
         lda (ptr),y
         and #$1f
@@ -362,32 +444,258 @@ _skip:
 _done:
         rts
 
-; ptr = DIR + A * 24
+; ptr = the directory slot numbered A, from the addresses scan recorded. Clobbers X.
 slot_ptr:
-        ldx #0
-        stx ptr+1
-        asl a
-        rol ptr+1
-        asl a
-        rol ptr+1
-        asl a
-        rol ptr+1               ; ptr+1:A = slot * 8
+        tax
+        lda name_lo,x
         sta ptr
-        ldx ptr+1
-        asl a
-        rol ptr+1               ; ptr+1:A = slot * 16
-        clc
-        adc ptr
-        sta ptr
-        txa
-        adc ptr+1
-        sta ptr+1               ; ptr = slot * 24
-        clc
-        lda ptr+1
-        adc #>DIR
+        lda name_hi,x
         sta ptr+1
         rts
 
+; Fold a name or key byte so letters compare equal whatever their case: $61-$7A (what an
+; uppercase file stem becomes) and $C1-$DA (shifted letters) to $41-$5A. Keeps X and Y.
+fold:
+        cmp #$c1
+        bcc _low
+        cmp #$db
+        bcs _done
+        and #$7f
+        rts
+_low:
+        cmp #$61
+        bcc _done
+        cmp #$7b
+        bcs _done
+        and #$df
+_done:
+        rts
+
+; Whether key A goes into the filter text. C set, with A folded, if it does: the printable
+; characters and the shifted letters, but not the quote, which would put CHROUT in quote mode.
+typable:
+        cmp #$c1
+        bcc _low
+        cmp #$db
+        bcs _no
+        and #$7f
+        sec
+        rts
+_low:
+        cmp #$20
+        bcc _no
+        cmp #$60
+        bcs _no
+        cmp #$22
+        beq _no
+        sec
+        rts
+_no:
+        clc
+        rts
+
+; shown = the visible entries in the order in use, keeping those whose name contains the text.
+refilter:
+        lda #0
+        sta nshown
+        sta si
+_next:
+        lda si
+        cmp count
+        bcs _done
+        tax
+        lda order
+        beq _dir
+        lda sorted,x
+        jmp _have
+_dir:
+        lda visible,x
+_have:
+        sta skey
+        jsr match
+        bcc _skip
+        ldy nshown
+        lda skey
+        sta shown,y
+        inc nshown
+_skip:
+        inc si
+        jmp _next
+_done:
+        rts
+
+; C set if the name in slot A contains the text, comparing folded. The text is folded already.
+match:
+        jsr slot_ptr
+        lda qlen
+        beq _yes
+        lda #0
+        sta mstart
+_try:
+        lda mstart
+        clc
+        adc qlen
+        cmp #QMAX + 1
+        bcs _no                 ; the text no longer fits in what is left of the name
+        ldx #0
+        ldy mstart
+_cmp:
+        lda (ptr),y
+        beq _no                 ; the name ends first, so no later start fits either
+        jsr fold
+        cmp query,x
+        bne _again
+        iny
+        inx
+        cpx qlen
+        bne _cmp
+_yes:
+        sec
+        rts
+_again:
+        inc mstart
+        jmp _try
+_no:
+        clc
+        rts
+
+; sorted = visible ordered A-Z by folded name. A binary insertion sort: each entry goes after every
+; entry it doesn't sort before, so names equal once folded keep directory order, and a cart of 200
+; entries costs about 1600 comparisons rather than the 20000 a plain insertion sort can take.
+sort_az:
+        lda #0
+        sta si
+_next:
+        lda si
+        cmp count
+        bcs _done
+        tax
+        lda visible,x
+        sta skey
+        lda #0
+        sta slo
+        stx shi                 ; search sorted[0..si) for the first entry skey sorts before
+_search:
+        lda slo
+        cmp shi
+        bcs _found
+        clc
+        adc shi
+        ror a                   ; (lo + hi) / 2, the carry from the add coming in at bit 7
+        sta smid
+        tay
+        lda sorted,y
+        jsr before
+        bcc _right
+        lda smid
+        sta shi
+        jmp _search
+_right:
+        ldy smid
+        iny
+        sty slo
+        jmp _search
+_found:
+        ldy si
+_shift:
+        cpy slo
+        beq _put
+        lda sorted-1,y
+        sta sorted,y
+        dey
+        jmp _shift
+_put:
+        lda skey
+        sta sorted,y
+        inc si
+        jmp _next
+_done:
+        lda #1
+        sta sorted_ok
+        rts
+
+; C set if the name in slot skey sorts strictly before the name in slot A, comparing folded.
+before:
+        tax
+        lda name_lo,x
+        sta dst
+        lda name_hi,x
+        sta dst+1
+        lda skey
+        jsr slot_ptr
+        ldy #0
+_cmp:
+        lda (dst),y
+        jsr fold
+        sta fchar
+        lda (ptr),y
+        jsr fold
+        cmp fchar
+        bcc _yes
+        bne _no
+        ora #0
+        beq _no                 ; both names end here: equal
+        iny
+        cpy #16
+        bne _cmp
+_no:
+        clc
+        rts
+_yes:
+        sec
+        rts
+
+; Print the string at A (low), Y (high), up to its NUL.
+say:
+        sta dst
+        sty dst+1
+        ldy #0
+-       lda (dst),y
+        beq +
+        jsr CHROUT
+        iny
+        bne -
++       rts
+
+; Print A in decimal, without leading zeros.
+decimal:
+        sta dnum
+        lda #0
+        sta dlead
+        ldx #0
+_digit:
+        ldy #"0"
+_sub:
+        lda dnum
+        cmp tens,x
+        bcc _emit
+        sbc tens,x
+        sta dnum
+        iny
+        bne _sub
+_emit:
+        cpy #"0"
+        bne _put
+        lda dlead
+        bne _put
+        cpx #2
+        bne _skip               ; a leading zero, and not the last digit
+_put:
+        tya
+        jsr CHROUT
+        lda #1
+        sta dlead
+_skip:
+        inx
+        cpx #3
+        bne _digit
+        rts
+
+tens:
+        .byte 100, 10, 1
+
+; Row 0 the cart name, row 1 the filter text, rows 2-21 the list, row 23 the count and order.
+; Nothing prints a RETURN on the last two rows, which would scroll the screen.
 draw:
         lda #$93                ; clear the screen
         jsr CHROUT
@@ -400,15 +708,32 @@ draw:
         bne -
 +       lda #KEY_RETURN
         jsr CHROUT
+        lda qlen
+        beq _bare
+        lda #<find_text
+        ldy #>find_text
+        jsr say
+        ldx #0
+-       lda query,x
+        jsr putc
+        inx
+        cpx qlen
+        bne -
+_bare:
+        lda #KEY_RETURN
         jsr CHROUT
         lda count
+        bne _some
+        lda #<no_entries
+        ldy #>no_entries
+        jmp say
+_some:
+        lda nshown
         bne _rows
-        ldx #0
--       lda no_entries,x
-        beq _done
-        jsr CHROUT
-        inx
-        bne -
+        lda #<no_matches
+        ldy #>no_matches
+        jsr say
+        jmp _status
 _rows:
         lda #0
         sta row
@@ -416,15 +741,15 @@ _row:
         lda row
         clc
         adc top
-        cmp count
-        bcs _done               ; past the last entry
+        cmp nshown
+        bcs _status             ; past the last entry
         sta cur
         cmp sel
         bne +
         lda #$12                ; reverse on: the selected entry
         jsr CHROUT
 +       ldx cur
-        lda visible,x
+        lda shown,x
         jsr slot_ptr
         ldy #0
 -       lda (ptr),y
@@ -441,8 +766,25 @@ _row:
         lda row
         cmp #ROWS
         bcc _row
-_done:
-        rts
+_status:
+        clc
+        ldx #STATUS
+        ldy #0
+        jsr PLOT
+        lda nshown
+        jsr decimal
+        lda #<of_text
+        ldy #>of_text
+        jsr say
+        lda count
+        jsr decimal
+        lda #<cart_order
+        ldy #>cart_order
+        ldx order
+        beq +
+        lda #<az_order
+        ldy #>az_order
++       jmp say
 
 ; Print a name byte, as "?" when CHROUT would take it as a control code.
 putc:
@@ -459,6 +801,16 @@ _ok:
 
 no_entries:
         .null "no entries"
+no_matches:
+        .null "no matches"
+find_text:
+        .null "find: "
+of_text:
+        .null " of "
+cart_order:
+        .null "   cart order"
+az_order:
+        .null "   a-z order"
 
         .include "launch.s"
 

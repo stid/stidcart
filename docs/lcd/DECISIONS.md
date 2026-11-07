@@ -8,7 +8,29 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-039 -->
+<!-- Next id: D-040 -->
+
+---
+
+## D-039 · 2026-11-07 · Menu search is a substring filter as you type; sort is a view toggle that starts in directory order
+- **Context:** menu-search-sort, the second custom-menu slice (D-037). Letters are free in the menu,
+  which reads only CRSR, RETURN and RUN/STOP. The directory order is fixed by the format's placement
+  rules, so a sort can only change what the menu shows. It can't reorder the cart.
+- **Decision:** (user's choices, following the recommendation)
+  - Typed characters build a query of at most 16 characters, shown on the blank row above the list.
+    The list narrows to visible entries whose name contains the query, ignoring case. All three
+    letter ranges are folded to one (`$41-$5A` and `$C1-$DA` from GETIN, plus `$61-$7A`, which an
+    uppercase file stem becomes). DEL removes a character, and CLR/HOME clears the query.
+  - F1 toggles between directory order and A-Z, with the same folding. Ties keep directory order.
+    Every boot starts in directory order, so the AC-87 screen is unchanged. The sorted order is
+    computed on the first F1 and kept.
+  - RUN/STOP leaves to BASIC whatever the filter state, as before.
+- **Alternatives rejected:** jump-to-letter, which never narrows a long list. A prefix-only
+  filter, which finds fewer entries for a small saving. Always A-Z, which hides the build order on
+  the C64. A three-way cycle that adds by-kind order, which nobody asked for. A build-time sort
+  that reorders the directory, which placement rules forbid.
+- **Scope:** `menu/src/menu.s`, `menu/README.md`, boot tests
+- **Status:** active · refines D-037
 
 ---
 
