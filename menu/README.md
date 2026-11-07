@@ -11,13 +11,20 @@ code.
 
 ## Using it
 
-| Key             | Does                                              |
-| --------------- | ------------------------------------------------- |
-| CRSR ↓ / CRSR ↑ | move the selection. The list scrolls past 20 rows |
-| RETURN          | start the selected entry                          |
-| RUN/STOP        | leave to BASIC with the cartridge switched off    |
+| Key             | Does                                                       |
+| --------------- | ---------------------------------------------------------- |
+| CRSR ↓ / CRSR ↑ | move the selection. The list scrolls past 20 rows          |
+| RETURN          | start the selected entry                                   |
+| letters, digits | filter: list only the entries whose name contains the text |
+| DEL             | remove the last character of the filter text               |
+| CLR/HOME        | clear the filter text                                      |
+| F1              | switch between the cart's own order and A-Z                |
+| RUN/STOP        | leave to BASIC with the cartridge switched off             |
 
-Hidden entries are not listed. A program that loads at or below `$0801` is started with `RUN`,
+Hidden entries are not listed. The filter and A-Z both ignore case. The filter takes up to 16
+characters, any printable one except `"`, and shows them on the row above the list. The bottom row
+shows how many entries match out of those listed, and which order is in use. Every boot starts in
+the cart's own order, which is the order they were built in (D-039). A program that loads at or below `$0801` is started with `RUN`,
 and any other with `SYS` to its load address. The tool refuses to put this menu on a cart with an
 Ocean entry, or with a program that would load into `$D000-$DFFF` (D-038).
 

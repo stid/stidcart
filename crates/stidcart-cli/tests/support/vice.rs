@@ -28,6 +28,10 @@ pub mod key {
     pub const UP: u8 = 0x91;
     pub const RETURN: u8 = 0x0d;
     pub const STOP: u8 = 0x03;
+    pub const DEL: u8 = 0x14;
+    pub const HOME: u8 = 0x13;
+    pub const CLR: u8 = 0x93;
+    pub const F1: u8 = 0x85;
 }
 
 /// Where a breakpoint goes.

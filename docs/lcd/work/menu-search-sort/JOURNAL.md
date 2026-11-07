@@ -12,19 +12,19 @@
 
 - **Lane:** Standard
 - **Goal:** Search (substring filter as you type) and an F1 sort toggle (directory order ↔ A-Z) in our C64 menu (D-039)
-- **Next action:** S3, the failing boot tests in `crates/stidcart-cli/tests/menu_search.rs`
+- **Next action:** S8, audit, reconcile SPEC and open the PR. Then show the user the menu in VICE
 - **Branch:** feat/menu-search-sort · **Updated:** 2026-11-07
 
 ## STEPS
 
 - [x] S1 — version 0.9.0 → 0.10.0 (first commit on the `feat/` branch)
 - [x] S2 — triage, D-039, AC-96..AC-101 claimed, this JOURNAL
-- [ ] S3 — `vice::key` gets DEL/HOME/CLR/F1. Failing tests AC-96..AC-101 in `menu_search.rs`, each with a negative control ← next
-- [ ] S4 — menu refactor, no behaviour change: `visible` stays the base list, and a view array with its own count feeds draw/up/down/start. Query on row 1, status on row 23 (no RETURN on the last rows). AC-87..AC-92 stay green
-- [ ] S5 — filter: typed characters, DEL, CLR/HOME, cap 16, fold, "no matches" (AC-96..AC-99)
-- [ ] S6 — F1 sort, computed on first press and kept, stable (AC-100, AC-101)
-- [ ] S7 — `menu/README.md` key table. `menu.bin`/`menu.lbl` reassembled with every menu commit (AC-93)
-- [ ] S8 — full gate, audit, reconcile SPEC row "Booted, our menu shows…", PR
+- [x] S3 — `vice::key` gets DEL/HOME/CLR/F1. Failing tests AC-96..AC-101 appended to `menu_boot.rs`, each with a negative control
+- [x] S4 — menu refactor, no behaviour change: `visible` stays the base list, and a view array with its own count feeds draw/up/down/start. Query on row 1, status on row 23 (no RETURN on the last rows). AC-87..AC-92 stay green
+- [x] S5 — filter: typed characters, DEL, CLR/HOME, cap 16, fold, "no matches" (AC-96..AC-99)
+- [x] S6 — F1 sort, computed on first press and kept, stable (AC-100, AC-101)
+- [x] S7 — `menu/README.md` key table. `menu.bin`/`menu.lbl` reassembled with every menu commit (AC-93)
+- [ ] S8 — full gate, audit, reconcile SPEC row "Booted, our menu shows…", PR  ← next
 
 ## DECISIONS (this work-item)
 
@@ -42,7 +42,7 @@
 - `menu/menu.bin`
 - `menu/menu.lbl`
 - `menu/README.md`
-- `crates/stidcart-cli/tests/menu_search.rs`
+- `crates/stidcart-cli/tests/menu_boot.rs`
 - `crates/stidcart-cli/tests/support/vice.rs`
 - `Cargo.toml`
 - `Cargo.lock`
@@ -97,3 +97,16 @@ in the new order and the typed text is kept. Typing with A-Z in use lists the ma
   array, fold all three letter ranges, cover the fold with a mixed-case test name, read assertions
   from row 2 so the query line can't satisfy them, put a negative control in every test, and keep the
   status line off row 24. AC-96..AC-101 claimed, next free AC-102.
+- 2026-11-07 — Refined: the tests went into `menu_boot.rs` instead of a new `menu_search.rs`, to
+  reuse its build, boot and key helpers (about 60 lines that would otherwise be copied). Red run: 6
+  failed for the expected reasons (keys ignored, no status line) and the 13 existing tests passed.
+  AC-98's inputs were reordered so the unfiltered path would select a non-marker.
+- 2026-11-07 — Green: the menu keeps `visible` as the base list, with a `shown` view, a `sorted`
+  array and per-slot name address tables in `$C200-$C5FF`. All in ROM, and `launch.s` is unchanged.
+  The script-driven edit first cut at `redraw:` instead of `draw:`, and `sort` is a 64tass built-in
+  name. Both were caught by the assembler and fixed by restoring the file and re-patching. Root gate
+  215/0 with STIDCART_REQUIRE_TOOLS=1, GUI gate 31/0.
+- 2026-11-07 — Timing (scratch VICE run, stopwatch from `sort_az` to `refilter`, 200 entries in
+  reverse order): plain insertion sort took 6.06M cycles, about 6 s at 1 MHz. Binary insertion
+  takes 966k, about 1 s, once per boot. Note that `stidcart` embeds `menu.bin` at compile time, so
+  a reassembled menu needs `cargo build` before a hand-built cart carries it.
