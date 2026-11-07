@@ -859,7 +859,7 @@
   block the skeleton on unrelated work, with no oracle to check it against. Regenerate from ndefpack's
   acme sources — pointless, the committed blobs are byte-identical to what that produces.
 - **Scope:** project-wide
-- **Status:** active
+- **Status:** active · the custom menu now exists, opt-in, beside the blobs (D-037)
 
 ## D-004 · 2026-08-10 · GPL-2.0-or-later for everything outside `firmware/`
 - **Context:** The core is being written by reading ndefpack's GPL C and the extracted format spec.

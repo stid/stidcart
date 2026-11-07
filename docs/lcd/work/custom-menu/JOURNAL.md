@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Our own C64 menu, first slice: it lists a cart's entries and boots them, is chosen opt-in at build/edit, and load/edit/GUI recognise it (D-037)
-- **Next action:** confirm AC-4 + menu boots green on Linux CI (PR #36), then /lcd:audit custom-menu, then T-final
+- **Next action:** done; PR #36 green (gate, gui, audit, claude-review) and awaits the user's review and merge
 - **Branch:** feat/custom-menu  ·  **Updated:** 2026-11-07
 
 ## STEPS
@@ -23,7 +23,7 @@
 - [x] S5 — E: T25–T30 GUI DTO, window, save parity (AC-85 RENDER, AC-86)
 - [x] S6 — F: T31–T42 markers, boot tests, the 6502 menu (AC-87..92)
 - [x] S7 — G: T43–T45 docs
-- [ ] S8 — Linux CI green · T-audit · T-final  ← next
+- [x] S8 — Linux CI green · T-audit · T-final
 
 ## DECISIONS (this work-item)
 - Scope forks (Ocean refused, GUI recognise-only, VICE in CI, no hardware gate) → D-037
@@ -133,10 +133,15 @@ AC-81..AC-95 live in `spec.md`.
 - 2026-11-07 — red-green: all 16 AC tokens green locally (root 209 tests with STIDCART_REQUIRE_TOOLS=1,
   GUI gate green). Took about 9 fix iterations: 2 CI option rounds, 2 menu bugs, plus test-only
   compile and lint fixes, with 0 reverts.
+- 2026-11-07 — Linux CI green on 4d77bc2 (gate, gui, audit, claude-review). AC-4 and AC-87..AC-94 ran,
+  none skipped. audit: PASS (first run). Closeout line appended.
+- 2026-11-07 — reconciled: folded AC-81..AC-95 → SPEC.md. CLI: build, edit, list and the edit-refuses
+  row rewritten, plus 1 new refusal row. RENDER: 3 rows rewritten. Internal: 2 rewritten, plus 3 new
+  rows. D-005 status notes the menu.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
