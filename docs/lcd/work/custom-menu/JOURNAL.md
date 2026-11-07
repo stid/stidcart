@@ -10,19 +10,20 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Our own C64 menu, first slice: it lists a cart's entries and boots them, is chosen opt-in at build/edit, and load/edit/GUI recognise it (D-037)
-- **Next action:** run lcd:redgreen-loop from T1 (tests are red; T6 is a hard checkpoint: AC-4 green on Linux CI before menu work)
+- **Next action:** confirm AC-4 + menu boots green on Linux CI (PR #36), then /lcd:audit custom-menu, then T-final
 - **Branch:** feat/custom-menu  ·  **Updated:** 2026-11-07
 
 ## STEPS
 > Mirrors `tasks.md` T1..T45 by block, and that file is the detail.
 - [x] S0 — triage, spec, plan, tasks (D-037, D-038)
-- [ ] S1 — A: T1 version 0.9.0 · T2–T6 CI spike (harness, install script, ci.yml), **AC-4 green on Linux CI**  ← next
-- [ ] S2 — B: T7 format spec facts · T8 MAP
-- [ ] S3 — C: T9–T12 toolchain, skeleton menu, embedding (AC-93)
-- [ ] S4 — D: T13–T24 `--menu`, refusals, recognition, `list` line, goldens (AC-81..85 CLI, AC-95)
-- [ ] S5 — E: T25–T30 GUI DTO, window, save parity (AC-85 RENDER, AC-86)
-- [ ] S6 — F: T31–T42 markers, boot tests, the 6502 menu (AC-87..92)
-- [ ] S7 — G: T43–T45 docs · T-audit · T-final
+- [x] S1 — A: T1 version 0.9.0 · T2–T6 CI spike (harness, install script, ci.yml); the Linux confirmation is S8
+- [x] S2 — B: T7 format spec facts · T8 MAP
+- [x] S3 — C: T9–T12 toolchain, skeleton menu, embedding (AC-93)
+- [x] S4 — D: T13–T24 `--menu`, refusals, recognition, `list` line, goldens (AC-81..85 CLI, AC-95)
+- [x] S5 — E: T25–T30 GUI DTO, window, save parity (AC-85 RENDER, AC-86)
+- [x] S6 — F: T31–T42 markers, boot tests, the 6502 menu (AC-87..92)
+- [x] S7 — G: T43–T45 docs
+- [ ] S8 — Linux CI green · T-audit · T-final  ← next
 
 ## DECISIONS (this work-item)
 - Scope forks (Ocean refused, GUI recognise-only, VICE in CI, no hardware gate) → D-037
@@ -116,10 +117,26 @@ AC-81..AC-95 live in `spec.md`.
   and `markers::{basic_prg, high_prg, cart, CartKind, Marker{bytes, spin, text}}`. The GUI ones
   are runtime-red. The EDIT BOUNDARY was rewritten one path per bullet, because the hook couldn't
   parse brace globs.
+- 2026-11-07 — red-green, in task order with three refinements: markers (T31) came forward with the
+  harness, because `menu_boot` declares `mod support`. Block C (skeleton menu + embedding) went
+  before the CI push, because CI's clippy compiles every test target. VICE can't attach a stand-alone
+  xbank `.crt` (type 33 "NO CART EXISTS"), so the marker control boots only the 4 generic kinds.
+- 2026-11-07 — Linux CI spike: 64tass and headless VICE 3.10 built in about 1.5 min. AC-4 then failed
+  twice in 0.03s. The headless build has no `+saveres`, `-nativemonitor` or `+confirmonexit` (VICE
+  registers them only in `arch/gtk3`/`arch/sdl`), so the harness probes `-help` and passes them only
+  when present. It also logs x64sc's output and prints the tail when a dump is missing.
+- 2026-11-07 — Menu bugs found in the monitor: (1) the RAM block came to 376 bytes, over the 254 in
+  `$DF02-$DFFF`, so all cart-independent work moved to ROM (CIA/VIC quieting, CHRIN patch, size-2,
+  BASIC pointers and keys after the copy); it is now `$DF02-$DFF5`. (2) A PRG ran `RUN` on an empty
+  line, because the trap returned with X=4 and BASIC's INLIN keeps its buffer index in X across
+  CHRIN. The trap now keeps A/X/Y, as EasyLoader's does.
+- 2026-11-07 — red-green: all 16 AC tokens green locally (root 209 tests with STIDCART_REQUIRE_TOOLS=1,
+  GUI gate green). Took about 9 fix iterations: 2 CI option rounds, 2 menu bugs, plus test-only
+  compile and lint fixes, with 0 reverts.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
