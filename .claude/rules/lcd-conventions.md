@@ -42,7 +42,7 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
   name*, the `tests/<stem>.rs` filename without its extension, so `{path}` = `directory`, not
   `crates/stidcart-core/tests/directory.rs`. Every target stem in the root workspace is currently
   unique across both crates (`cart_placement` `cartridge` `container` `directory` `listing` `mutate`
-  `parity` `read` `reserved` … in core; `cli` `edit` `list` `list_golden` … in cli), so `--workspace --test <stem>`
+  `menu` `parity` `read` `reserved` … in core; `boot` `cli` `edit` `list` `list_golden` `menu_boot` `menu_cli` … in cli), so `--workspace --test <stem>`
   resolves without a `-p`. Add `-p stidcart-core` / `-p stidcart-cli` if that ever stops being true.
   GUI stems live in their own workspace and cannot collide.
 - **There is no true per-test bail.** libtest has no `--bail`; `cargo test` fails fast at *target*
