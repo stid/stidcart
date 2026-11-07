@@ -122,7 +122,12 @@ fn ac_87_the_menu_lists_visible_entries_in_order_with_the_first_selected() {
     let dir = scratch("ac87");
     let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
     let inputs = ["alpha", "bravo", "charlie"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
-    let cart = build(&dir, "menu test", &["--hide", inputs[1].to_str().unwrap()], &inputs);
+    let cart = build(
+        &dir,
+        "menu test",
+        &["--hide", inputs[1].to_str().unwrap()],
+        &inputs,
+    );
 
     let shown = menu_screen(&dir, &cart);
     assert!(shows(&shown, "menu test"), "the cart name is not the title");
@@ -130,14 +135,24 @@ fn ac_87_the_menu_lists_visible_entries_in_order_with_the_first_selected() {
     let charlie = vice::find(&shown, &vice::screen_text("charlie")).expect("CHARLIE is not listed");
     assert!(alpha < charlie, "entries are not in directory order");
     assert!(!shows(&shown, "bravo"), "a hidden entry is listed");
-    assert!(vice::is_reversed(&shown, alpha, 5), "the first entry is not selected");
-    assert!(!vice::is_reversed(&shown, charlie, 7), "a second entry is selected too");
+    assert!(
+        vice::is_reversed(&shown, alpha, 5),
+        "the first entry is not selected"
+    );
+    assert!(
+        !vice::is_reversed(&shown, charlie, 7),
+        "a second entry is selected too"
+    );
 
     // Negative control: with the cart destroyed the menu never reaches its idle loop.
     let broken = corrupted(&dir, &cart);
     assert!(
-        vice::boot(&dir, &broken, &[Step::Labels(vice::menu_labels()), idle(), screen()])
-            .is_none_or(|d| !shows(&d[0], "alpha")),
+        vice::boot(
+            &dir,
+            &broken,
+            &[Step::Labels(vice::menu_labels()), idle(), screen()]
+        )
+        .is_none_or(|d| !shows(&d[0], "alpha")),
         "a corrupted cart still listed the entry; this test cannot fail"
     );
 }
@@ -160,7 +175,10 @@ fn ac_88_a_long_list_scrolls_and_the_last_entry_starts() {
 
     let first = menu_screen(&dir, &cart);
     assert!(shows(&first, "e01"), "the first entry is not shown");
-    assert!(!shows(&first, "e30"), "all 30 entries fit; this cart does not exercise scrolling");
+    assert!(
+        !shows(&first, "e30"),
+        "all 30 entries fit; this cart does not exercise scrolling"
+    );
 
     // Move to the last entry and look before starting it.
     let mut steps = vec![Step::Labels(vice::menu_labels())];
@@ -171,8 +189,12 @@ fn ac_88_a_long_list_scrolls_and_the_last_entry_starts() {
     steps.push(idle());
     steps.push(screen());
     let scrolled = boot_or_panic(&dir, &cart, &steps).remove(0);
-    let at = vice::find(&scrolled, &vice::screen_text("e30")).expect("e30 never scrolled into view");
-    assert!(vice::is_reversed(&scrolled, at, 3), "e30 is shown but not selected");
+    let at =
+        vice::find(&scrolled, &vice::screen_text("e30")).expect("e30 never scrolled into view");
+    assert!(
+        vice::is_reversed(&scrolled, at, 3),
+        "e30 is shown but not selected"
+    );
 
     let mut keys = vec![key::DOWN; 29];
     keys.push(key::RETURN);
@@ -199,7 +221,10 @@ fn ac_89_programs_start_with_the_cart_switched_out() {
     let cart = build(&dir, "programs", &[], &inputs);
     let menu_start = &stidcart_core::menu::STIDCART_MENU[..2];
 
-    for (keys, m) in [(vec![key::RETURN], &low), (vec![key::DOWN, key::RETURN], &high)] {
+    for (keys, m) in [
+        (vec![key::RETURN], &low),
+        (vec![key::DOWN, key::RETURN], &high),
+    ] {
         let mut steps = press_then_wait(&keys, m.spin);
         steps.push(screen());
         steps.push(Step::Dump(0x8000, 0x8001));
@@ -240,6 +265,24 @@ fn ac_90_every_non_ocean_cartridge_kind_starts() {
     }
 }
 
+/// Control for AC-90: each marker cart, booted on its own without any menu, writes its marker and
+/// reaches its spin address. If this fails, the marker is broken, not the menu.
+#[test]
+fn every_marker_cart_runs_on_its_own() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("marker control: skipping — x64sc is not installed");
+        return;
+    }
+    for kind in CartKind::ALL {
+        let dir = scratch(&format!("marker-{}", kind.name()));
+        let m = markers::cart(kind, "MARKER RAN");
+        let cart = write(&dir, "marker.crt", &m.bytes);
+        let dumps = vice::boot(&dir, &cart, &[Step::Break(Target::Addr(m.spin)), screen()])
+            .unwrap_or_else(|| panic!("the {} marker never reached its spin address", kind.name()));
+        assert_marker(&dumps[0], &m);
+    }
+}
+
 /// BASIC's main input loop, which a cold start reaches after printing `READY.`.
 const BASIC_MAIN: u16 = 0xa480;
 
@@ -256,7 +299,10 @@ fn ac_91_run_stop_leaves_to_basic_with_full_memory() {
     let mut steps = press_then_wait(&[key::STOP], BASIC_MAIN);
     steps.push(screen());
     let basic = boot_or_panic(&dir, &cart, &steps).remove(0);
-    assert!(shows(&basic, "38911 basic bytes free"), "BASIC did not start with full memory");
+    assert!(
+        shows(&basic, "38911 basic bytes free"),
+        "BASIC did not start with full memory"
+    );
     assert!(shows(&basic, "ready."), "no READY. prompt");
 }
 
@@ -269,16 +315,27 @@ fn ac_92_no_visible_entries_says_so_and_leaving_works() {
     }
     let dir = scratch("ac92");
     let only = fixtures().join("hello.prg");
-    let cart = build(&dir, "empty", &["--hide", only.to_str().unwrap()], &[only.clone()]);
+    let cart = build(
+        &dir,
+        "empty",
+        &["--hide", only.to_str().unwrap()],
+        &[only.clone()],
+    );
 
     let screen_now = menu_screen(&dir, &cart);
-    assert!(shows(&screen_now, "no entries"), "the menu does not say the cart has no entries");
+    assert!(
+        shows(&screen_now, "no entries"),
+        "the menu does not say the cart has no entries"
+    );
     assert!(!shows(&screen_now, "hello"), "a hidden entry is listed");
 
     let mut steps = press_then_wait(&[key::STOP], BASIC_MAIN);
     steps.push(screen());
     let basic = boot_or_panic(&dir, &cart, &steps).remove(0);
-    assert!(shows(&basic, "ready."), "leaving an empty menu did not reach BASIC");
+    assert!(
+        shows(&basic, "ready."),
+        "leaving an empty menu did not reach BASIC"
+    );
 }
 
 // AC-94: in the required checks, the emulator boots run rather than skip
@@ -290,7 +347,10 @@ fn ac_94_ci_runs_the_boot_checks_instead_of_skipping() {
     .unwrap();
     // The `gate` job: its lines up to the next job key, which sits at two spaces of indentation.
     let is_job_key = |l: &str| {
-        l.starts_with("  ") && !l.starts_with("   ") && !l.trim().starts_with('#') && l.ends_with(':')
+        l.starts_with("  ")
+            && !l.starts_with("   ")
+            && !l.trim().starts_with('#')
+            && l.ends_with(':')
     };
     let gate: String = ci
         .lines()
@@ -301,13 +361,17 @@ fn ac_94_ci_runs_the_boot_checks_instead_of_skipping() {
         .collect();
     assert!(!gate.is_empty(), "no gate job in ci.yml");
 
-    assert!(gate.contains("runs-on: ubuntu-24.04"), "gate is not pinned to ubuntu-24.04");
+    assert!(
+        gate.contains("runs-on: ubuntu-24.04"),
+        "gate is not pinned to ubuntu-24.04"
+    );
     assert!(
         gate.contains("docs/lcd/ci/install-menu-tools.sh"),
         "gate does not install VICE and 64tass"
     );
     assert!(
-        gate.contains("STIDCART_REQUIRE_TOOLS: \"1\"") || gate.contains("STIDCART_REQUIRE_TOOLS: 1"),
+        gate.contains("STIDCART_REQUIRE_TOOLS: \"1\"")
+            || gate.contains("STIDCART_REQUIRE_TOOLS: 1"),
         "gate does not require the tools, so a missing emulator would skip"
     );
 
