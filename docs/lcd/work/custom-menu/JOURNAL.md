@@ -30,7 +30,7 @@
 - Menu as builder property, GETIN input, EasyLoader-order PRG start, $D000 refusal, CI tool build → D-038
 
 ## OPEN QUESTIONS
-- none blocking; headless VICE's build deps and `script` behaviour come from the CI spike
+- AC-4 failed once on Linux CI without starting x64sc (cause unknown, see LOG). The harness now records enough to diagnose a recurrence
 
 ## EDIT BOUNDARY (paths this work may touch)
 - `menu/`
@@ -138,6 +138,11 @@ AC-81..AC-95 live in `spec.md`.
 - 2026-11-07 — reconciled: folded AC-81..AC-95 → SPEC.md. CLI: build, edit, list and the edit-refuses
   row rewritten, plus 1 new refusal row. RENDER: 3 rows rewritten. Internal: 2 rewritten, plus 3 new
   rows. D-005 status notes the menu.
+- 2026-11-07 — CI flake, open: on e39f2c4 AC-4 failed once in 0.40s with both VICE logs empty, so
+  x64sc didn't run. Passing runs take 1.7-2.1s. It didn't recur on c09ee48 (fresh build) or its re-run
+  (cache hit), and install-menu-tools.sh now smoke-tests x64sc. Cause unknown. The harness now prints
+  script's exit status, the elapsed time and the args when dumps are missing, so a recurrence can be
+  diagnosed.
 
 ## DEEP PIPELINE (Deep lane only)
 

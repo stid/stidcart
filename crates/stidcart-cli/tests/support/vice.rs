@@ -167,19 +167,27 @@ pub fn boot(dir: &Path, cart: &Path, steps: &[Step]) -> Option<Vec<Vec<u8>>> {
     // why: the failing test prints its tail.
     let log_path = dir.join("vice.log");
     let log = std::fs::File::create(&log_path).unwrap();
-    // Deliberately ignored: a clean run exits non-zero under -limitcycles.
-    let _ = under_script(&args)
+    // Not checked: a clean run exits non-zero under -limitcycles. It is reported below only when
+    // the dumps are missing, together with how long the run took, which tells "never started" (a
+    // fraction of a second) from "ran and never reached the breakpoint" (the cycle limit).
+    let started = std::time::Instant::now();
+    let status = under_script(&args)
         .current_dir(dir)
         .stdin(Stdio::null())
         .stdout(log.try_clone().unwrap())
         .stderr(log)
         .status();
+    let elapsed = started.elapsed();
 
     let result: Option<Vec<Vec<u8>>> = dumps
         .iter()
         .map(|d| std::fs::read(dir.join(d)).ok())
         .collect();
     if result.is_none() {
+        eprintln!(
+            "x64sc under script exited with {status:?} after {elapsed:.2?}; args: {}",
+            args.join(" ")
+        );
         // Option errors come before VICE opens its log; everything after goes to the log.
         for name in ["vice.log", "vice-internal.log"] {
             let text = std::fs::read_to_string(dir.join(name)).unwrap_or_default();
