@@ -10,14 +10,19 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Our own C64 menu, first slice: it lists a cart's entries and boots them, is chosen opt-in at build/edit, and load/edit/GUI recognise it (D-037)
-- **Next action:** run /lcd:tasks custom-menu (task 1 must be the CI spike: AC-4 green on ubuntu-24.04 with VICE 3.10 headless)
+- **Next action:** run /lcd:test-gen custom-menu (then red-green from T1; T6 is a hard checkpoint: AC-4 green on Linux CI before menu work)
 - **Branch:** feat/custom-menu  ·  **Updated:** 2026-11-07
 
 ## STEPS
-- [x] S1 — triage (Deep), D-037, spec.md
-- [x] S2 — plan.md, D-038, spec amended with AC-95
-- [ ] S3 — /lcd:tasks custom-menu  ← next
-- [ ] S4 — /lcd:test-gen, red-green (CI spike first), audit
+> Mirrors `tasks.md` T1..T45 by block, and that file is the detail.
+- [x] S0 — triage, spec, plan, tasks (D-037, D-038)
+- [ ] S1 — A: T1 version 0.9.0 · T2–T6 CI spike (harness, install script, ci.yml), **AC-4 green on Linux CI**  ← next
+- [ ] S2 — B: T7 format spec facts · T8 MAP
+- [ ] S3 — C: T9–T12 toolchain, skeleton menu, embedding (AC-93)
+- [ ] S4 — D: T13–T24 `--menu`, refusals, recognition, `list` line, goldens (AC-81..85 CLI, AC-95)
+- [ ] S5 — E: T25–T30 GUI DTO, window, save parity (AC-85 RENDER, AC-86)
+- [ ] S6 — F: T31–T42 markers, boot tests, the 6502 menu (AC-87..92)
+- [ ] S7 — G: T43–T45 docs · T-audit · T-final
 
 ## DECISIONS (this work-item)
 - Scope forks (Ocean refused, GUI recognise-only, VICE in CI, no hardware gate) → D-037
@@ -79,5 +84,5 @@ AC-81..AC-95 live in `spec.md`.
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->

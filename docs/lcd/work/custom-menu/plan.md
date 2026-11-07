@@ -6,7 +6,7 @@
 **Slug:** `custom-menu`
 **Spec:** [`spec.md`](./spec.md) · **Journal:** [`JOURNAL.md`](./JOURNAL.md)
 **Created:** 2026-11-07
-**Status:** draft <!-- draft | approved | implemented | superseded -->
+**Status:** approved <!-- draft | approved | implemented | superseded -->
 
 ---
 
