@@ -17,7 +17,9 @@
 #
 # A pull request whose whole diff against its base is Markdown is not reviewed: the check passes
 # with a notice instead (D-043). The test is the whole diff, never the latest push, so a
-# docs-only push after a blocking finding cannot turn the gate green.
+# docs-only push after a blocking finding cannot turn the gate green. Markdown that steers agents
+# or this review (CLAUDE.md, .claude/, DECISIONS, MAP, the format spec, fixtures/) is always
+# reviewed.
 
 name: Claude review
 
@@ -49,8 +51,13 @@ jobs:
           set -euo pipefail
           changed=$(git diff --name-only "$BASE...$HEAD")
           echo "$changed"
-          # Markdown only: every changed path ends in .md. An empty diff is reviewed as usual.
-          if [ -n "$changed" ] && ! grep -qv '\.md$' <<<"$changed"; then
+          # Markdown only: every changed path ends in .md. An empty diff is reviewed as usual, and
+          # so is any change to the Markdown that steers agents and this review rather than
+          # documenting: CLAUDE.md, .claude/, the decisions log and map the prompt below treats as
+          # settled, the format spec, and fixtures/.
+          control='(^|/)CLAUDE\.md$|^\.claude/|^docs/lcd/(DECISIONS|MAP)\.md$|^docs/format/|^fixtures/'
+          if [ -n "$changed" ] && ! grep -qv '\.md$' <<<"$changed" \
+             && ! grep -qE "$control" <<<"$changed"; then
             echo "docs_only=true" >> "$GITHUB_OUTPUT"
           else
             echo "docs_only=false" >> "$GITHUB_OUTPUT"

@@ -19,7 +19,10 @@
 - **Decision:** (user's choices) `claude-review` diffs the PR head against its base. When every
   changed path ends in `.md`, it skips the review step and the gate passes with a notice. Anything
   else, including scripts under `docs/` and an empty diff, is reviewed as before. The test is the
-  whole PR, never the latest push.
+  whole PR, never the latest push. Markdown that steers agents or this review is always reviewed:
+  `CLAUDE.md`, `.claude/`, `docs/lcd/DECISIONS.md` and `MAP.md` (the review prompt treats them as
+  settled), `docs/format/`, and `fixtures/`. Otherwise an unreviewed PR could rewrite what a later
+  review takes as authority (raised by the automated security review on the PR).
 - **Alternatives rejected:** skipping per push, which would let a docs-only push after a blocking
   finding turn the gate green without fixing the code. A `paths:` filter in `on:`, which D-009
   rules out for a required check. Dropping the review from required checks for docs PRs by hand.
