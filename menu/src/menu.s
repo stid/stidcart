@@ -13,9 +13,19 @@
 ; Typed characters filter the list to the entries whose name contains them, and F1 switches between
 ; directory order and A-Z (D-039). Both compare letters through fold, so case never matters.
 
-CHROUT  = $ffd2
 GETIN   = $ffe4
-PLOT    = $fff0
+
+SCREEN  = $0400
+COLOURS = $d800                 ; colour RAM
+CHARSET = $d018                 ; VIC memory setup: $15 the upper-case set, $17 mixed case
+SHIFT_LOCK = $0291              ; bit 7 set: SHIFT+C= doesn't switch the set
+BORDER  = $d020
+BACKGROUND = $d021
+BLACK      = 0                  ; the colours the menu uses (D-040)
+CYAN       = 3
+YELLOW     = 7
+GREY       = 12
+LIGHT_GREY = 15
 
 BANK    = $de00                 ; EasyFlash bank register
 CONTROL = $de02                 ; EasyFlash mode register
@@ -29,6 +39,7 @@ EFNAME  = $bb08                 ; cart name, 16 bytes PETSCII, NUL padded
 SLOT    = 24
 ROWS    = 20                    ; entries shown at once, on screen rows 2-21
 STATUS  = 23                    ; the screen row with the count and the order
+HELP    = 24                    ; the screen row with the keys
 QMAX    = 16                    ; the longest text the filter takes, a whole name
 
 KEY_DOWN   = $11
@@ -47,6 +58,8 @@ num     = $fb                   ; 2 bytes, the SYS number (ptr is free by then)
 digit   = $fd                   ; (dst is free by then)
 lead    = $fe
 tmp     = $02
+scr     = $22                   ; 2 bytes: a screen cell, while the menu draws (BASIC is not running)
+clr     = $24                   ; 2 bytes: the same cell's colour
 
 ; The menu's own variables. Nothing here outlives the menu: a program it starts may load over them.
 visible = $c000                 ; slot numbers of the visible entries, in directory order
@@ -69,6 +82,13 @@ query   = $c110                 ; QMAX bytes, the filter text, folded
 slo     = $c120                 ; sort_az's search bounds
 shi     = $c121
 smid    = $c122
+wmax    = $c123                 ; draw's scratch
+pen     = $c124                 ; the colour draw writes in
+rvs     = $c125                 ; $80 when draw writes in reverse, else 0
+sx      = $c126                 ; the length of the status text so far
+etmp    = $c127
+nlen    = $c128
+sbuf    = $c130                 ; the status text, "200 of 200   cart order" and its NUL
 sorted  = $c200                 ; the visible entries' slot numbers, A-Z
 shown   = $c300                 ; the ones listed: visible or sorted, filtered
 name_lo = $c400                 ; each directory slot's address, by slot number
@@ -89,6 +109,13 @@ entry:
 
 back_from_init:
         cli
+        lda #BLACK
+        sta BORDER
+        sta BACKGROUND
+        lda #$17                ; mixed case, so names keep their capitals (D-040)
+        sta CHARSET
+        lda #$80
+        sta SHIFT_LOCK
         lda #0
         sta qlen
         sta order
@@ -293,6 +320,14 @@ start_prg:
         sta $0324
         lda #>trap
         sta $0325
+        lda #14                 ; the C64's own colours and character set: basic_go enters
+        sta BORDER              ; the reset after CINT, which would otherwise set them (D-040)
+        lda #6
+        sta BACKGROUND
+        lda #$15
+        sta CHARSET
+        lda #0
+        sta SHIFT_LOCK
         jmp basic_go
 
 ; Back from the trap with the program copied, the cartridge on and dst one past its last byte:
@@ -472,7 +507,8 @@ _done:
         rts
 
 ; Whether key A goes into the filter text. C set, with A folded, if it does: the printable
-; characters and the shifted letters, but not the quote, which would put CHROUT in quote mode.
+; characters and the shifted letters, but not the quote (D-039, from when the menu drew through
+; CHROUT, whose quote mode would print control codes as glyphs).
 typable:
         cmp #$c1
         bcc _low
@@ -645,19 +681,132 @@ _yes:
         sec
         rts
 
-; Print the string at A (low), Y (high), up to its NUL.
+; --- the screen -------------------------------------------------------------------------------
+;
+; Row 0 the title bar, row 1 the filter text, rows 2-21 the list, row 23 the count and order, row
+; 24 the help bar (D-040). Everything is written straight into screen and colour RAM: a 40-column
+; row printed through CHROUT links into the next line, and reaching the last cell scrolls.
+
+; Point scr at column A of screen row X, and clr at the same cell of colour RAM.
+at:
+        clc
+        adc row_lo,x
+        sta scr
+        sta clr
+        lda row_hi,x
+        adc #0
+        sta scr+1
+        adc #>(COLOURS - SCREEN) ; the carry is clear: the screen ends below $0800
+        sta clr+1
+        rts
+
+; Fill X cells from scr with screen code A, in colour pen.
+fill:
+        stx wmax
+        ldy #0
+-       sta (scr),y
+        pha
+        lda pen
+        sta (clr),y
+        pla
+        iny
+        cpy wmax
+        bne -
+        rts
+
+; Fill the whole of row X with screen code A, in colour pen.
+line:
+        pha
+        lda #0
+        jsr at
+        pla
+        ldx #40
+        jmp fill
+
+; Write the PETSCII text at dst from scr, in colour pen, reversed if rvs is $80: up to its NUL, or
+; up to X characters with write_n.
+write:
+        ldx #40
+write_n:
+        stx wmax
+        ldy #0
+-       cpy wmax
+        beq +
+        lda (dst),y
+        beq +
+        jsr screen_code
+        ora rvs
+        sta (scr),y
+        lda pen
+        sta (clr),y
+        iny
+        bne -
++       rts
+
+; dst = the text at A (low), Y (high), then write it.
 say:
+        sta dst
+        sty dst+1
+        jmp write
+
+; The screen code for PETSCII A, as CHROUT would print it, or "?" for a control code. In the
+; mixed-case set the menu uses, $41-$5A show lower case and $61-$7A and $C1-$DA upper case. Keeps X
+; and Y.
+screen_code:
+        cmp #$20
+        bcc _bad
+        cmp #$40
+        bcc _done               ; $20-$3F: the same
+        cmp #$60
+        bcc _less40             ; $40-$5F: $00-$1F
+        cmp #$80
+        bcc _less20             ; $60-$7F: $40-$5F
+        cmp #$a0
+        bcc _bad                ; $80-$9F: control codes
+        cmp #$c0
+        bcc _less40             ; $A0-$BF: $60-$7F
+        cmp #$ff
+        beq _pi
+        and #$7f                ; $C0-$FE: $40-$7E
+        rts
+_less40:
+        sec
+        sbc #$40
+        rts
+_less20:
+        sec
+        sbc #$20
+        rts
+_pi:
+        lda #$5e
+        rts
+_bad:
+        lda #"?"
+_done:
+        rts
+
+; Append A to the status text. Keeps X and Y.
+emit:
+        stx etmp
+        ldx sx
+        sta sbuf,x
+        inc sx
+        ldx etmp
+        rts
+
+; Append the text at A (low), Y (high), up to its NUL.
+append:
         sta dst
         sty dst+1
         ldy #0
 -       lda (dst),y
         beq +
-        jsr CHROUT
+        jsr emit
         iny
         bne -
 +       rts
 
-; Print A in decimal, without leading zeros.
+; Append A in decimal, without leading zeros.
 decimal:
         sta dnum
         lda #0
@@ -682,7 +831,7 @@ _emit:
         bne _skip               ; a leading zero, and not the last digit
 _put:
         tya
-        jsr CHROUT
+        jsr emit
         lda #1
         sta dlead
 _skip:
@@ -694,88 +843,169 @@ _skip:
 tens:
         .byte 100, 10, 1
 
-; Row 0 the cart name, row 1 the filter text, rows 2-21 the list, row 23 the count and order.
-; Nothing prints a RETURN on the last two rows, which would scroll the screen.
 draw:
-        lda #$93                ; clear the screen
-        jsr CHROUT
+        ; row 0: the title bar, "stidcart" on the left and the cart name on the right
+        lda #CYAN
+        sta pen
         ldx #0
--       lda EFNAME,x
+        lda #$a0                ; a reverse space
+        jsr line
+        lda #$80
+        sta rvs
+        ldx #0
+        lda #1
+        jsr at
+        lda #<title_text
+        ldy #>title_text
+        jsr say
+        ldy #0
+-       lda EFNAME,y
         beq +
-        jsr putc
-        inx
-        cpx #16
+        iny
+        cpy #16
         bne -
-+       lda #KEY_RETURN
-        jsr CHROUT
++       sty nlen
+        lda #39
+        sec
+        sbc nlen
+        ldx #0
+        jsr at
+        lda #<EFNAME
+        sta dst
+        lda #>EFNAME
+        sta dst+1
+        ldx #16
+        jsr write_n
+
+        ; row 1: the filter text, after a label, when there is any
+        lda #0
+        sta rvs
+        ldx #1
+        lda #" "
+        jsr line
         lda qlen
-        beq _bare
+        beq _list
+        lda #GREY
+        sta pen
+        ldx #1
+        lda #1
+        jsr at
         lda #<find_text
         ldy #>find_text
         jsr say
-        ldx #0
--       lda query,x
-        jsr putc
-        inx
-        cpx qlen
-        bne -
-_bare:
-        lda #KEY_RETURN
-        jsr CHROUT
-        lda count
-        bne _some
-        lda #<no_entries
-        ldy #>no_entries
-        jmp say
-_some:
-        lda nshown
-        bne _rows
-        lda #<no_matches
-        ldy #>no_matches
-        jsr say
-        jmp _status
-_rows:
+        lda #YELLOW
+        sta pen
+        ldx #1
+        lda #7
+        jsr at
+        lda #<query
+        sta dst
+        lda #>query
+        sta dst+1
+        ldx qlen
+        jsr write_n
+
+        ; rows 2-21: the list, or why there is none
+_list:
         lda #0
         sta row
 _row:
+        lda #LIGHT_GREY
+        sta pen
+        lda #0
+        sta rvs
+        lda row
+        clc
+        adc #2
+        tax
+        lda #" "
+        jsr line
+        lda count
+        bne +
+        lda #<no_entries
+        ldy #>no_entries
+        jmp _say
++       lda nshown
+        bne _entry
+        lda #<no_matches
+        ldy #>no_matches
+_say:
+        ldx row
+        bne _next               ; the message goes on the first row only
+        pha
+        tya
+        pha
+        ldx #2
+        lda #2
+        jsr at
+        pla
+        tay
+        pla
+        jsr say
+        jmp _next
+_entry:
         lda row
         clc
         adc top
         cmp nshown
-        bcs _status             ; past the last entry
+        bcs _next               ; past the last entry
         sta cur
         cmp sel
-        bne +
-        lda #$12                ; reverse on: the selected entry
-        jsr CHROUT
-+       ldx cur
+        bne _name
+        lda #CYAN               ; the selected entry: a reverse bar over columns 1-38
+        sta pen
+        lda row
+        clc
+        adc #2
+        tax
+        lda #1
+        jsr at
+        lda #$a0
+        ldx #38
+        jsr fill
+        lda #$80
+        sta rvs
+_name:
+        lda row
+        clc
+        adc #2
+        tax
+        lda #2
+        jsr at
+        ldx cur
         lda shown,x
         jsr slot_ptr
-        ldy #0
--       lda (ptr),y
-        beq +
-        jsr putc
-        iny
-        cpy #16
-        bne -
-+       lda #$92                ; reverse off
-        jsr CHROUT
-        lda #KEY_RETURN
-        jsr CHROUT
+        lda ptr
+        sta dst
+        lda ptr+1
+        sta dst+1
+        ldx #16
+        jsr write_n
+_next:
         inc row
         lda row
         cmp #ROWS
-        bcc _row
-_status:
-        clc
+        bcs +
+        jmp _row
++
+        ; row 22 empty, row 23 the count and the order
+        lda #0
+        sta rvs
+        ldx #22
+        lda #" "
+        jsr line
+        lda #GREY
+        sta pen
         ldx #STATUS
-        ldy #0
-        jsr PLOT
+        lda #" "
+        jsr line
+        lda #0
+        sta sx
         lda nshown
         jsr decimal
         lda #<of_text
         ldy #>of_text
-        jsr say
+        jsr append
         lda count
         jsr decimal
         lda #<cart_order
@@ -784,21 +1014,38 @@ _status:
         beq +
         lda #<az_order
         ldy #>az_order
-+       jmp say
++       jsr append
+        lda #0
+        jsr emit
+        ldx #STATUS
+        lda #1
+        jsr at
+        lda #<sbuf
+        ldy #>sbuf
+        jsr say
 
-; Print a name byte, as "?" when CHROUT would take it as a control code.
-putc:
-        cmp #$20
-        bcc _bad
-        cmp #$80
-        bcc _ok
-        cmp #$a0
-        bcs _ok
-_bad:
-        lda #"?"
-_ok:
-        jmp CHROUT
+        ; row 24: the help bar
+        ldx #HELP
+        lda #$a0
+        jsr line
+        lda #$80
+        sta rvs
+        ldx #HELP
+        lda #1
+        jsr at
+        lda #<help_text
+        ldy #>help_text
+        jmp say
 
+row_lo:
+        .byte <(SCREEN + range(25) * 40)
+row_hi:
+        .byte >(SCREEN + range(25) * 40)
+
+title_text:
+        .null "stidcart"
+help_text:
+        .null "return start  f1 sort  run/stop basic"
 no_entries:
         .null "no entries"
 no_matches:

@@ -28,9 +28,12 @@
     wording.
   - `draw` writes screen and colour RAM directly instead of using CHROUT. A 40-character row through
     CHROUT links into the next line, and reaching column 39 of row 24 scrolls the screen.
+  - The menu shows the ROM's mixed-case character set (`$D018=$17`, SHIFT+C= locked). In the
+    upper-case set, the `$61-$7A` an upper-case file stem becomes showed as graphics, under CHROUT
+    too. Found on the first screenshot and added with the user told.
   - Before a program starts, the menu restores the C64's own colours (border and text light blue,
-    background blue). `basic_go` enters the reset after CINT, so nothing else would undo them.
-    Cartridges and RUN/STOP go through a full reset, which does.
+    background blue) and the upper-case set. `basic_go` enters the reset after CINT, so nothing
+    else would undo them. Cartridges and RUN/STOP go through a full reset, which does.
 - **Alternatives rejected:** a custom font, and sprites or raster effects, which need RAM copies,
   an IRQ beside the KERNAL's, and harder tests, for a look the user didn't ask for. A full PETSCII
   frame, which costs two rows of the list. Colour alone on today's layout. The classic blue and

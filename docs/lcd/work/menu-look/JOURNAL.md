@@ -12,23 +12,24 @@
 
 - **Lane:** Standard
 - **Goal:** A designed look for our C64 menu: dark colours, a cyan title bar, a cyan selection bar and a grey help bar (D-040)
-- **Next action:** S3, the failing tests AC-102..AC-104
+- **Next action:** S7, the full gate, then audit, reconcile and PR
 - **Branch:** feat/menu-look · **Updated:** 2026-11-07
 
 ## STEPS
 
 - [x] S1 — version 0.10.0 → 0.11.0 (first commit on the `feat/` branch)
 - [x] S2 — triage, D-040, AC-102..AC-104 claimed, this JOURNAL
-- [ ] S3 — failing tests AC-102, AC-103 in `menu_boot.rs`: colour RAM and `$D020-$D021` dumps masked to the low nybble, each check with a negative control on a default-colour screen
-- [ ] S4 — `draw` writes screen and colour RAM directly: title bar, filter row, list with selection bar, status row, help bar. Colours set after `kernal_init`. AC-87..AC-101 stay green
-- [ ] S5 — AC-104 red (a started program inherits the menu's colours), then the restore in `start_prg`
-- [ ] S6 — `menu/README.md`, `menu.bin`/`menu.lbl` reassembled with every menu commit (AC-93)
+- [x] S3 — failing tests AC-102, AC-103 in `menu_boot.rs`: colour RAM and `$D020-$D021` dumps masked to the low nybble, each check with a negative control on a default-colour screen
+- [x] S4 — `draw` writes screen and colour RAM directly: title bar, filter row, list with selection bar, status row, help bar. Colours set after `kernal_init`. AC-87..AC-101 stay green
+- [x] S5 — AC-104 red (a started program inherits the menu's colours), then the restore in `start_prg`
+- [x] S6 — `menu/README.md`, `menu.bin`/`menu.lbl` reassembled with every menu commit (AC-93)
 - [ ] S7 — VICE screenshot shown to the user, full gate, audit, reconcile SPEC, PR
 
 ## DECISIONS (this work-item)
 
 - Colour and layout only, dark scheme with cyan accents, bars top and bottom → D-040
 - Rows stay where AC-87..AC-101 pin them; row 24 is the new help bar → D-040
+- Mixed-case ROM character set in the menu, upper case restored for programs → D-040
 - New code goes in `menu.s` (ROM), never `launch.s`, which has about 10 bytes left
 
 ## OPEN QUESTIONS
@@ -63,8 +64,8 @@ All are proven by booting carts in VICE, as AC-87..AC-101 are. Colours are read 
 (`$D800-$DBE7`) and `$D020-$D021`, low nybble only, since VICE fills the high one from the bus.
 Indices: black 0, cyan 3, yellow 7, light blue 14, blue 6, medium grey 12, light grey 15.
 
-**AC-102** (surfaces: none): Given a cart carrying our menu, when it boots, then the border and
-background are black, row 0 is a cyan bar in reverse across all 40 columns carrying "stidcart" and
+**AC-102** (surfaces: none): Given a cart carrying our menu, when it boots, then the screen is in
+the ROM's mixed-case character set, the border and background are black, row 0 is a cyan bar in reverse across all 40 columns carrying "stidcart" and
 the cart name, the listed entries are light grey and the selected one sits in a cyan reverse bar,
 the count and order on row 23 are medium grey, and row 24 is a medium grey reverse bar across all 40
 columns naming the keys. The bars are there when the cart has no visible entries too.
@@ -72,8 +73,9 @@ columns naming the keys. The bars are there when the cart has no visible entries
 **AC-103** (surfaces: none): Given typed text, when the screen is shown, then the text on row 1 is
 yellow after a medium grey label, and with no text row 1 stays empty.
 
-**AC-104** (surfaces: none): Given our menu, when it starts a program, then the program finds the
-C64's own colours: border light blue, background blue, and text colour light blue.
+**AC-104** (surfaces: none): Given our menu, when it starts a program or leaves to BASIC, then what
+runs next finds the C64's own colours (border light blue, background blue, text colour light blue)
+and the upper-case character set.
 
 ## LOG (append-only; not read on resume)
 
@@ -83,3 +85,15 @@ C64's own colours: border light blue, background blue, and text colour light blu
   a help bar on row 24), avoid CHROUT for bars (line links, row-24 scroll), mask colour reads to the
   low nybble, and catch colours leaking into started programs: `basic_go` enters the reset at
   `$FCFE`, after CINT. AC-102..AC-104 claimed, next free AC-105.
+- 2026-11-07 — Red run: AC-102 and AC-103 failed on colours (border 14/6, typed text 14); AC-104
+  passed, as expected before the menu changed colours. After the new `draw`, AC-104 went red
+  (border and background 0 in the started program), then green with the restore in `start_prg`.
+  AC-87..AC-101 stayed green without edits.
+- 2026-11-07 — Refined: the first VICE screenshot showed capitals in names ("Cave Pilot") as
+  graphics. That isn't new: names keep upper case as `$61-$7A`, which the upper-case set draws as
+  graphics, and CHROUT did the same. The menu now uses the mixed-case set and restores the
+  upper-case one for programs. AC-102 and AC-104 check `$D018`. With the restore removed, AC-104
+  failed on `$D018` (23, not 21). Recorded in D-040.
+- 2026-11-07 — Screenshot gotchas: VICE's monitor reads `ignore` counts as hex, and checkpoint
+  numbers restart at 1 after `del`. A screenshot taken right at `menu_idle` can show a half-drawn
+  frame, so wait about 20000 idle hits first.

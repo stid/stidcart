@@ -1,6 +1,6 @@
 //! custom-menu: our menu on the C64, proven by booting carts in VICE (AC-87..AC-92), and the CI
 //! requirement that these boots run rather than skip (AC-94). menu-search-sort adds its filter and
-//! sort toggle (AC-96..AC-101).
+//! sort toggle (AC-96..AC-101), and menu-look its colours and bars (AC-102..AC-104).
 //!
 //! The reference tool knows nothing of this menu, so the oracle has decayed to the emulator (MAP
 //! invariant). Every wait is a `break exec` on the menu's `menu_idle` label or on a marker's fixed
@@ -756,4 +756,316 @@ fn ac_101_filter_and_sort_combine() {
     let dumps = screens_after(&dir, &cart, &[keys]);
     assert_listed_in_order(&dumps[0], &a_z, "F1, then an");
     assert_not_listed(&dumps[0], &["kiwi"], "F1, then an");
+}
+
+// --- menu-look: colours and bars (AC-102..AC-104, D-040) -------------------------------------
+//
+// Row 0 is a cyan reverse title bar and row 24 a grey reverse help bar. The selection is a cyan
+// reverse bar over columns 1-38. Colours are read from colour RAM and the VIC's border and
+// background registers, low nybble only: VICE fills the high nybble from the bus. The menu shows
+// the ROM's mixed-case character set, so names keep their capitals; programs get the upper-case
+// set back.
+
+const COLOUR_RAM: (u16, u16) = (0xd800, 0xdbe7);
+/// `$D018` (the character set) through `$D021` (the background): `[0]` and `[8..=9]` are used.
+const VIC: (u16, u16) = (0xd018, 0xd021);
+/// `$D018` with the screen at `$0400` and the ROM's upper-case or mixed-case set; bit 0 reads 1.
+const UPPER_CASE: u8 = 0x15;
+const MIXED_CASE: u8 = 0x17;
+const TEXT_COLOUR: (u16, u16) = (0x0286, 0x0286);
+const HELP_ROW: usize = 24;
+const SELECTION_BAR: std::ops::RangeInclusive<usize> = 1..=38;
+
+mod colour {
+    pub const BLACK: u8 = 0;
+    pub const CYAN: u8 = 3;
+    pub const BLUE: u8 = 6;
+    pub const YELLOW: u8 = 7;
+    pub const GREY: u8 = 12;
+    pub const LIGHT_BLUE: u8 = 14;
+    pub const LIGHT_GREY: u8 = 15;
+}
+
+/// A menu screen with its colours, each colour masked to its low nybble.
+struct Look {
+    screen: Vec<u8>,
+    colour: Vec<u8>,
+    border: u8,
+    background: u8,
+    charset: u8,
+}
+
+impl Look {
+    fn from_dumps(screen: Vec<u8>, colour: Vec<u8>, vic: Vec<u8>) -> Look {
+        Look {
+            screen,
+            colour: colour.iter().map(|c| c & 0x0f).collect(),
+            charset: vic[0] | 1,
+            border: vic[8] & 0x0f,
+            background: vic[9] & 0x0f,
+        }
+    }
+
+    /// The colour of every cell of `text` where it first shows in row `n`, or `None` if it doesn't.
+    fn colours_of(&self, n: usize, text: &str) -> Option<&[u8]> {
+        let at = vice::find(row(&self.screen, n), &vice::screen_text(text))?;
+        Some(&self.colour[n * COLS + at..n * COLS + at + text.len()])
+    }
+}
+
+/// Boot, then for each group press its keys and read the look once the menu is idle again. An
+/// empty group reads the look as it is.
+fn looks_after(dir: &Path, cart: &Path, groups: &[Vec<u8>]) -> Vec<Look> {
+    let mut steps = vec![Step::Labels(vice::menu_labels())];
+    for group in groups {
+        for chunk in group.chunks(10) {
+            steps.push(idle());
+            steps.push(Step::Keys(chunk.to_vec()));
+        }
+        steps.push(idle());
+        steps.push(screen());
+        steps.push(Step::Dump(COLOUR_RAM.0, COLOUR_RAM.1));
+        steps.push(Step::Dump(VIC.0, VIC.1));
+    }
+    let mut dumps = boot_or_panic(dir, cart, &steps).into_iter();
+    groups
+        .iter()
+        .map(|_| {
+            let (s, c, v) = (dumps.next(), dumps.next(), dumps.next());
+            Look::from_dumps(s.unwrap(), c.unwrap(), v.unwrap())
+        })
+        .collect()
+}
+
+/// A whole row in reverse video and one colour.
+fn check_bar(l: &Look, n: usize, want: u8, what: &str) -> Result<(), String> {
+    let cells = n * COLS..(n + 1) * COLS;
+    if !vice::is_reversed(&l.screen, cells.start, COLS) {
+        return Err(format!(
+            "{what}: row {n} is not reversed across all 40 columns"
+        ));
+    }
+    if let Some(i) = cells.clone().find(|&i| l.colour[i] != want) {
+        return Err(format!(
+            "{what}: row {n} column {} is colour {}, not {want}",
+            i - cells.start,
+            l.colour[i]
+        ));
+    }
+    Ok(())
+}
+
+/// What every menu screen has: a black screen, the title bar, the status row and the help bar.
+fn check_frame(l: &Look, title: &str) -> Result<(), String> {
+    if (l.border, l.background) != (colour::BLACK, colour::BLACK) {
+        return Err(format!(
+            "border {} and background {} are not black",
+            l.border, l.background
+        ));
+    }
+    if l.charset != MIXED_CASE {
+        return Err(format!(
+            "$D018 is {:02x}, not the mixed-case set",
+            l.charset
+        ));
+    }
+    check_bar(l, 0, colour::CYAN, "title bar")?;
+    for text in ["stidcart", title] {
+        if !row_shows(&l.screen, 0, text) {
+            return Err(format!("the title bar does not show '{text}'"));
+        }
+    }
+    let status = row(&l.screen, STATUS_ROW);
+    let used: Vec<usize> = (0..COLS).filter(|&i| status[i] & 0x7f != 0x20).collect();
+    if used.is_empty() {
+        return Err("row 23 shows no status".into());
+    }
+    if let Some(&i) = used
+        .iter()
+        .find(|&&i| l.colour[STATUS_ROW * COLS + i] != colour::GREY)
+    {
+        return Err(format!("status column {i} is not grey"));
+    }
+    check_bar(l, HELP_ROW, colour::GREY, "help bar")?;
+    for text in ["return", "f1", "run/stop"] {
+        if !row_shows(&l.screen, HELP_ROW, text) {
+            return Err(format!("the help bar does not name '{text}'"));
+        }
+    }
+    Ok(())
+}
+
+/// `selected` sits in a cyan reverse bar over columns 1-38, and each of `others` is light grey
+/// and not reversed.
+fn check_list(l: &Look, selected: &str, others: &[&str]) -> Result<(), String> {
+    let at = listed(&l.screen, selected).ok_or(format!("'{selected}' is not listed"))?;
+    let n = at / COLS;
+    for c in SELECTION_BAR {
+        let i = n * COLS + c;
+        if l.screen[i] & 0x80 == 0 || l.colour[i] != colour::CYAN {
+            return Err(format!(
+                "'{selected}': column {c} of its row is not in the cyan selection bar"
+            ));
+        }
+    }
+    for name in others {
+        let at = listed(&l.screen, name).ok_or(format!("'{name}' is not listed"))?;
+        let cells = at..at + name.len();
+        if vice::is_reversed(&l.screen, at, 1) {
+            return Err(format!("'{name}' is reversed but not selected"));
+        }
+        if l.colour[cells].iter().any(|&c| c != colour::LIGHT_GREY) {
+            return Err(format!("'{name}' is not light grey"));
+        }
+    }
+    Ok(())
+}
+
+/// The negative control for the checks above: a screen in the C64's own colours, with the right
+/// text in the right rows, fails every one of them.
+#[test]
+fn the_look_checks_reject_the_default_screen() {
+    let mut screen = vec![0x20u8; 1000];
+    let mut put = |n: usize, col: usize, text: &str, reverse: bool| {
+        for (i, b) in vice::screen_text(text).iter().enumerate() {
+            screen[n * COLS + col + i] = if reverse { b | 0x80 } else { *b };
+        }
+    };
+    put(0, 1, "stidcart", false);
+    put(0, 20, "plain", false);
+    put(2, 2, "alpha", true);
+    put(3, 2, "bravo", false);
+    put(STATUS_ROW, 0, "2 of 2   cart order", false);
+    put(HELP_ROW, 1, "return start  f1 sort  run/stop basic", false);
+    let plain = Look {
+        screen,
+        colour: vec![colour::LIGHT_BLUE; 1000],
+        border: colour::LIGHT_BLUE,
+        background: colour::BLUE,
+        charset: UPPER_CASE,
+    };
+    assert!(check_frame(&plain, "plain").is_err());
+    assert!(check_list(&plain, "alpha", &["bravo"]).is_err());
+
+    // Each check fails on its own, not only on the border: black border alone is not enough.
+    let black = Look {
+        border: colour::BLACK,
+        background: colour::BLACK,
+        ..plain
+    };
+    assert!(check_frame(&black, "plain").is_err());
+    assert!(check_list(&black, "alpha", &["bravo"]).is_err());
+}
+
+// AC-102: a black screen, a cyan title bar, light grey entries in a cyan selection bar, a grey
+// status row and a grey help bar, with the bars there on an empty cart too
+#[test]
+fn ac_102_the_menu_has_its_colours_and_bars() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-102: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac102");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "bravo", "charlie"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "look test", &[], &inputs);
+
+    let looks = looks_after(&dir, &cart, &[vec![], vec![key::DOWN]]);
+    for (l, selected, others, what) in [
+        (&looks[0], "alpha", ["bravo", "charlie"], "boot"),
+        (&looks[1], "bravo", ["alpha", "charlie"], "CRSR down"),
+    ] {
+        check_frame(l, "look test").unwrap_or_else(|e| panic!("{what}: {e}"));
+        check_list(l, selected, &others).unwrap_or_else(|e| panic!("{what}: {e}"));
+    }
+
+    let empty_dir = scratch("ac102-empty");
+    let only = fixtures().join("hello.prg");
+    let empty = build(
+        &empty_dir,
+        "empty",
+        &["--hide", only.to_str().unwrap()],
+        std::slice::from_ref(&only),
+    );
+    let l = looks_after(&empty_dir, &empty, &[vec![]]).remove(0);
+    assert!(shows(&l.screen, "no entries"), "empty cart: no message");
+    check_frame(&l, "empty").unwrap_or_else(|e| panic!("empty cart: {e}"));
+}
+
+// AC-103: typed text is yellow after a grey label, and row 1 is empty without text
+#[test]
+fn ac_103_the_filter_text_is_yellow_after_a_grey_label() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-103: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac103");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "bravo"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "filter look", &[], &inputs);
+
+    let looks = looks_after(&dir, &cart, &[vec![], typed("al")]);
+    assert!(
+        row(&looks[0].screen, QUERY_ROW)
+            .iter()
+            .all(|b| b & 0x7f == 0x20),
+        "row 1 shows something with no text typed"
+    );
+    let text = looks[1]
+        .colours_of(QUERY_ROW, "al")
+        .expect("the typed text is not on row 1");
+    assert!(
+        text.iter().all(|&c| c == colour::YELLOW),
+        "the typed text is not yellow: {text:?}"
+    );
+    let label = looks[1]
+        .colours_of(QUERY_ROW, "find:")
+        .expect("no label before the typed text");
+    assert!(
+        label.iter().all(|&c| c == colour::GREY),
+        "the label is not grey: {label:?}"
+    );
+}
+
+// AC-104: a program started from the menu, and BASIC after RUN/STOP, find the C64's own colours
+// and character set
+#[test]
+fn ac_104_what_the_menu_hands_over_has_the_c64_colours() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-104: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac104");
+    let m = markers::basic_prg("COLOURS PROGRAM RAN");
+    let cart = build(&dir, "colours", &[], &[write(&dir, "prog.prg", &m.bytes)]);
+
+    for (key, spin, what) in [
+        (key::RETURN, m.spin, "the started program"),
+        (key::STOP, BASIC_MAIN, "BASIC after RUN/STOP"),
+    ] {
+        let mut steps = press_then_wait(&[key], spin);
+        steps.push(screen());
+        steps.push(Step::Dump(VIC.0, VIC.1));
+        steps.push(Step::Dump(TEXT_COLOUR.0, TEXT_COLOUR.1));
+        let dumps = boot_or_panic(&dir, &cart, &steps);
+        if key == key::RETURN {
+            assert_marker(&dumps[0], &m);
+        }
+        let got = (
+            dumps[1][8] & 0x0f,
+            dumps[1][9] & 0x0f,
+            dumps[2][0] & 0x0f,
+            dumps[1][0] | 1,
+        );
+        assert_eq!(
+            got,
+            (
+                colour::LIGHT_BLUE,
+                colour::BLUE,
+                colour::LIGHT_BLUE,
+                UPPER_CASE
+            ),
+            "{what}: (border, background, text colour, $D018)"
+        );
+    }
 }
