@@ -8,7 +8,37 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-037 -->
+<!-- Next id: D-038 -->
+
+---
+
+## D-037 · 2026-11-07 · Our own menu is opt-in, GPL in `menu/`, assembled with 64tass, and lands in slices
+- **Context:** D-005 deferred a custom C64-side menu. The user wants all of it: a new look, search
+  and sort, and subdirectory navigation. The launcher only does `jmp ($8000)` (or `($a000)` in
+  Ocean mode), so a replacement loader needs to fit the 8 KiB slot and keep that entry vector. The
+  launcher and EAPI can stay as they are. A VICE boot harness already exists (`stidcart-cli` `boot.rs`).
+- **Decision:**
+  - The menu is opt-in. EasyLoader stays the default, so a build without the option is
+    byte-identical to today and the ndeft fixtures keep their meaning. Carts carrying our menu
+    have no ndeft oracle, so their evidence is a VICE boot (the decaying-oracle invariant).
+  - The source is GPL-2.0-or-later in a new top-level `menu/`. `firmware/` stays third-party
+    zlib blobs and the licence boundary does not move.
+  - It is assembled with 64tass. The assembled `.prg` is committed, and a check reassembles it
+    byte-identically, so `cargo` never needs the assembler.
+  - It lands in work-items. The first is the minimal slice: list the entries and boot them, a build
+    option that selects the menu, and `load`/`edit`/GUI recognising the second firmware set. Look
+    and feel, search/sort and subdirectory navigation follow, one item each.
+  - First-slice scope (user's choices): asking for our menu on a cart with an Ocean entry is a typed
+    refusal. The GUI recognises, shows and keeps the menu but doesn't choose it. VICE is installed
+    in CI so the boot checks run there instead of skipping. A VICE boot is sufficient evidence
+    without a hardware check.
+- **Alternatives rejected:** Replacing the default would invalidate every parity fixture and leave
+  the write path with no oracle at all. zlib inside `firmware/` would break that directory's "nothing
+  here is compiled" rule and blur the boundary. KickAssembler (the vault's earlier pick) needs a
+  pinned Java jar, and 64tass is a native binary that is already installed. acme is not installed.
+  Building every feature in one item would spread it across too many sessions to resume cheaply.
+- **Scope:** `menu/` (new), `stidcart-core` firmware embedding and verification, `build`/`edit`, GUI
+- **Status:** active · refines D-005
 
 ---
 
