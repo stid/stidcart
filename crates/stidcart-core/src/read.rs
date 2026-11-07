@@ -29,6 +29,7 @@
 use crate::cartridge::Cartridge;
 use crate::directory::{self, DirEntry, EntryType, Slot, ENTRY_LEN};
 use crate::image::{BANK_SIZE, N_BANKS};
+use crate::menu::Menu;
 use crate::place::Placer;
 use crate::reserved::Mode;
 use crate::{crt, reserved, CartBuilder, Program};
@@ -269,6 +270,9 @@ pub struct CartInfo {
     pub ef_name: String,
     /// The directory in slot order, which is the order the menu lists.
     pub entries: Vec<DirEntry>,
+    /// Which menu the loader slot holds, or `None` when it is neither this crate embeds. Reported,
+    /// never refused on: only `load` requires a known menu (D-011, D-038).
+    pub menu: Option<Menu>,
 }
 
 impl CartInfo {
@@ -343,11 +347,14 @@ fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
 
         match decoded {
             Slot::End => {
-                return Ok(CartInfo {
+                let mut info = CartInfo {
                     header_name: container.header_name.clone(),
                     ef_name: reserved::read_ef_name(&container.image),
                     entries,
-                })
+                    menu: None,
+                };
+                info.menu = reserved::detect_menu(&container.image, info.mode());
+                return Ok(info);
             }
             Slot::Subdirectory => return Err(Unsupported::Subdirectory { slot }.into()),
             Slot::MisplacedSubdirBit => return Err(ReadError::SubdirectoryBitMisplaced { slot }),
@@ -390,11 +397,12 @@ pub fn inspect(bytes: &[u8]) -> Result<CartInfo, ReadError> {
 pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
     let container = crt::parse(bytes)?;
     let info = read_directory(&container)?;
-    reserved::verify_regions(&container.image, info.mode())?;
+    let menu = reserved::verify_regions(&container.image, info.mode())?;
 
     let mut builder = CartBuilder::new()
         .with_header_name(&info.header_name)
-        .with_ef_name(&info.ef_name);
+        .with_ef_name(&info.ef_name)
+        .with_menu(menu);
 
     for entry in &info.entries {
         let (bank, offset, size) = (

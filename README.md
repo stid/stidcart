@@ -27,6 +27,14 @@ Editing saves through the same placement the build path uses, so an edited cart 
 build of the resulting entries would have produced, not a patch of the file that arrived: entries
 the request never mentioned can move.
 
+A cart boots into EasyLoader, the embedded third-party menu, unless `build` or `edit` is given
+`--menu stidcart`. That puts our own menu (`menu/`, GPL) in the same slot (D-037). It lists the
+visible entries, scrolls, and starts programs and every cartridge kind except Ocean. It is refused
+on carts it cannot run: one with an Ocean entry, or with a program loading into `$D000-$DFFF`
+(D-038). `list` and the desktop app say which menu a cart carries, and edits keep it. The reference
+tool knows nothing of this menu, so its evidence is VICE: boot tests start carts and read the
+screen back (`menu/README.md`).
+
 This section is the narrative; `docs/lcd/SPEC.md` is the enumerated capability index, with each row
 citing the decision that put it there.
 
@@ -47,6 +55,7 @@ crates/stidcart-core/   library: format, placement, firmware. No I/O policy, no 
 crates/stidcart-cli/    binary `stidcart`: the test harness, not a product.
 gui/                    desktop app: Tauri 2 + Svelte 5, its own Cargo workspace (gui/src-tauri)
 firmware/               zlib-licensed C64-side blobs (see firmware/README.md)
+menu/                   our own C64 menu, GPL 6502, committed assembled (see menu/README.md)
 fixtures/               ndeft-built carts, frozen, with the exact command line for each
 ```
 
@@ -71,9 +80,13 @@ cargo test --workspace
 cargo run -p stidcart-cli -- build -e "name" -o out.crt some.prg
 cargo run -p stidcart-cli -- list out.crt
 cargo run -p stidcart-cli -- edit out.crt --rename 0 "new name" --add another.prg
+cargo run -p stidcart-cli -- build --menu stidcart -e "name" -o ours.crt some.prg
+menu/build.sh menu/      # reassemble the menu after changing menu/src (64tass)
 ```
 
-The parity test needs only the checked-in fixtures; `ndeft` does not have to be installed.
+The parity test needs only the checked-in fixtures; `ndeft` does not have to be installed. The
+boot tests need VICE's `x64sc` and the menu's reassembly check needs 64tass. Without them those
+tests skip, except under `STIDCART_REQUIRE_TOOLS=1`, which CI sets, where a missing tool fails.
 
 ## Desktop app
 

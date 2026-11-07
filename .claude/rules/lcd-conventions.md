@@ -42,7 +42,7 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
   name*, the `tests/<stem>.rs` filename without its extension, so `{path}` = `directory`, not
   `crates/stidcart-core/tests/directory.rs`. Every target stem in the root workspace is currently
   unique across both crates (`cart_placement` `cartridge` `container` `directory` `listing` `mutate`
-  `parity` `read` `reserved` … in core; `cli` `edit` `list` `list_golden` … in cli), so `--workspace --test <stem>`
+  `menu` `parity` `read` `reserved` … in core; `boot` `cli` `edit` `list` `list_golden` `menu_boot` `menu_cli` … in cli), so `--workspace --test <stem>`
   resolves without a `-p`. Add `-p stidcart-core` / `-p stidcart-cli` if that ever stops being true.
   GUI stems live in their own workspace and cannot collide.
 - **There is no true per-test bail.** libtest has no `--bail`; `cargo test` fails fast at *target*
@@ -64,7 +64,7 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
 - **Therefore: number a new work-item's ACs from the next free id, not from AC-1.** The tokens in
   use are `AC-1..AC-12 (none)` and `AC-1..AC-5 (CLI)`, plus `AC-13..AC-16 (…)` taken by
   `easyfs1-refusal`, plus `AC-17..AC-30` taken by `cart-edit`, plus `AC-31..AC-46` taken by
-  `cart-entries`, plus `AC-47..AC-50` taken by `subdir-entries`, plus `AC-51..AC-58` taken by `gui-shell`, plus `AC-59..AC-80` taken by `gui-edit`. **Next free: AC-81.** Bump this line
+  `cart-entries`, plus `AC-47..AC-50` taken by `subdir-entries`, plus `AC-51..AC-58` taken by `gui-shell`, plus `AC-59..AC-80` taken by `gui-edit`, plus `AC-81..AC-95` taken by `custom-menu`. **Next free: AC-96.** Bump this line
   when a work-item claims a range. Renaming
   the orphans instead would be a sweep across six files for no behaviour change — rename them only
   if you are already editing the file.

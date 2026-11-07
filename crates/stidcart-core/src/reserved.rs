@@ -7,6 +7,7 @@
 
 use crate::firmware;
 use crate::image::{FlashImage, Half, BANK_SIZE};
+use crate::menu::{Menu, STIDCART_MENU};
 use crate::petscii;
 
 /// EasyFS2 directory: 256 slots of 24 bytes, filling exactly `0x1800`.
@@ -49,10 +50,14 @@ impl Mode {
         }
     }
 
-    fn loader(self) -> &'static [u8] {
-        match self {
-            Mode::Normal => firmware::LOADER_NRM,
-            Mode::Ocean => firmware::LOADER_OCM,
+    /// The loader-slot bytes of `menu` in this mode, or `None` for our menu in Ocean mode, which
+    /// has no build (D-037: `build_image` refuses the pairing before anything is written).
+    fn loader(self, menu: Menu) -> Option<&'static [u8]> {
+        match (self, menu) {
+            (Mode::Normal, Menu::EasyLoader) => Some(firmware::body(firmware::LOADER_NRM)),
+            (Mode::Ocean, Menu::EasyLoader) => Some(firmware::body(firmware::LOADER_OCM)),
+            (Mode::Normal, Menu::Stidcart) => Some(STIDCART_MENU),
+            (Mode::Ocean, Menu::Stidcart) => None,
         }
     }
 
@@ -71,8 +76,21 @@ pub fn write_eapi(img: &mut FlashImage) {
     img.write_at(EAPI_OFFSET, firmware::body(firmware::EAPI));
 }
 
-pub fn write_loader(img: &mut FlashImage, mode: Mode) {
-    img.write_at(mode.loader_offset(), firmware::body(mode.loader()));
+pub fn write_loader(img: &mut FlashImage, mode: Mode, menu: Menu) {
+    let loader = mode
+        .loader(menu)
+        .expect("build_image refuses our menu on an Ocean cart before writing anything");
+    img.write_at(mode.loader_offset(), loader);
+}
+
+/// Which menu the loader slot holds, or `None` when it is neither. Never refuses: describing an
+/// image reports this, and only `load` turns `None` into a refusal (D-011).
+pub fn detect_menu(img: &FlashImage, mode: Mode) -> Option<Menu> {
+    let at = mode.loader_offset();
+    let slot = &img.as_bytes()[at..at + LOADER_SIZE];
+    [Menu::EasyLoader, Menu::Stidcart]
+        .into_iter()
+        .find(|&m| mode.loader(m) == Some(slot))
 }
 
 /// Fill the boot region with erased flash, then overlay the launcher at `load_addr - $FB18`.
@@ -97,16 +115,17 @@ pub fn write_ef_name(img: &mut FlashImage, name: &str) {
     img.write_at(EFNAME_OFFSET, &field);
 }
 
-/// Check that the image's reserved firmware is exactly what this tool embeds.
+/// Check that the image's reserved firmware is exactly what this tool embeds, and report which
+/// menu the loader slot holds.
 ///
 /// Rebuilding always writes the embedded blobs, so an image carrying different ones could be
 /// loaded but never rebuilt to the same bytes. Refusing here makes that failure land where its
-/// cause is legible instead of surfacing later as an unexplained diff.
-pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<(), crate::read::ReadError> {
+/// cause is legible instead of surfacing later as an unexplained diff. The loader slot may hold
+/// either menu this crate embeds (D-038); anything else is a mismatch.
+pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<Menu, crate::read::ReadError> {
     let mut expected = FlashImage::erased();
     write_eapi(&mut expected);
     write_boot(&mut expected, mode);
-    write_loader(&mut expected, mode);
 
     let mismatch = |region| {
         Err(crate::read::ReadError::Unsupported(
@@ -117,13 +136,15 @@ pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<(), crate::read::R
     let regions = [
         ("EAPI", EAPI_OFFSET, EAPI_SIZE),
         ("boot", BOOT_OFFSET, BOOT_SIZE),
-        ("menu loader", mode.loader_offset(), LOADER_SIZE),
     ];
     for (region, at, size) in regions {
         if img.as_bytes()[at..at + size] != expected.as_bytes()[at..at + size] {
             return mismatch(region);
         }
     }
+    let Some(menu) = detect_menu(img, mode) else {
+        return mismatch("menu loader");
+    };
 
     // The name field itself is caller data, but the magic in front of it is fixed, and its absence
     // means this is not a cartridge whose name we can read.
@@ -133,7 +154,7 @@ pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<(), crate::read::R
         return mismatch("EF-Name magic");
     }
 
-    Ok(())
+    Ok(menu)
 }
 
 /// The inverse of [`write_ef_name`]: the cartridge name the menu shows.
@@ -199,7 +220,7 @@ mod tests {
         let mut img = FlashImage::erased();
         write_eapi(&mut img);
         write_boot(&mut img, Mode::Normal);
-        write_loader(&mut img, Mode::Normal);
+        write_loader(&mut img, Mode::Normal, Menu::EasyLoader);
         write_ef_name(&mut img, "anything");
         assert!(verify_regions(&img, Mode::Normal).is_ok());
     }
@@ -209,7 +230,7 @@ mod tests {
         let mut img = FlashImage::erased();
         write_eapi(&mut img);
         write_boot(&mut img, Mode::Ocean);
-        write_loader(&mut img, Mode::Ocean);
+        write_loader(&mut img, Mode::Ocean, Menu::EasyLoader);
         write_ef_name(&mut img, "ocean");
         assert_eq!(
             &img.as_bytes()[LOADER_OCM_OFFSET..LOADER_OCM_OFFSET + LOADER_SIZE],
@@ -237,7 +258,7 @@ mod tests {
             let mut img = FlashImage::erased();
             write_eapi(&mut img);
             write_boot(&mut img, Mode::Normal);
-            write_loader(&mut img, Mode::Normal);
+            write_loader(&mut img, Mode::Normal, Menu::EasyLoader);
             write_ef_name(&mut img, "anything");
             img.write_at(at, &[0x5a; 8]);
             assert!(
@@ -253,9 +274,30 @@ mod tests {
         let mut img = FlashImage::erased();
         write_eapi(&mut img);
         write_boot(&mut img, Mode::Normal);
-        write_loader(&mut img, Mode::Normal);
+        write_loader(&mut img, Mode::Normal, Menu::EasyLoader);
         write_ef_name(&mut img, "whatever the user chose");
         assert!(verify_regions(&img, Mode::Normal).is_ok());
+    }
+
+    #[test]
+    fn verification_reports_which_menu_the_loader_slot_holds() {
+        for menu in [Menu::EasyLoader, Menu::Stidcart] {
+            let mut img = FlashImage::erased();
+            write_eapi(&mut img);
+            write_boot(&mut img, Mode::Normal);
+            write_loader(&mut img, Mode::Normal, menu);
+            write_ef_name(&mut img, "either");
+            assert_eq!(detect_menu(&img, Mode::Normal), Some(menu));
+            assert_eq!(verify_regions(&img, Mode::Normal), Ok(menu));
+        }
+        let mut img = FlashImage::erased();
+        write_loader(&mut img, Mode::Normal, Menu::Stidcart);
+        img.write_at(0x100, &[0x5a; 8]);
+        assert_eq!(
+            detect_menu(&img, Mode::Normal),
+            None,
+            "a mutated menu is neither"
+        );
     }
 
     #[test]

@@ -8,7 +8,64 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-037 -->
+<!-- Next id: D-039 -->
+
+---
+
+## D-038 · 2026-11-07 · The menu is a builder property detected from the loader slot; boots are proven in VICE built in CI
+- **Context:** custom-menu plan. Recon found three things: VICE can inject keys only into the KERNAL
+  buffer, apt's VICE and 64tass versions follow the runner image, and `ubuntu-latest` moves to 26.04
+  this month. EasyLoader's PRG start copies only after a BASIC cold start, through a CHRIN trap
+  (`easyloader.asm:2091-2260`).
+- **Decision:**
+  - `CartBuilder` carries a `Menu` (EasyLoader default, or Stidcart). `verify_regions` reports which
+    menu the loader slot holds, keeping EAPI/boot/magic strict. `inspect` reports it as an
+    `Option` and never refuses on it (D-011). `load` sets it, so edits preserve it.
+  - Our menu refuses two things at build time: an Ocean entry, and a program whose loaded extent
+    touches `$D000-$DFFF` (the copier lives at `$DF00`). Spec AC-95 was added for the second.
+  - The menu reads keys only through GETIN and starts programs in EasyLoader's order (partial reset
+    with the cart off, BASIC cold start, CHRIN trap, copy). The code is ours, and the technique is
+    cited.
+  - CI's `gate` job pins `ubuntu-24.04` and builds VICE 3.10 (`--enable-headlessui`) and 64tass
+    1.60.3243 from source, cached by tool, version and image. `STIDCART_REQUIRE_TOOLS=1` turns the
+    harness's skip into a failure. The first task proves the existing AC-4 boot on Linux before any
+    menu code (user chose the source build over apt or a macOS job).
+- **Alternatives rejected:** a CIA-matrix key scan (no test could drive it). Copying before BASIC
+  init (RAMTAS clears pages 0/2/3). A menu-side workaround for `$D000` programs (it needs a second
+  copier in low RAM). apt's vice, which drifts and lacks 3.10's breakpoint fix. A macOS CI job
+  (10x minutes, no version pin). A separate CI job, which would need a branch-protection change.
+- **Scope:** `menu/`, `crates/stidcart-core` (`menu.rs`, `reserved.rs`, `read.rs`, `listing.rs`), CLI `--menu`, GUI DTO, `ci.yml`
+- **Status:** active
+
+---
+
+## D-037 · 2026-11-07 · Our own menu is opt-in, GPL in `menu/`, assembled with 64tass, and lands in slices
+- **Context:** D-005 deferred a custom C64-side menu. The user wants all of it: a new look, search
+  and sort, and subdirectory navigation. The launcher only does `jmp ($8000)` (or `($a000)` in
+  Ocean mode), so a replacement loader needs to fit the 8 KiB slot and keep that entry vector. The
+  launcher and EAPI can stay as they are. A VICE boot harness already exists (`stidcart-cli` `boot.rs`).
+- **Decision:**
+  - The menu is opt-in. EasyLoader stays the default, so a build without the option is
+    byte-identical to today and the ndeft fixtures keep their meaning. Carts carrying our menu
+    have no ndeft oracle, so their evidence is a VICE boot (the decaying-oracle invariant).
+  - The source is GPL-2.0-or-later in a new top-level `menu/`. `firmware/` stays third-party
+    zlib blobs and the licence boundary does not move.
+  - It is assembled with 64tass. The assembled `.prg` is committed, and a check reassembles it
+    byte-identically, so `cargo` never needs the assembler.
+  - It lands in work-items. The first is the minimal slice: list the entries and boot them, a build
+    option that selects the menu, and `load`/`edit`/GUI recognising the second firmware set. Look
+    and feel, search/sort and subdirectory navigation follow, one item each.
+  - First-slice scope (user's choices): asking for our menu on a cart with an Ocean entry is a typed
+    refusal. The GUI recognises, shows and keeps the menu but doesn't choose it. VICE is installed
+    in CI so the boot checks run there instead of skipping. A VICE boot is sufficient evidence
+    without a hardware check.
+- **Alternatives rejected:** Replacing the default would invalidate every parity fixture and leave
+  the write path with no oracle at all. zlib inside `firmware/` would break that directory's "nothing
+  here is compiled" rule and blur the boundary. KickAssembler (the vault's earlier pick) needs a
+  pinned Java jar, and 64tass is a native binary that is already installed. acme is not installed.
+  Building every feature in one item would spread it across too many sessions to resume cheaply.
+- **Scope:** `menu/` (new), `stidcart-core` firmware embedding and verification, `build`/`edit`, GUI
+- **Status:** active · refines D-005
 
 ---
 
@@ -802,7 +859,7 @@
   block the skeleton on unrelated work, with no oracle to check it against. Regenerate from ndefpack's
   acme sources — pointless, the committed blobs are byte-identical to what that produces.
 - **Scope:** project-wide
-- **Status:** active
+- **Status:** active · the custom menu now exists, opt-in, beside the blobs (D-037)
 
 ## D-004 · 2026-08-10 · GPL-2.0-or-later for everything outside `firmware/`
 - **Context:** The core is being written by reading ndefpack's GPL C and the extracted format spec.

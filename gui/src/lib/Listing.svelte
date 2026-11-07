@@ -89,6 +89,7 @@
             />{:else}{listing.builtBy}{/if}</span
         >
       </p>
+      <p class="menu">menu <span>{listing.menu}</span></p>
     </div>
     <dl class="stats">
       <div>
@@ -196,13 +197,15 @@
     user-select: text;
   }
 
-  .built {
+  .built,
+  .menu {
     margin: var(--space-1) 0 0;
     font-size: var(--text-sm);
     color: var(--text-muted);
   }
 
-  .built span {
+  .built span,
+  .menu span {
     color: var(--text);
     user-select: text;
   }

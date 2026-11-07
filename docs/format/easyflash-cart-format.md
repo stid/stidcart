@@ -2,7 +2,7 @@
 
 > **This is the source for every offset in `stidcart-core`.** Read it before touching that crate;
 > a format fact is changed here first, in a reviewable commit, and only then in code (D-018).
-> Correcting what it *says* needs its own evidence — cite `file:line` the way the rest of it does.
+> Correcting what it _says_ needs its own evidence — cite `file:line` the way the rest of it does.
 
 Everything below was read out of the ndefpack C sources (`src/libndef/`) and then checked
 against a cart built by `ndeft`. It exists because the format is documented nowhere else in that
@@ -28,7 +28,7 @@ laid out bank-interleaved — all 64 ROML halves come first, then all 64 ROMH ha
 offset = (bank << 13) | (is_roml ? 0 : 1 << 19)      cart.c:284
 ```
 
-ROML → `0x00000–0x7FFFF`, ROMH → `0x80000–0xFFFFF`. Reasoning from EasyFlash *bank* numbering
+ROML → `0x00000–0x7FFFF`, ROMH → `0x80000–0xFFFFF`. Reasoning from EasyFlash _bank_ numbering
 gives the wrong answer here: `0x80000` is bank 0 ROMH, not bank 32. A test in ndefpack filled the
 wrong half for its entire life on exactly this mistake.
 
@@ -38,15 +38,15 @@ ROML is seen by the C64 at `$8000`, ROMH at `$A000` (or `$E000` in Ultimax mode)
 
 64-byte header, then a run of CHIP packets.
 
-| Offset | Size | Content |
-|---|---|---|
-| `0x00` | 16 | `"C64 CARTRIDGE   "` (trailing spaces to 16) |
-| `0x10` | 4 | header length, big-endian: the offset of the first CHIP packet; written as `0x00000040`, never less on read |
-| `0x14` | 2 | version; written as `0x0100` |
-| `0x16` | 2 | CRT ID, big-endian |
-| `0x18` | 1 | EXROM |
-| `0x19` | 1 | GAME |
-| `0x20` | 32 | cartridge name, NUL-padded |
+| Offset | Size | Content                                                                                                     |
+| ------ | ---- | ----------------------------------------------------------------------------------------------------------- |
+| `0x00` | 16   | `"C64 CARTRIDGE   "` (trailing spaces to 16)                                                                |
+| `0x10` | 4    | header length, big-endian: the offset of the first CHIP packet; written as `0x00000040`, never less on read |
+| `0x14` | 2    | version; written as `0x0100`                                                                                |
+| `0x16` | 2    | CRT ID, big-endian                                                                                          |
+| `0x18` | 1    | EXROM                                                                                                       |
+| `0x19` | 1    | GAME                                                                                                        |
+| `0x20` | 32   | cartridge name, NUL-padded                                                                                  |
 
 CRT IDs: `0` generic, `5` Ocean, `32` EasyFlash, `33` EasyFlash xbank (`cart.h:31-35`).
 
@@ -56,15 +56,15 @@ EasyFlash image is written as `MODE_ULT`, so the header carries `01 00`.
 
 CHIP packet (`cart.c:107-127`):
 
-| Offset | Size | Content |
-|---|---|---|
-| `0x00` | 4 | `"CHIP"` |
-| `0x04` | 4 | total packet length BE = `0x10 + data size` |
-| `0x08` | 2 | chip type BE; `2` = flash ROM |
-| `0x0A` | 2 | bank BE |
-| `0x0C` | 2 | load address BE (`0x8000` / `0xA000` / `0xE000`) |
-| `0x0E` | 2 | data size BE |
-| `0x10` | n | data |
+| Offset | Size | Content                                          |
+| ------ | ---- | ------------------------------------------------ |
+| `0x00` | 4    | `"CHIP"`                                         |
+| `0x04` | 4    | total packet length BE = `0x10 + data size`      |
+| `0x08` | 2    | chip type BE; `2` = flash ROM                    |
+| `0x0A` | 2    | bank BE                                          |
+| `0x0C` | 2    | load address BE (`0x8000` / `0xA000` / `0xE000`) |
+| `0x0E` | 2    | data size BE                                     |
+| `0x10` | n    | data                                             |
 
 Saving a full EasyFlash image walks all 64 banks and emits a ROML packet then a ROMH packet per
 bank, **skipping any 8 KB block that is entirely `0xFF`** (`cart.c:129-140`, `cart.c:356-370`). So
@@ -79,13 +79,13 @@ fills ROML then ROMH of the same bank (`cart.c:283-300`).
 Bank 0 ROMH is entirely reserved. Verified by rebuilding the image from a real `.crt` and dumping
 it, not by arithmetic:
 
-| Image offset | In-bank | Size | Content |
-|---|---|---|---|
-| `0x80000` | `0x0000` | `0x1800` | EasyFS2 directory — 256 slots × 24 B, of which 255 usable |
-| `0x81800` | `0x1800` | `0x0300` | EAPI (`eapi.c:38-39`) |
-| `0x81B00` | `0x1B00` | `0x0008` | EF-Name magic `"ef-nAME:"` (`efname.c:36-39`) |
-| `0x81B08` | `0x1B08` | `0x0010` | EF-Name, 16 B PETSCII (`efname.c:37`) |
-| `0x81B18` | `0x1B18` | `0x04E8` | boot code, loaded at `$FB18` (`boot.c:38-40`) |
+| Image offset | In-bank  | Size     | Content                                                   |
+| ------------ | -------- | -------- | --------------------------------------------------------- |
+| `0x80000`    | `0x0000` | `0x1800` | EasyFS2 directory — 256 slots × 24 B, of which 255 usable |
+| `0x81800`    | `0x1800` | `0x0300` | EAPI (`eapi.c:38-39`)                                     |
+| `0x81B00`    | `0x1B00` | `0x0008` | EF-Name magic `"ef-nAME:"` (`efname.c:36-39`)             |
+| `0x81B08`    | `0x1B08` | `0x0010` | EF-Name, 16 B PETSCII (`efname.c:37`)                     |
+| `0x81B18`    | `0x1B18` | `0x04E8` | boot code, loaded at `$FB18` (`boot.c:38-40`)             |
 
 The regions are exactly contiguous and fill the bank. EAPI carries the ASCII signature `"eapi"` at
 its first four bytes and a 16-byte PETSCII version string at `+4` (`eapi.c:41`) — e.g.
@@ -98,18 +98,42 @@ The menu loader is 8 KB and lands outside this bank:
 
 (`loader.c:37-41`.) Ocean mode moves it because an Ocean cart must own bank 0 ROML.
 
+### How the boot code hands over to the menu loader
+
+Any menu loader, EasyLoader or a replacement, starts under this contract set by the boot code
+(`easyloader_launcher.asm`):
+
+- The boot code runs from the reset vector at `$FFFC` (Ultimax at power-on). It sets the stack,
+  clears `$0100-$01FF`, and copies a stub to `$0100`, which switches the cartridge to 16K mode
+  (`$DE02 = $07`) and selects bank 0 in normal mode or bank 1 in Ocean mode (`$DE00`).
+- The stub scans the keyboard. If RUN/STOP, Q or C= is held, it switches the cartridge off
+  (`$DE02 = $04`) and resets, so the machine starts without the menu.
+- Otherwise it jumps through the first word of the loader: `jmp ($8000)` in normal mode,
+  `jmp ($A000)` in Ocean mode. The loader's first two bytes are therefore its entry address.
+- The KERNAL has not been initialised at that point: no IOINIT, RAMTAS, RESTOR or CINT has run.
+  The loader does that itself.
+
+The EasyFlash control register `$DE02` takes these mode values (`easyloader.asm:80-83`):
+`$04` cartridge off, `$05` Ultimax, `$06` 8K, `$07` 16K. `$DE00` selects the bank. `$DF00-$DFFF`
+is 256 bytes of RAM on the cartridge, visible in every mode, including after `$DE02 = $04`.
+
+When EasyLoader starts an xbank entry, it leaves the entry's first bank in `$DF00` (low byte) and
+`$DF01` (high byte) before it selects that bank and resets (`easyloader.asm:1789-1797`). An xbank
+cart finds its own banks through that convention. It is EasyLoader's, not a published spec, but
+any loader that starts xbank entries has to keep it.
+
 ## EasyFS2 directory entry
 
 24 bytes (`easyfs.h:33`), encoded by `efs_entry_code` (`easyfs.c:562-612`) and parsed by
 `efs2_entry_parse` (`easyfs.c:184-254`).
 
-| Offset | Size | Field |
-|---|---|---|
-| `0–15` | 16 | name, PETSCII, NUL-padded |
-| `16` | 1 | flags |
-| `17–18` | 2 | starting bank, little-endian |
-| `19–20` | 2 | offset (PRG) **or** CrtUsage (cart), little-endian |
-| `21–23` | 3 | size in bytes, little-endian |
+| Offset  | Size | Field                                              |
+| ------- | ---- | -------------------------------------------------- |
+| `0–15`  | 16   | name, PETSCII, NUL-padded                          |
+| `16`    | 1    | flags                                              |
+| `17–18` | 2    | starting bank, little-endian                       |
+| `19–20` | 2    | offset (PRG) **or** CrtUsage (cart), little-endian |
+| `21–23` | 3    | size in bytes, little-endian                       |
 
 Flags byte:
 
@@ -154,23 +178,23 @@ empty cart and destroy the directory on the next save.
 
 Entry types, by the value in bits 0–4 (`easyfs.c:64-80`):
 
-| Value | Type | Mode | CRT ID |
-|---|---|---|---|
-| `0x00` | (none) | off | — |
-| `0x01` | PRG, interleaved | off | — |
-| `0x02` | PRG, ROML only | off | — |
-| `0x03` | PRG, ROMH only | off | — |
-| `0x10` | 8k cart | 8k | 0 |
-| `0x11` | 16k cart | 16k | 0 |
-| `0x12` | Ultimax 16k | ult | 0 |
-| `0x13` | Ultimax 8k | ult | 0 |
-| `0x14` | Ocean 512k | 8k | 5 |
-| `0x15` | Ocean | 16k | 5 |
-| `0x1A` | EasyFlash (subdir) | ult | 32 |
-| `0x1C` | xbank 8k | 8k | 33 |
-| `0x1D` | xbank 16k | 16k | 33 |
-| `0x1E` | xbank Ultimax | ult | 33 |
-| `0x1F` | end marker | off | — |
+| Value  | Type               | Mode | CRT ID |
+| ------ | ------------------ | ---- | ------ |
+| `0x00` | (none)             | off  | —      |
+| `0x01` | PRG, interleaved   | off  | —      |
+| `0x02` | PRG, ROML only     | off  | —      |
+| `0x03` | PRG, ROMH only     | off  | —      |
+| `0x10` | 8k cart            | 8k   | 0      |
+| `0x11` | 16k cart           | 16k  | 0      |
+| `0x12` | Ultimax 16k        | ult  | 0      |
+| `0x13` | Ultimax 8k         | ult  | 0      |
+| `0x14` | Ocean 512k         | 8k   | 5      |
+| `0x15` | Ocean              | 16k  | 5      |
+| `0x1A` | EasyFlash (subdir) | ult  | 32     |
+| `0x1C` | xbank 8k           | 8k   | 33     |
+| `0x1D` | xbank 16k          | 16k  | 33     |
+| `0x1E` | xbank Ultimax      | ult  | 33     |
+| `0x1F` | end marker         | off  | —      |
 
 Bit `0x10` of the type is the "this is a cart" discriminator, and it selects how bytes 19–20 are
 read.
@@ -193,15 +217,15 @@ A PRG that overflows its bank continues by type:
 
 ### Bytes 19–20 for cart entries (CrtUsage)
 
-| Mask | Meaning |
-|---|---|
-| `0x8000` | MSB, always set on write |
-| `0x4000` | subdirectory |
-| `0x2000` | force 64 KB alignment |
+| Mask     | Meaning                                                           |
+| -------- | ----------------------------------------------------------------- |
+| `0x8000` | MSB, always set on write                                          |
+| `0x4000` | subdirectory                                                      |
+| `0x2000` | force 64 KB alignment                                             |
 | `0x1F00` | offset in banks from the start bank to the opposite half (`>> 8`) |
-| `0x00FF` | number of banks in the opposite half |
+| `0x00FF` | number of banks in the opposite half                              |
 
-(`easyfs.c:50-55`, `easyfs.c:210-230`.) The bank count of the *primary* half is not stored — it is
+(`easyfs.c:50-55`, `easyfs.c:210-230`.) The bank count of the _primary_ half is not stored — it is
 derived:
 
 ```
@@ -251,12 +275,12 @@ optimiser.
 
 Weights, larger placed first (`place.c:504-543`):
 
-| Entry | Weight |
-|---|---|
-| Ocean / Ocean 512k | `1 << 30` |
+| Entry                   | Weight                                              |
+| ----------------------- | --------------------------------------------------- |
+| Ocean / Ocean 512k      | `1 << 30`                                           |
 | cart with 64k alignment | `(1 << 16) * bank_top + other_bank_num` + `1 << 28` |
-| other carts | `(1 << 16) * bank_top + other_bank_num` |
-| PRG | its size in bytes |
+| other carts             | `(1 << 16) * bank_top + other_bank_num`             |
+| PRG                     | its size in bytes                                   |
 
 where `bank_top = max(bank_num, other_bank_off + other_bank_num)`.
 
@@ -360,5 +384,5 @@ model on this.
 This document is the format only. Why ndefpack was set aside and this tool written instead is the
 predecessor's decision log, `projects/ndefpack.md` in the Obsidian vault at
 `~/Documents/obsidian/stid` — personal project history, not something this codebase owns. Decisions
-this repo made *about* the format are in `docs/lcd/DECISIONS.md`; what the tool does with it today
+this repo made _about_ the format are in `docs/lcd/DECISIONS.md`; what the tool does with it today
 is `docs/lcd/SPEC.md`.

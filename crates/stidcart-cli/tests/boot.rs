@@ -4,32 +4,18 @@
 //! the output matches a tool known to work; this says these bytes work. When the oracle stops
 //! applying — custom firmware, formats the reference tool cannot produce — this is what is left.
 //!
-//! Skips rather than fails when `x64sc` is absent, so VICE is not a build dependency.
-//!
-//! The monitor recipe below (breakpoint, ignore count, `bsave` of screen RAM) is taken from
-//! ndefpack's `tools/vice-boot-test.sh`, whose header records several traps already paid for
-//! once. Two of them matter here and are not obvious:
-//!
-//!   * `x64sc` needs a tty for the monitor, so it runs under `script`. BSD `script` calls
-//!     `tcgetattr` on *its own stdin* first and macOS refuses that for a socket — which is what
-//!     an agent harness often supplies — so stdin is explicitly null here.
-//!   * `x64sc` exits non-zero even on a clean run under `-limitcycles`. The screen dump is the
-//!     result; the exit status is not.
+//! Skips when `x64sc` is absent, unless `STIDCART_REQUIRE_TOOLS=1` (as CI sets it), so VICE is not
+//! a build dependency. The runner and the traps it works around live in `support/vice.rs`.
+
+mod support;
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
-const LIMIT_CYCLES: &str = "25000000";
+use support::vice::{self, Step};
+
 const IGNORE_INSNS: &str = "$100000";
 const ENTRY: &str = "vicetest";
-
-fn have_x64sc() -> bool {
-    Command::new("sh")
-        .args(["-c", "command -v x64sc >/dev/null 2>&1"])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
@@ -48,59 +34,21 @@ fn screen_matches(screen: &[u8], pattern: &[u8]) -> bool {
 }
 
 /// Boot `cart` and return the 1001-byte screen RAM dump, or `None` if the machine never got
-/// far enough to reach the breakpoint.
+/// far enough to reach the breakpoint. EasyLoader has no label file, so this waits a fixed number
+/// of instructions after the first one, the recipe this test was written with.
 fn boot(dir: &Path, cart: &Path) -> Option<Vec<u8>> {
-    let screen = dir.join("screen.bin");
-    let _ = std::fs::remove_file(&screen);
-
-    let mon = dir.join("mon.txt");
-    std::fs::write(
-        &mon,
-        format!(
-            "break exec $0000 $ffff\nignore 1 {IGNORE_INSNS}\ng\nbsave \"screen.bin\" 0 $0400 $07e8\nquit\n"
-        ),
-    )
-    .unwrap();
-
-    // -default ignores any saved vicerc so the run does not depend on it; +saveres then keeps
-    // the reset settings from being written back over it.
-    let status = Command::new("script")
-        .arg("-q")
-        .arg("/dev/null")
-        .arg("x64sc")
-        // +easyflashcrtwrite is not optional: x64sc defaults to saving the emulated flash back
-        // over the image on exit, stamping its own name into the header. Harmless in a scratch
-        // dir, but the day this is pointed at a fixture it would silently rewrite it — and a
-        // rewritten fixture breaks the parity test with no obvious cause.
-        .args(["-default", "+saveres", "+easyflashcrtwrite", "-cartcrt"])
-        .arg(cart)
-        .args([
-            "-warp",
-            "-sounddev",
-            "dummy",
-            "-jamaction",
-            "1",
-            "-limitcycles",
-            LIMIT_CYCLES,
-            "-nativemonitor",
-            "+confirmonexit",
-            "-moncommands",
-        ])
-        .arg(&mon)
-        .current_dir(dir)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
-    // Deliberately ignored: a clean run exits non-zero under -limitcycles.
-    let _ = status;
-
-    std::fs::read(&screen).ok()
+    let steps = [
+        Step::Raw(format!(
+            "break exec $0000 $ffff\nignore 1 {IGNORE_INSNS}\ng"
+        )),
+        Step::Dump(0x0400, 0x07e8),
+    ];
+    vice::boot(dir, cart, &steps).map(|mut d| d.remove(0))
 }
 
 #[test]
 fn ac_4_cli_produced_image_boots_and_menu_lists_entries() {
-    if !have_x64sc() {
+    if !vice::require_tool("x64sc") {
         eprintln!("AC-4 (CLI): skipping — x64sc is not installed");
         return;
     }

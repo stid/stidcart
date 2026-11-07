@@ -68,16 +68,17 @@ fn ac_51_render_describe_yields_lists_values_for_every_fixture() {
             format!("built by: {}", l.built_by),
             "{name}: built by"
         );
+        assert_eq!(lines[2], format!("menu: {}", l.menu), "{name}: menu");
 
         let golden_rows: Vec<&str> = lines
             .iter()
-            .skip(4) // cart, built by, blank, column header
+            .skip(5) // cart, built by, menu, blank, column header
             .take_while(|s| !s.is_empty())
             .copied()
             .collect();
         let rows: Vec<String> = l.rows.iter().map(row_line).collect();
         if l.rows.is_empty() {
-            assert_eq!(lines[3], "  (no entries)", "{name}");
+            assert_eq!(lines[4], "  (no entries)", "{name}");
         } else {
             assert_eq!(rows, golden_rows, "{name}: rows");
         }
