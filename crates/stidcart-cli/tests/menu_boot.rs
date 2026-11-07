@@ -767,7 +767,7 @@ fn ac_101_filter_and_sort_combine() {
 // --- the look: layout C (AC-104..AC-111, D-040, D-041) -----------------------------------------
 //
 // The menu draws from a RAM copy of the ROM's mixed-case set at $3800 that carries its own glyphs:
-// type pictograms, the rule, the scroll track and thumb, and the logo's quarter-block cells. Tests
+// type badges, the rule, the scroll track and thumb, and the logo's quarter-block cells. Tests
 // find a glyph by its bitmap, so they hold the approved pixels (the "Stidcart Menu Layouts" mockup,
 // layout C) and never the code numbers. Colours are read from colour RAM and the VIC's registers,
 // low nybble only: VICE fills the high nybble from the bus.
@@ -813,27 +813,70 @@ mod colour {
 
 type Glyph = [&'static str; 8];
 
-const PRG: Glyph = [
-    "XXXXXXX.", "XX...XXX", "XX...XXX", "XXXXXXXX", "X......X", "X.XXXX.X", "X......X", "XXXXXXXX",
+/// A type badge: a 16×8 pill with the kind's name knocked out, over two characters (D-041).
+type Badge = [Glyph; 2];
+
+const PRG: Badge = [
+    [
+        "........", ".XXXXXXX", "XX...X..", "XX.X.X.X", "XX...X..", "XX.XXX.X", "XX.XXX.X",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", ".X...XXX", ".X.XXXXX", "XX.X.XXX", ".X.X.XXX", ".X...XXX",
+        "XXXXXXX.",
+    ],
 ];
-const K8: Glyph = [
-    "XXXXXXXX", "X......X", "X.XXXX.X", "X.XXXX.X", "X......X", "XXXXXXXX", ".XXXXXX.", ".X.XX.X.",
+const K8: Badge = [
+    [
+        "........", ".XXXXXXX", "XXXX...X", "XXXX.X.X", "XXXX...X", "XXXX.X.X", "XXXX...X",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", ".X.XXXXX", ".X.XXXXX", "..XXXXXX", ".X.XXXXX", ".X.XXXXX",
+        "XXXXXXX.",
+    ],
 ];
-const K16: Glyph = [
-    "XXXXXXXX", "X.XXXX.X", "X......X", "X.XXXX.X", "X......X", "XXXXXXXX", ".XXXXXX.", ".X.XX.X.",
+const K16: Badge = [
+    [
+        "........", ".XXXXXXX", "XXX.XX..", "XX..XX.X", "XXX.XX..", "XXX.XX.X", "XX...X..",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", ".X.X.XXX", "XX.X.XXX", ".X..XXXX", ".X.X.XXX", ".X.X.XXX",
+        "XXXXXXX.",
+    ],
 ];
-const ULT: Glyph = [
-    "XXXXXXXX", "X.X..X.X", "X.X..X.X", "X..XX..X", "X......X", "XXXXXXXX", ".XXXXXX.", ".X.XX.X.",
+const ULT: Badge = [
+    [
+        "........", ".XXXXXXX", "XX.X.X.X", "XX.X.X.X", "XX.X.X.X", "XX.X.X.X", "XX...X..",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", "XX...XXX", "XXX.XXXX", "XXX.XXXX", "XXX.XXXX", ".XX.XXXX",
+        "XXXXXXX.",
+    ],
 ];
-const XB: Glyph = [
-    "..XXXXXX", "..X....X", "XXXXXX.X", "X....XXX", "X....X..", "XXXXXX..", ".XXXX...", ".X.X....",
+const XB: Badge = [
+    [
+        "........", ".XXXXXXX", "XXXX.X.X", "XXXX.X.X", "XXXXX.XX", "XXXX.X.X", "XXXX.X.X",
+        ".XXXXXXX",
+    ],
+    [
+        "........", "XXXXXXX.", "..XXXXXX", ".X.XXXXX", "..XXXXXX", ".X.XXXXX", "..XXXXXX",
+        "XXXXXXX.",
+    ],
 ];
 const RULE: Glyph = [
     "........", "........", "........", "XXXXXXXX", "........", "........", "........", "........",
 ];
 const TRACK: Glyph = ["...X...."; 8];
 const THUMB: Glyph = ["..XXXX.."; 8];
-const ICONS: [Glyph; 5] = [PRG, K8, K16, ULT, XB];
+const BADGES: [Badge; 5] = [PRG, K8, K16, ULT, XB];
+
+/// Every badge half, left and right.
+fn badge_halves() -> Vec<[u8; 8]> {
+    BADGES.iter().flatten().map(|g| bits(g)).collect()
+}
 
 /// Block letters on a 6×6 grid of quarter-cells: three characters wide and three tall.
 fn letter(c: char) -> [&'static str; 6] {
@@ -884,7 +927,7 @@ const LOGO_COLOURS: [u8; 3] = [colour::WHITE, colour::CYAN, colour::LIGHT_BLUE];
 
 /// Every glyph the menu adds, without repeats: icons, rule, track, thumb and the logo's cells.
 fn own_glyphs() -> Vec<[u8; 8]> {
-    let mut all: Vec<[u8; 8]> = ICONS.iter().map(|g| bits(g)).collect();
+    let mut all = badge_halves();
     all.extend([bits(&RULE), bits(&TRACK), bits(&THUMB)]);
     for c in LOGO.chars() {
         for cy in 0..3 {
@@ -1148,7 +1191,7 @@ fn ac_105_the_menu_draws_from_a_ram_charset_with_its_own_glyphs() {
             .clone()
             .find(|&c| glyph(c) == g)
             .unwrap_or_else(|| panic!("no code in $60-$7F holds {g:02x?}"));
-        if ICONS.iter().any(|i| bits(i) == g) {
+        if badge_halves().contains(&g) {
             assert_eq!(
                 glyph(code + 0x80),
                 inverse(g),
@@ -1188,7 +1231,7 @@ fn ac_106_the_frame_has_the_logo_rules_and_help_bar() {
     check_frame(&l, "empty").unwrap_or_else(|e| panic!("empty cart: {e}"));
 }
 
-// AC-107: each entry has its kind's icon in its kind's colour, and the selection reverses it
+// AC-107: each entry has its kind's badge in its kind's colour, and the selection reverses it
 #[test]
 fn ac_107_entries_carry_their_kind_icon() {
     if !vice::require_tool("x64sc") {
@@ -1225,13 +1268,15 @@ fn ac_107_entries_carry_their_kind_icon() {
                 listed(&l.screen, name).unwrap_or_else(|| panic!("{what}: '{name}' is not listed"));
             let (n, col) = (at / COLS, at % COLS);
             assert_eq!(col, 4, "{what}: '{name}' does not start in column 4");
-            let icon = n * COLS + 2;
+            let cells = [n * COLS + 1, n * COLS + 2];
             if i == selected {
-                assert_eq!(
-                    l.bitmap(icon),
-                    inverse(bits(glyph)),
-                    "{what}: '{name}' is selected but its icon is not reversed"
-                );
+                for (cell, half) in cells.iter().zip(glyph) {
+                    assert_eq!(
+                        l.bitmap(*cell),
+                        inverse(bits(half)),
+                        "{what}: '{name}' is selected but its badge is not reversed"
+                    );
+                }
                 for c in SELECTION_BAR {
                     let cell = n * COLS + c;
                     assert!(
@@ -1240,12 +1285,14 @@ fn ac_107_entries_carry_their_kind_icon() {
                     );
                 }
             } else {
-                assert_eq!(
-                    l.bitmap(icon),
-                    bits(glyph),
-                    "{what}: '{name}' has the wrong icon"
-                );
-                assert_eq!(l.colour[icon], *c, "{what}: '{name}' icon colour");
+                for (cell, half) in cells.iter().zip(glyph) {
+                    assert_eq!(
+                        l.bitmap(*cell),
+                        bits(half),
+                        "{what}: '{name}' has the wrong badge"
+                    );
+                    assert_eq!(l.colour[*cell], *c, "{what}: '{name}' badge colour");
+                }
                 let name_colours = &l.colour[at..at + name.len()];
                 assert!(
                     name_colours.iter().all(|&x| x == colour::LIGHT_GREY),

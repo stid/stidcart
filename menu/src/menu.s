@@ -41,12 +41,13 @@ LIGHT_BLUE = 14
 LIGHT_GREY = 15
 
 ; The menu's own screen codes, in $60-$7F, which names never produce (screen_code turns PETSCII
-; $A0-$BF into "?"). Each icon's code+$80 holds its inverse, for the selection bar.
-ICON    = $60                   ; five: program, 8K, 16K, Ultimax, multi-bank
-RULE    = $65
-TRACK   = $66
-THUMB   = $67
-QUARTER = $68                   ; sixteen: the quarter-block cells of the logo
+; $A0-$BF into "?"). Each badge code+$80 holds its inverse, for the selection bar.
+ICON    = $60                   ; ten: a badge per kind, left then right half (program, 8K, 16K,
+                                ; Ultimax, multi-bank)
+RULE    = $6a
+TRACK   = $6b
+THUMB   = $6c
+QUARTER = $6d                   ; sixteen: the quarter-block cells of the logo
 
 BANK    = $de00                 ; EasyFlash bank register
 CONTROL = $de02                 ; EasyFlash mode register
@@ -804,11 +805,11 @@ charset_init:
         cpx #glyphs_end - glyphs
         bne -
         ldx #0
--       lda glyphs,x            ; the icons' inverses, for the selection bar
+-       lda glyphs,x            ; the badges' inverses, for the selection bar
         eor #$ff
         sta CHAR_RAM + (ICON + $80) * 8,x
         inx
-        cpx #5 * 8
+        cpx #10 * 8
         bne -
         rts
 
@@ -1251,17 +1252,21 @@ _listed:
 +       ldx srow
         lda #1
         jsr at
-        ldy #0
-        lda #1
-        jsr pad                 ; column 1
-        lda kind
+        lda kind                ; columns 1-2, the badge
+        asl a
         clc
         adc #ICON
         ora rvs
-        sta (scr),y             ; column 2, the icon
+        ldy #0
+        sta (scr),y
+        ora #1
+        iny
+        sta (scr),y
         lda ipen
         sta (clr),y
-        iny
+        dey
+        sta (clr),y
+        ldy #2
         lda #3
         jsr pad                 ; column 3
         ldx srow
@@ -1674,13 +1679,18 @@ row_lo:
 row_hi:
         .byte >(SCREEN + range(25) * 40)
 
-; The glyphs, in code order from ICON. The pixels are the approved mockup's (D-041).
+; The glyphs, in code order from ICON. The pixels are the approved mockup's badges (D-041).
 glyphs:
-        .byte %11111110, %11000111, %11000111, %11111111, %10000001, %10111101, %10000001, %11111111 ; program: a disk
-        .byte %11111111, %10000001, %10111101, %10111101, %10000001, %11111111, %01111110, %01011010 ; 8K: a cartridge
-        .byte %11111111, %10111101, %10000001, %10111101, %10000001, %11111111, %01111110, %01011010 ; 16K: two labels
-        .byte %11111111, %10100101, %10100101, %10011001, %10000001, %11111111, %01111110, %01011010 ; Ultimax: a U
-        .byte %00111111, %00100001, %11111101, %10000111, %10000100, %11111100, %01111000, %01010000 ; multi-bank: two
+        .byte %00000000, %01111111, %11000100, %11010101, %11000100, %11011101, %11011101, %01111111 ; PRG, left
+        .byte %00000000, %11111110, %01000111, %01011111, %11010111, %01010111, %01000111, %11111110 ; PRG, right
+        .byte %00000000, %01111111, %11110001, %11110101, %11110001, %11110101, %11110001, %01111111 ; 8K, left
+        .byte %00000000, %11111110, %01011111, %01011111, %00111111, %01011111, %01011111, %11111110 ; 8K, right
+        .byte %00000000, %01111111, %11101100, %11001101, %11101100, %11101101, %11000100, %01111111 ; 16K, left
+        .byte %00000000, %11111110, %01010111, %11010111, %01001111, %01010111, %01010111, %11111110 ; 16K, right
+        .byte %00000000, %01111111, %11010101, %11010101, %11010101, %11010101, %11000100, %01111111 ; ULT, left
+        .byte %00000000, %11111110, %11000111, %11101111, %11101111, %11101111, %01101111, %11111110 ; ULT, right
+        .byte %00000000, %01111111, %11110101, %11110101, %11111011, %11110101, %11110101, %01111111 ; XB, left
+        .byte %00000000, %11111110, %00111111, %01011111, %00111111, %01011111, %00111111, %11111110 ; XB, right
         .byte %00000000, %00000000, %00000000, %11111111, %00000000, %00000000, %00000000, %00000000 ; rule
         .fill 8, %00010000      ; track
         .fill 8, %00111100      ; thumb
@@ -1692,16 +1702,16 @@ glyphs:
 glyphs_end:
 
 ; "STIDCART" in block letters on a 6x6 grid of quarter cells, three characters a letter and one
-; between, as screen codes: the space, or QUARTER + the cell's four quarters.
+; between, as screen codes: the space, or QUARTER + the cell's four quarters (bit 3 top left).
 logo_0:
-        .byte $6f, $74, $74, $20, $74, $77, $74, $20, $6c, $77, $70, $20, $77, $74, $73, $20
-        .byte $6f, $74, $74, $20, $6f, $74, $73, $20, $77, $74, $73, $20, $74, $77, $74
+        .byte QUARTER+7, QUARTER+12, QUARTER+12, $20, QUARTER+12, QUARTER+15, QUARTER+12, $20, QUARTER+4, QUARTER+15, QUARTER+8, $20, QUARTER+15, QUARTER+12, QUARTER+11, $20
+        .byte QUARTER+7, QUARTER+12, QUARTER+12, $20, QUARTER+7, QUARTER+12, QUARTER+11, $20, QUARTER+15, QUARTER+12, QUARTER+11, $20, QUARTER+12, QUARTER+15, QUARTER+12
 logo_1:
-        .byte $6c, $74, $73, $20, $20, $77, $20, $20, $20, $77, $20, $20, $77, $20, $77, $20
-        .byte $77, $20, $20, $20, $77, $6b, $77, $20, $77, $6b, $76, $20, $20, $77, $20
+        .byte QUARTER+4, QUARTER+12, QUARTER+11, $20, $20, QUARTER+15, $20, $20, $20, QUARTER+15, $20, $20, QUARTER+15, $20, QUARTER+15, $20
+        .byte QUARTER+15, $20, $20, $20, QUARTER+15, QUARTER+3, QUARTER+15, $20, QUARTER+15, QUARTER+3, QUARTER+14, $20, $20, QUARTER+15, $20
 logo_2:
-        .byte $6b, $6b, $76, $20, $20, $77, $20, $20, $69, $77, $6a, $20, $77, $6b, $76, $20
-        .byte $75, $6b, $6b, $20, $77, $20, $77, $20, $77, $6c, $73, $20, $20, $77, $20
+        .byte QUARTER+3, QUARTER+3, QUARTER+14, $20, $20, QUARTER+15, $20, $20, QUARTER+1, QUARTER+15, QUARTER+2, $20, QUARTER+15, QUARTER+3, QUARTER+14, $20
+        .byte QUARTER+13, QUARTER+3, QUARTER+3, $20, QUARTER+15, $20, QUARTER+15, $20, QUARTER+15, QUARTER+4, QUARTER+11, $20, $20, QUARTER+15, $20
 logo_lo:
         .byte <logo_0, <logo_1, <logo_2
 logo_hi:

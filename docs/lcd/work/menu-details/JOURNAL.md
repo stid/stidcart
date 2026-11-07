@@ -11,8 +11,8 @@
 ## NOW
 
 - **Lane:** Standard
-- **Goal:** Layout C for our C64 menu: block logo, type pictograms, details pane, scroll bar, from a RAM character set, without flicker (D-041)
-- **Next action:** done; the PR awaits CI and the user's live check and merge (after #38)
+- **Goal:** Layout C for our C64 menu: block logo, type badges, details pane, scroll bar, from a RAM character set, without flicker (D-041)
+- **Next action:** done; the PR awaits CI and the user's merge (after #38)
 - **Branch:** feat/menu-details (stacked on feat/menu-look, PR #38) · **Updated:** 2026-11-07
 
 ## STEPS
@@ -27,7 +27,7 @@
 
 ## DECISIONS (this work-item)
 
-- Layout C, pictograms, RAM charset, position counter with the match count by the filter text, write-once partial redraw → D-041
+- Layout C, badges, RAM charset, position counter with the match count by the filter text, write-once partial redraw → D-041
 - New code goes in `menu.s` (ROM), never `launch.s`, which has about 10 bytes left. The pane's load address comes through the existing `read_load`
 - No `$DExx/$DFxx` access while CHAREN is clear for the charset copy
 
@@ -72,9 +72,9 @@ rules; row 24 is the grey reverse help bar; border and background are black. Thi
 visible entries too.
 
 **AC-107** (surfaces: none): Given entries of every kind the menu starts, when they are listed,
-then each sits in columns 1-20 of rows 5-20 with its kind's icon in column 2 (program light green,
+then each sits in columns 1-20 of rows 5-20 with its kind's badge in columns 1-2 (program light green,
 8K yellow, 16K light red, Ultimax purple, multi-bank light blue) and its name from column 4 in
-light grey. The selection is a cyan reverse bar over columns 1-20, its icon reversed.
+light grey. The selection is a cyan reverse bar over columns 1-20, its badge reversed.
 
 **AC-108** (surfaces: none): Given a selection, when the screen is shown, then the pane shows its
 name in white and its type, size in KB, load address (program) or first bank (cartridge), and how
@@ -117,4 +117,8 @@ AC-102 and AC-103 (menu-look) are superseded by AC-105..AC-110. AC-104 stands.
   so the live run is the check for flicker.
 - 2026-11-07 — audit: PASS (test-presence). All seven ACs are surface `none`, so there is no token row. Their tests are `ac_105`..`ac_111` in `menu_boot.rs`, plus the controls `the_frame_check_rejects_a_plain_screen` and `the_thumb_follows_the_rounding_the_spec_gives`, green at 280f474 with STIDCART_REQUIRE_TOOLS=1 (root 225/0, GUI 31/0 + 40/0). Closeout line appended.
 - 2026-11-07 — reconciled: folded AC-105..AC-111 → SPEC.md/Internal. Replaced in place: the boot row (16 rows), the filter row (text and match count on row 23, position on row 22, AC-110), and the menu-look row (now layout C, AC-104..AC-111). D-041 records the supersede of D-040 and the refinement of D-039.
-
+- 2026-11-07 — The user checked layout C live ("it's great") but wanted the badges, not the
+  pictograms I took as their pick. Badges replace them: ten codes `$60-$69` (left and right halves
+  per kind) with inverses at `$E0-$E9`. Rule, track, thumb and the logo cells moved to
+  `$6A-$7C`, and the logo table now names its cells as `QUARTER+n`. AC-105 and AC-107 went red
+  first (no badge glyphs, badge not reversed), then green. D-041 amended before merge.

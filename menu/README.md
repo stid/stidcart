@@ -22,8 +22,8 @@ code.
 | RUN/STOP        | leave to BASIC with the cartridge switched off             |
 
 The screen is black (D-041). A block-letter logo and the cart name sit above 16 list rows. Each
-entry shows an icon for its kind: a disk for a program, a cartridge for 8K and 16K, a cartridge
-marked U for Ultimax, and two stacked cartridges for multi-bank. The selected entry sits in a cyan
+entry shows a badge for its kind, in the kind's colour: "PRG" for a program, "8K" and "16K" for
+those cartridges, "ULT" for Ultimax, and "XB" for multi-bank. The selected entry sits in a cyan
 bar. When the list is longer than the screen, the divider to its right becomes a scroll bar: the
 thumb's length is the share of the list in view, and its place is where the view is. The pane on the
 right describes the selection: its type, size, load address (program) or first bank (cartridge),
@@ -45,7 +45,7 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
 - `src/menu.s` runs from ROM. It copies `src/launch.s` to the cartridge's I/O2 RAM at `$DF02` and
   initialises the KERNAL from there with the cartridge off, so the top of memory comes out right.
   It copies the ROM's mixed-case character set to `$3800` and adds the menu's own glyphs to it in
-  codes `$60-$7F`: the icons (with their inverses at `$E0` and up, for the selection bar), the rule,
+  codes `$60-$7F`: the badges (with their inverses at `$E0` and up, for the selection bar), the rule,
   the scroll bar and the logo's quarter-block cells. It then scans the EasyFS2 directory at `$A000`
   and draws straight into screen and colour RAM, writing each cell once per update. A cursor move
   that doesn't scroll redraws only the two rows it changes, and drawing starts below the visible
