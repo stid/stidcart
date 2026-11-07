@@ -284,12 +284,16 @@ fn ac_95_cli_our_menu_with_a_program_in_the_io_area_is_refused() {
     ok(&build(
         &dir.join("fine.crt"),
         &["--menu", "stidcart"],
-        &[below.clone()],
+        std::slice::from_ref(&below),
     ));
 
     // build
     let out = dir.join("out.crt");
-    let err = refused(&build(&out, &["--menu", "stidcart"], &[io.clone()]));
+    let err = refused(&build(
+        &out,
+        &["--menu", "stidcart"],
+        std::slice::from_ref(&io),
+    ));
     assert!(
         err.contains("iozone"),
         "the refusal does not name the entry: {err}"

@@ -182,7 +182,7 @@ fn ac_88_a_long_list_scrolls_and_the_last_entry_starts() {
 
     // Move to the last entry and look before starting it.
     let mut steps = vec![Step::Labels(vice::menu_labels())];
-    for chunk in vec![key::DOWN; 29].chunks(10) {
+    for chunk in [key::DOWN; 29].chunks(10) {
         steps.push(idle());
         steps.push(Step::Keys(chunk.to_vec()));
     }
@@ -327,7 +327,7 @@ fn ac_92_no_visible_entries_says_so_and_leaving_works() {
         &dir,
         "empty",
         &["--hide", only.to_str().unwrap()],
-        &[only.clone()],
+        std::slice::from_ref(&only),
     );
 
     let screen_now = menu_screen(&dir, &cart);
