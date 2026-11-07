@@ -155,18 +155,32 @@ pub fn boot(dir: &Path, cart: &Path, steps: &[Step]) -> Option<Vec<Vec<u8>>> {
         mon_path.display().to_string(),
     ]);
 
+    // VICE's own output goes to a log beside the dumps, so a run that never gets far enough says
+    // why: the failing test prints its tail.
+    let log_path = dir.join("vice.log");
+    let log = std::fs::File::create(&log_path).unwrap();
     // Deliberately ignored: a clean run exits non-zero under -limitcycles.
     let _ = under_script(&args)
         .current_dir(dir)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(log.try_clone().unwrap())
+        .stderr(log)
         .status();
 
-    dumps
+    let result: Option<Vec<Vec<u8>>> = dumps
         .iter()
         .map(|d| std::fs::read(dir.join(d)).ok())
-        .collect()
+        .collect();
+    if result.is_none() {
+        let text = std::fs::read_to_string(&log_path).unwrap_or_default();
+        let tail: Vec<&str> = text.lines().rev().take(40).collect();
+        eprintln!(
+            "x64sc did not write every dump; last lines of {}:\n{}",
+            log_path.display(),
+            tail.into_iter().rev().collect::<Vec<_>>().join("\n")
+        );
+    }
+    result
 }
 
 /// `x64sc args…` under `script`, which gives it the tty its monitor needs.
