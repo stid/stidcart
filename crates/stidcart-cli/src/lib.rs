@@ -11,17 +11,19 @@
 use std::path::Path;
 
 use stidcart_core::listing::{self, Listing};
+use stidcart_core::menu::Menu;
 use stidcart_core::read;
 use stidcart_core::{CartBuilder, Entry, InputError};
 
 const USAGE: &str = "\
-usage: stidcart build [-e NAME] [--hide INPUT]... [--align INPUT]... -o OUTPUT INPUT...
+usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT]... -o OUTPUT INPUT...
        stidcart list CART.crt
        stidcart edit CART.crt [-o OUTPUT] [OPERATION]...
 
   build           create a cartridge image from programs and cartridge images
   -e NAME         cartridge name shown by the menu (default: \"(no EF-Name)\")
   -o OUTPUT       where to write the image
+  --menu MENU     the menu the cart boots into: easyloader (default) or stidcart
   --hide INPUT    mark that input hidden in the built cartridge
   --align INPUT   request 64 KB alignment for that xbank cartridge input
   INPUT           a .prg, or a cartridge image (recognised by content: generic 8k/16k/Ultimax,
@@ -43,6 +45,7 @@ usage: stidcart build [-e NAME] [--hide INPUT]... [--align INPUT]... -o OUTPUT I
   --unalign N     clear that request
   -e NAME         set the cartridge name shown by the menu
   --header NAME   set the container header name
+  --menu MENU     switch the menu to easyloader or stidcart; without it the cart keeps its menu
 
   Indices are the ones `list` prints, and every index in one invocation refers
   to the image as it was given, not to the state a previous operation left.
@@ -63,6 +66,7 @@ pub fn run(args: &[String]) -> Result<Option<String>, String> {
 
 fn build(args: &[String]) -> Result<Option<String>, String> {
     let mut ef_name: Option<String> = None;
+    let mut menu: Option<Menu> = None;
     let mut output: Option<String> = None;
     let mut inputs: Vec<String> = Vec::new();
     // Marked by input path: at build time there are no entries yet, so there is nothing to index.
@@ -74,6 +78,7 @@ fn build(args: &[String]) -> Result<Option<String>, String> {
         match arg.as_str() {
             "-e" => ef_name = Some(it.next().ok_or("-e needs a name")?.clone()),
             "-o" => output = Some(it.next().ok_or("-o needs a path")?.clone()),
+            "--menu" => menu = Some(menu_arg(it.next())?),
             "--hide" => hide.push(it.next().ok_or("--hide needs an input path")?.clone()),
             "--align" => align.push(it.next().ok_or("--align needs an input path")?.clone()),
             "-h" | "--help" => return Err(USAGE.to_string()),
@@ -105,6 +110,9 @@ fn build(args: &[String]) -> Result<Option<String>, String> {
     let mut builder = CartBuilder::new();
     if let Some(name) = &ef_name {
         builder = builder.with_ef_name(name);
+    }
+    if let Some(menu) = menu {
+        builder = builder.with_menu(menu);
     }
     for (i, path) in inputs.iter().enumerate() {
         builder = builder.with_entry(input_entry(path, align.contains(path))?);
@@ -144,6 +152,7 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     let mut output: Option<String> = None;
     let mut ef_name: Option<String> = None;
     let mut header_name: Option<String> = None;
+    let mut menu: Option<Menu> = None;
     let mut ops: Vec<Op> = Vec::new();
 
     let mut it = args.iter();
@@ -152,6 +161,7 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             "-o" => output = Some(it.next().ok_or("-o needs a path")?.clone()),
             "-e" => ef_name = Some(it.next().ok_or("-e needs a name")?.clone()),
             "--header" => header_name = Some(it.next().ok_or("--header needs a name")?.clone()),
+            "--menu" => menu = Some(menu_arg(it.next())?),
             "--add" => ops.push(Op::Add(
                 it.next().ok_or("--add needs a file")?.clone(),
                 false,
@@ -259,6 +269,9 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     if let Some(name) = &header_name {
         builder.set_header_name(name);
     }
+    if let Some(menu) = menu {
+        builder.set_menu(menu);
+    }
 
     let out_bytes = builder.build().map_err(|e| e.to_string())?;
     let destination = output.unwrap_or(cart);
@@ -276,6 +289,12 @@ fn input_entry(path: &str, aligned: bool) -> Result<Entry, String> {
         InputError::Cartridge(e) => format!("'{path}': {e}"),
         other => other.to_string(),
     })
+}
+
+/// A `--menu` value.
+fn menu_arg(arg: Option<&String>) -> Result<Menu, String> {
+    let raw = arg.ok_or("--menu needs easyloader or stidcart")?;
+    Menu::from_name(raw).ok_or_else(|| format!("--menu needs easyloader or stidcart, not '{raw}'"))
 }
 
 /// An entry index from the command line, with the option that wanted it named in the error.
@@ -333,7 +352,8 @@ fn list(args: &[String]) -> Result<(), String> {
 fn render(l: &Listing) -> String {
     let mut out = String::new();
     out.push_str(&format!("cart: {}\n", l.cart));
-    out.push_str(&format!("built by: {}\n\n", l.built_by));
+    out.push_str(&format!("built by: {}\n", l.built_by));
+    out.push_str(&format!("menu: {}\n\n", l.menu));
 
     if l.rows.is_empty() {
         out.push_str("  (no entries)\n");

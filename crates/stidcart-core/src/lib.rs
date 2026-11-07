@@ -34,6 +34,7 @@ pub use read::{inspect, load, CartInfo, ReadError};
 
 use directory::{DirEntry, EntryType, ENTRY_LEN, MAX_ENTRIES};
 use image::{BANK_SIZE, N_BANKS};
+use menu::Menu;
 use place::Placer;
 use reserved::{Mode, DEFAULT_EF_NAME, DIRECTORY_OFFSET};
 
@@ -202,6 +203,15 @@ pub enum BuildError {
     AlignNotXbank {
         name: String,
     },
+    /// Our menu has no Ocean-mode build (D-037), and this entry is an Ocean cartridge.
+    MenuNeedsNormalMode {
+        name: String,
+    },
+    /// Our menu copies programs from `$DF00`, with I/O mapped in, so it cannot start one that
+    /// loads anywhere in `$D000-$DFFF` (D-038).
+    ProgramInIoArea {
+        name: String,
+    },
 }
 
 impl std::fmt::Display for BuildError {
@@ -222,6 +232,14 @@ impl std::fmt::Display for BuildError {
                 f,
                 "'{name}' is not an xbank cartridge, so 64 KB alignment cannot be requested for it"
             ),
+            BuildError::MenuNeedsNormalMode { name } => write!(
+                f,
+                "'{name}' is an Ocean cartridge, and the stidcart menu cannot run on an Ocean cart"
+            ),
+            BuildError::ProgramInIoArea { name } => write!(
+                f,
+                "'{name}' loads into $D000-$DFFF, which the stidcart menu cannot start a program over"
+            ),
         }
     }
 }
@@ -233,6 +251,7 @@ impl std::error::Error for BuildError {}
 pub struct CartBuilder {
     ef_name: String,
     header_name: String,
+    menu: Menu,
     entries: Vec<Entry>,
 }
 
@@ -247,6 +266,7 @@ impl CartBuilder {
         CartBuilder {
             ef_name: DEFAULT_EF_NAME.to_string(),
             header_name: format!("stidcart {}", env!("CARGO_PKG_VERSION")),
+            menu: Menu::default(),
             entries: Vec::new(),
         }
     }
@@ -266,6 +286,12 @@ impl CartBuilder {
     /// Defaults to this crate's name and version.
     pub fn with_header_name(mut self, name: &str) -> Self {
         self.header_name = name.to_string();
+        self
+    }
+
+    /// The C64-side menu the cart boots into. EasyLoader unless asked otherwise (D-037).
+    pub fn with_menu(mut self, menu: Menu) -> Self {
+        self.menu = menu;
         self
     }
 
@@ -350,6 +376,14 @@ impl CartBuilder {
     }
 
     /// The cartridge name the menu shows.
+    pub fn set_menu(&mut self, menu: Menu) {
+        self.menu = menu;
+    }
+
+    pub fn menu(&self) -> Menu {
+        self.menu
+    }
+
     pub fn ef_name(&self) -> &str {
         &self.ef_name
     }
@@ -425,6 +459,29 @@ impl CartBuilder {
             });
         }
 
+        if self.menu == Menu::Stidcart {
+            if let Some(c) = self
+                .entries
+                .iter()
+                .filter_map(Entry::as_cartridge)
+                .find(|c| c.kind.is_ocean())
+            {
+                return Err(BuildError::MenuNeedsNormalMode {
+                    name: c.name.clone(),
+                });
+            }
+            if let Some(p) = self
+                .entries
+                .iter()
+                .filter_map(Entry::as_program)
+                .find(|p| touches_io_area(&p.data))
+            {
+                return Err(BuildError::ProgramInIoArea {
+                    name: p.name.clone(),
+                });
+            }
+        }
+
         let mode = self.mode();
         let mut placer = Placer::new(mode);
         let placements = placer.place_all(&self.entries)?;
@@ -432,7 +489,7 @@ impl CartBuilder {
         let mut img = FlashImage::erased();
         reserved::write_eapi(&mut img);
         reserved::write_boot(&mut img, mode);
-        reserved::write_loader(&mut img, mode);
+        reserved::write_loader(&mut img, mode, self.menu);
         reserved::write_ef_name(&mut img, &self.ef_name);
 
         for (i, entry) in self.entries.iter().enumerate() {
@@ -481,6 +538,17 @@ impl CartBuilder {
     pub fn build(&self) -> Result<Vec<u8>, BuildError> {
         Ok(crt::write(&self.build_image()?, &self.header_name))
     }
+}
+
+/// Whether a `.prg` (load address, then payload) would occupy any of `$D000-$DFFF` once loaded.
+fn touches_io_area(prg: &[u8]) -> bool {
+    if prg.len() < 2 {
+        return false;
+    }
+    let start = u16::from_le_bytes([prg[0], prg[1]]) as usize;
+    let end = start + (prg.len() - 2);
+    // `end` is one past the last byte; a program with no payload occupies nothing.
+    end > start && start <= 0xdfff && end > 0xd000
 }
 
 /// The mode an entry set implies: Ocean if any entry is an Ocean cartridge.

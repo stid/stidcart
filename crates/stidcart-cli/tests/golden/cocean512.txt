@@ -2,6 +2,7 @@ exit: 0
 -- stdout --
 cart: cocean512
 built by: ndefpack 1.0.1
+menu: EasyLoader
 
     #  name              flags  type    bank  layout            size
     0  hello             -      PRG-H    $02  $2000          $000066

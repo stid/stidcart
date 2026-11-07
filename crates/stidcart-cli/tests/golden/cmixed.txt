@@ -2,6 +2,7 @@ exit: 0
 -- stdout --
 cart: cmixed
 built by: ndefpack 1.0.1
+menu: EasyLoader
 
     #  name              flags  type    bank  layout            size
     0  in_8k             -      8K       $07  L1@0           $002000

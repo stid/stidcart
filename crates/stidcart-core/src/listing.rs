@@ -15,6 +15,9 @@ pub struct Listing {
     pub cart: String,
     /// The container header name — the producing tool — with control characters replaced.
     pub built_by: String,
+    /// The C64-side menu the cart boots into: `EasyLoader`, `stidcart`, or `unrecognised` when the
+    /// loader slot holds neither (D-038).
+    pub menu: String,
     /// One row per directory entry, in slot order.
     pub rows: Vec<Row>,
     /// The bytes free: what a re-placement of the entries plus one more program accepts (D-027).
@@ -71,6 +74,7 @@ pub fn describe(bytes: &[u8]) -> Result<Listing, ReadError> {
     Ok(Listing {
         cart: info.ef_name.clone(),
         built_by: printable(&info.header_name),
+        menu: info.menu.map_or("unrecognised", |m| m.name()).to_string(),
         rows,
         free,
     })
