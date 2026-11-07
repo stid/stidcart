@@ -64,7 +64,7 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
 - **Therefore: number a new work-item's ACs from the next free id, not from AC-1.** The tokens in
   use are `AC-1..AC-12 (none)` and `AC-1..AC-5 (CLI)`, plus `AC-13..AC-16 (…)` taken by
   `easyfs1-refusal`, plus `AC-17..AC-30` taken by `cart-edit`, plus `AC-31..AC-46` taken by
-  `cart-entries`, plus `AC-47..AC-50` taken by `subdir-entries`, plus `AC-51..AC-58` taken by `gui-shell`, plus `AC-59..AC-80` taken by `gui-edit`, plus `AC-81..AC-95` taken by `custom-menu`, plus `AC-96..AC-101` taken by `menu-search-sort`. **Next free: AC-102.** Bump this line
+  `cart-entries`, plus `AC-47..AC-50` taken by `subdir-entries`, plus `AC-51..AC-58` taken by `gui-shell`, plus `AC-59..AC-80` taken by `gui-edit`, plus `AC-81..AC-95` taken by `custom-menu`, plus `AC-96..AC-101` taken by `menu-search-sort`, plus `AC-102..AC-104` taken by `menu-look`. **Next free: AC-105.** Bump this line
   when a work-item claims a range. Renaming
   the orphans instead would be a sweep across six files for no behaviour change — rename them only
   if you are already editing the file.

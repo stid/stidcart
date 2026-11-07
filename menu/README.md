@@ -21,11 +21,14 @@ code.
 | F1              | switch between the cart's own order and A-Z                |
 | RUN/STOP        | leave to BASIC with the cartridge switched off             |
 
-Hidden entries are not listed. The filter and A-Z both ignore case. The filter takes up to 16
-characters, any printable one except `"`, and shows them on the row above the list. The bottom row
-shows how many entries match out of those listed, and which order is in use. Every boot starts in
+The screen is black, in the ROM's mixed-case character set so names keep their capitals (D-040).
+Row 0 is a cyan bar with the cart name, the selected entry sits in a cyan bar, and row 24 is a grey
+bar naming the keys. Hidden entries are not listed. The filter and A-Z both ignore case. The filter takes up to 16
+characters, any printable one except `"`, and shows them in yellow on the row above the list. The
+row above the key bar shows how many entries match out of those listed, and which order is in use. Every boot starts in
 the cart's own order, which is the order they were built in (D-039). A program that loads at or below `$0801` is started with `RUN`,
-and any other with `SYS` to its load address. The tool refuses to put this menu on a cart with an
+and any other with `SYS` to its load address. It finds the C64's own colours and upper-case
+character set, as after a reset. The tool refuses to put this menu on a cart with an
 Ocean entry, or with a program that would load into `$D000-$DFFF` (D-038).
 
 ## How it starts
@@ -36,7 +39,9 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
 
 - `src/menu.s` runs from ROM. It copies `src/launch.s` to the cartridge's I/O2 RAM at `$DF02` and
   initialises the KERNAL from there with the cartridge off, so the top of memory comes out right.
-  It then scans the EasyFS2 directory at `$A000` and draws the list through CHROUT.
+  It then scans the EasyFS2 directory at `$A000` and draws the screen straight into screen and
+  colour RAM. CHROUT can't draw the bars, because a full 40-column row links into the next line and
+  the last cell of row 24 scrolls the screen.
 - Keys come only from GETIN, the KERNAL keyboard buffer, because that is the only place VICE can
   inject keys for the boot tests. `menu_idle` is the point where the menu waits with an empty
   buffer, and the tests break there.

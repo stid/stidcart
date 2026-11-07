@@ -8,11 +8,45 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-040 -->
+<!-- Next id: D-041 -->
+
+---
+
+## D-040 · 2026-11-07 · The menu's look is colour and two reverse bars, drawn straight into screen RAM
+
+- **Context:** menu-look, the third custom-menu slice (D-037). The menu printed everything through
+  CHROUT in the C64's default light blue on blue. It uses about 1.6 KiB of its 8 KiB slot.
+- **Decision:** (user's choices, following the recommendation)
+  - Colour and layout only, with the ROM font.
+  - Dark scheme: black border and background, light grey entries, yellow filter text, medium grey
+    status. Row 0 is a full-width reverse cyan title bar with "stidcart" and the cart name, and the
+    selection is a reverse cyan bar too. Both are cyan because the title colour and the selection
+    colour the user picked are the same, and a reverse bar can only show black text.
+  - The rows stay where AC-87..AC-101 pin them: filter on row 1, list on rows 2-21, count and order
+    on row 23. Row 24 is a new full-width reverse grey bar with the key help. The preview's
+    single bottom line ("2/57 A-Z RET run…") doesn't fit in 40 columns beside the existing status
+    wording.
+  - `draw` writes screen and colour RAM directly instead of using CHROUT. A 40-character row through
+    CHROUT links into the next line, and reaching column 39 of row 24 scrolls the screen.
+  - The menu shows the ROM's mixed-case character set (`$D018=$17`, SHIFT+C= locked). In the
+    upper-case set, the `$61-$7A` an upper-case file stem becomes showed as graphics, under CHROUT
+    too. Found on the first screenshot and added with the user told.
+  - Before a program starts, the menu restores the C64's own colours (border and text light blue,
+    background blue) and the upper-case set. `basic_go` enters the reset after CINT, so nothing
+    else would undo them. Cartridges and RUN/STOP go through a full reset, which does, except
+    the SHIFT+C= lock: a cart's reset runs before CINT, so the menu clears it before a cart starts.
+- **Alternatives rejected:** a custom font, and sprites or raster effects, which need RAM copies,
+  an IRQ beside the KERNAL's, and harder tests, for a look the user didn't ask for. A full PETSCII
+  frame, which costs two rows of the list. Colour alone on today's layout. The classic blue and
+  amber palettes. Rewriting the status line to match the preview, which moves four tests and SPEC
+  for no gain.
+- **Scope:** `menu/src/menu.s`, `menu/README.md`, boot tests
+- **Status:** active · refines D-037
 
 ---
 
 ## D-039 · 2026-11-07 · Menu search is a substring filter as you type; sort is a view toggle that starts in directory order
+
 - **Context:** menu-search-sort, the second custom-menu slice (D-037). Letters are free in the menu,
   which reads only CRSR, RETURN and RUN/STOP. The directory order is fixed by the format's placement
   rules, so a sort can only change what the menu shows. It can't reorder the cart.
@@ -35,6 +69,7 @@
 ---
 
 ## D-038 · 2026-11-07 · The menu is a builder property detected from the loader slot; boots are proven in VICE built in CI
+
 - **Context:** custom-menu plan. Recon found three things: VICE can inject keys only into the KERNAL
   buffer, apt's VICE and 64tass versions follow the runner image, and `ubuntu-latest` moves to 26.04
   this month. EasyLoader's PRG start copies only after a BASIC cold start, through a CHRIN trap
@@ -62,6 +97,7 @@
 ---
 
 ## D-037 · 2026-11-07 · Our own menu is opt-in, GPL in `menu/`, assembled with 64tass, and lands in slices
+
 - **Context:** D-005 deferred a custom C64-side menu. The user wants all of it: a new look, search
   and sort, and subdirectory navigation. The launcher only does `jmp ($8000)` (or `($a000)` in
   Ocean mode), so a replacement loader needs to fit the 8 KiB slot and keep that entry vector. The
@@ -92,6 +128,7 @@
 ---
 
 ## D-036 · 2026-10-12 · ⌘Q is the app's own Quit item; macOS ending the app does not ask yet
+
 - **Context:** the live check of gui-edit found that ⌘Q quit without asking about unsaved changes
   and lost an edit. The predefined Quit menu item (muda) sends `terminate:`, and tao 0.37
   implements no `applicationShouldTerminate`, so the process ends with no `RunEvent::ExitRequested`
@@ -108,6 +145,7 @@
 ---
 
 ## D-035 · 2026-10-11 · The GUI document is a stack of saved images in Rust; parity is proven against the CLI as a library
+
 - **Context:** the GUI editor (D-033) needs undo, an unsaved-changes state and a listing after each
   edit, and AC-80 requires its saves to be byte-identical to `edit`/`build`.
 - **Decision:**
@@ -134,6 +172,7 @@
 ---
 
 ## D-034 · 2026-10-11 · Classifying an input file as a program or a cartridge entry is core logic
+
 - **Context:** `edit --add`/`--replace` and `build` decide what a file is in a CLI-private
   `input_entry`: the CRT signature, `Cartridge::from_crt`, and the alignment checks. The GUI must
   decide identically (gui-edit AC-61), and the MAP keeps format knowledge out of both front ends.
@@ -151,6 +190,7 @@
 ---
 
 ## D-033 · 2026-10-11 · The GUI edits in memory with an explicit save; drops on an open cart add entries
+
 - **Context:** the second GUI slice brings the full `edit` set into the window. Changes could
   either be written immediately, as `edit` without `-o` does, or held until the user saves. A
   dropped file could also mean either "open this" or "add this".
@@ -176,6 +216,7 @@
 ---
 
 ## D-032 · 2026-10-11 · The listing is one structured description in the core, rendered by both `list` and the GUI
+
 - **Context:** the GUI viewer must show exactly what `list` prints (gui-shell AC-51). The values
   are derived by private helpers in the CLI binary: kind labels, flags, bank-run layout, the
   header-name control-character filter, and the free figure that tries `load` and falls back to
@@ -193,6 +234,7 @@
 ---
 
 ## D-031 · 2026-10-11 · The GUI frontend is Svelte 5
+
 - **Context:** D-030 puts the GUI in a Tauri web frontend. The framework inside it was still open.
   The candidates, as of npm on 2026-10-11, all build with Vite 8, test with Vitest 5 and have
   TanStack Table 9: Svelte 5.57, React 19.3, Solid 1.9, and plain TypeScript.
@@ -205,13 +247,14 @@
     stable-release limit.
   - Plain TypeScript: every component, state update and accessibility detail would be
     hand-written, which gets expensive once editing arrives.
-  GitButler, the polished Tauri app D-030 cites, ships on Svelte.
+    GitButler, the polished Tauri app D-030 cites, ships on Svelte.
 - **Scope:** `gui/` frontend
 - **Status:** active
 
 ---
 
 ## D-030 · 2026-10-11 · The GUI is Tauri 2.x, in its own Cargo workspace with its own required CI job
+
 - **Context:** the GUI's first criterion is a polished look on par with VS Code, Zed or Obsidian,
   with full control over style. Three independent analysts (`/stid-decide`) researched it against
   hard limits: a stable release, a required `gate` that stays small, and automated UI tests. The
@@ -252,6 +295,7 @@
 ---
 
 ## D-029 · 2026-10-11 · The subdirectory bit is carried on xbank entries; type 0x1A stays refused
+
 - **Context:** "subdirectory" names two things in the format: the `0x4000` CrtUsage bit and the
   type `0x1A` EasyFlash entry. Both were refused as one unsupported kind (D-026). Checked against
   the reference: `ndeft` carries the bit on an xbank through load, rename and save (only the name
@@ -273,6 +317,7 @@
 - **Status:** active
 
 ## D-028 · 2026-10-04 · Nothing is placed once the top is used up, not even an empty program
+
 - **Context:** when the top run is exactly used up, `top()` points past bank 63, and placing a
   zero-length program there indexed out of bounds and panicked. `edit` reached this on a cart
   holding a 0-byte entry when an added program filled flash exactly. `list` reached it through
@@ -290,6 +335,7 @@
 - **Status:** active
 
 ## D-027 · 2026-10-04 · The listed free figure is what a re-placement accepts, not the top run
+
 - **Context:** `list` printed the top run (`calc_top_space`) replayed from the stored positions.
   In normal mode that equals what `edit --add` accepts; in Ocean mode it does not. cocean512
   listed $2000 free, while `edit` accepts a $7a000 program, because a rebuild re-places every entry
@@ -311,6 +357,7 @@
 - **Status:** active
 
 ## D-026 · 2026-10-04 · cart-entries shipped: cartridge images are entries, and the kind refusal narrows to subdirectories
+
 - **Context:** Until cart-entries, both read paths, `build` and `edit` handled PRG entries only and
   refused any cart holding a cartridge entry or a half-confined program as "an entry kind it cannot
   represent" (D-019's refusal clause).
@@ -324,6 +371,7 @@
 - **Status:** active · refusal narrowed further to type `0x1A` by D-029
 
 ## D-025 · 2026-10-04 · Cartridges are placed before programs regardless of weight
+
 - **Context:** The reference sorts every entry by one weight and treats the first `num_crt`
   positions as cartridges (`place.c:577-615`). A one-bank cart weighs `1 << 16` and a program
   weighs its size, so a program over 64 KiB sorts among the carts: the reference would hand it to
@@ -339,6 +387,7 @@
 - **Status:** active
 
 ## D-024 · 2026-09-19 · Ocean mode is derived from the entry set, never declared
+
 - **Context:** An Ocean cartridge must own bank 0 ROML, which is where the normal-mode menu loader
   lives. The reference tool answers this by switching the whole image into "Ocean mode": the loader
   moves to bank 1 ROMH, a different launcher blob goes in the boot region, and placement reserves
@@ -356,13 +405,14 @@
 - **Status:** active
 
 ## D-023 · 2026-09-19 · Cartridge entries are one entry type with the reference derivation, and short packets are refused
+
 - **Context:** `cart-entries` widens the model from programs to the nine cartridge kinds. Three
   shapes had to be fixed before planning: how a cartridge sits beside programs in the builder, what a
   cartridge holds, and how an input image becomes one.
 - **Decision:** one `Entry` enum (`Program | Cartridge`) in one vector, so every index-addressed
   operation applies to both. A `Cartridge` holds its kind, the alignment request, and two whole-bank
   runs (ROML, ROMH) with each run's bank offset from the entry's start bank; the directory's CrtUsage
-  word and size are derived from those at encode time. A cartridge is only ever *derived* from an
+  word and size are derived from those at encode time. A cartridge is only ever _derived_ from an
   image by the reference tool's rules (`cart.c:414-527, 628-800`): id 0 → generic kinds by packet
   addresses, id 5 → Ocean kinds by size, id 33 → xbank kinds by header mode; any other id is refused.
   Packets must be whole banks — the reference accepts a generic packet as short as `0x100` bytes and
@@ -376,6 +426,7 @@
 - **Status:** active
 
 ## D-022 · 2026-09-19 · A cartridge entry is bounded by flash geometry, not by a flat 512 KiB
+
 - **Context:** The reference tool refuses any directory entry larger than `0x80000` when it reads a
   directory (`easyfs.c:432`), which makes a 16k xbank wider than 32 banks unreadable there. The format
   spec carried the bound as an open question — per-type or a flat 1 MB — because the size field is
@@ -397,6 +448,7 @@
 - **Status:** active
 
 ## D-021 · 2026-09-19 · The CRT header length field is honoured on read, not assumed
+
 - **Context:** The container spec defines the field at `0x10` as the offset of the first CHIP packet
   and allows it to exceed `0x40`. ndefpack writes `0x40` and then ignores the field on load, starting
   the walk at `0x40` unconditionally. `crt::parse` inherited that: it read the magic and CRT ID from
@@ -416,6 +468,7 @@
 - **Status:** active
 
 ## D-020 · 2026-08-14 · The entry model carries the hidden flag, retiring the hidden-entry rebuild refusal
+
 - **Context:** `read.rs:344` refuses any cart containing a hidden entry when reading it back for
   rebuilding, with the message "cannot be rebuilt unchanged yet". The refusal is not a format fact —
   the flag is bit 7 of the entry flags byte (`docs/format/easyflash-cart-format.md:119`) and
@@ -444,6 +497,7 @@
 - **Status:** active
 
 ## D-019 · 2026-08-14 · An edit re-places the whole cart and saves in place by default
+
 - **Context:** `cart-edit` reads a cart into builder state, mutates the entry set and writes it back.
   Two forks had to be settled before planning: whether entries the user did not touch keep their
   stored bank and offset, and where the result lands.
@@ -466,6 +520,7 @@
 - **Status:** active; the "entry kind it cannot represent" refusal narrowed to subdirectory entries by D-026
 
 ## D-018 · 2026-08-14 · The format spec lives in the tree at `docs/format/`, not in the vault
+
 - **Context:** `reference/easyflash-cart-format.md` in the Obsidian vault was the source for every
   offset in `stidcart-core` — an invariant in `MAP.md` and an instruction in `CLAUDE.md`. The vault
   is not a git repo. PR #20 turned that from a tidiness question into a concrete failure: D-017
@@ -490,7 +545,7 @@
   moved file says so in its own header.
 - **The move is verbatim.** Only the Obsidian frontmatter, the two `[[wikilinks]]` and the closing
   "Related" line changed, plus an added header and licence note; `diff` against the vault original
-  shows nothing else. Correcting what the spec *says* is separate work needing its own `file:line`
+  shows nothing else. Correcting what the spec _says_ is separate work needing its own `file:line`
   evidence — the point of this change is that such a correction is now reviewable, not that any
   were made.
 - **Scope:** project-wide (supersedes the vault clause of the format-facts invariant in `MAP.md`;
@@ -498,6 +553,7 @@
 - **Status:** active
 
 ## D-017 · 2026-08-12 · The reserved flag bits are the EasyFS version discriminator, not a quirk to tolerate
+
 - **Context:** D-007 decided an EasyFS1 directory returns a typed `Unsupported` error, and the code
   never implemented it — `SPEC.md:58` records that every directory is walked as EasyFS2 and misread.
   It looked blocked: the vault format spec documents EasyFS2 only, and the format-facts invariant
@@ -519,7 +575,7 @@
   the bits. An old-format directory is refused with a typed `Unsupported`, and slots that disagree
   are refused as malformed rather than as old. The **writer guidance is unchanged and still
   load-bearing**: `encode` sets the bits, and correcting the reader must not take that with it.
-- **Refusing to *describe* an EasyFS1 cart is consistent with D-011, not an exception.** That
+- **Refusing to _describe_ an EasyFS1 cart is consistent with D-011, not an exception.** That
   decision drew the line at describability: EasyFS1's bank is a single byte at offset 17
   (`easyfs.c:255-260`), so read as EasyFS2 every entry gets a corrupted bank. There is no accurate
   description to give, which is a different situation from a hidden entry the walk can describe
@@ -535,9 +591,10 @@
 - **Status:** active
 
 ## D-016 · 2026-08-12 · A PR that edits `claude-review.yml` cannot pass its own review gate
+
 - **Context:** PR #18 moved the artifact root and rewrote the doc paths inside the reviewer prompt
-  in `.github/workflows/claude-review.yml`. The action then refused to run: *"the workflow file
-  must exist and have identical content to the version on the repository's default branch."* That
+  in `.github/workflows/claude-review.yml`. The action then refused to run: _"the workflow file
+  must exist and have identical content to the version on the repository's default branch."_ That
   is a deliberate guard — without it a pull request could rewrite the prompt of the reviewer
   judging it — but the step produces no verdict, and D-012's gate step fails closed on an empty
   verdict. `claude-review` is a required check with `enforce_admins: true`, so the PR could not
@@ -560,6 +617,7 @@
 - **Status:** active
 
 ## D-015 · 2026-08-12 · `SPEC.md` is canonical for current behaviour; the MAP stops restating it
+
 - **Context:** turning on the living spec adds a third place that describes what the tool does now,
   alongside `MAP.md`'s "Current state" paragraph and `README.md`'s State section — which said
   nearly the same thing in nearly the same words. Three copies drift in three directions.
@@ -585,6 +643,7 @@
 - **Status:** active
 
 ## D-014 · 2026-08-12 · LCD returns at plugin 0.15.0, rooted at the default `docs/lcd/`
+
 - **Context:** D-013 removed the pipeline earlier the same day, on a real measurement: 1,855 lines
   of process docs against 1,978 lines of Rust. What changed is the tooling, not the measurement —
   the plugin is now at 0.15.0, which is not the version D-013 was written against, and the
@@ -598,13 +657,13 @@
   would strand D-001…D-013 behind a freshly written empty pair. The stranding risk is real; the
   remedy is a `git mv`, not a shallower root. The shallow root breaks an assumption no config key
   states: `audit-crosspath.sh` derives the artifact tree it must exclude from its test-hit search as
-  `${specs_dir%/*}` — the *parent* of `<root>/work`. At `docs/work` that resolves to `docs/`, which
+  `${specs_dir%/*}` — the _parent_ of `<root>/work`. At `docs/work` that resolves to `docs/`, which
   silently excludes every match anywhere under `docs/` rather than just the work-item tree; at
   `docs/lcd/work` it resolves to `docs/lcd`, which is what the script means. `claude-review` caught
   it on PR #18, before any work-item existed to be mis-audited. Corrected on the same branch, before
   merge — nothing was rewritten that had ever reached `main`.
 - **The lesson generalizes past that one script.** A non-default `artifact-root` is not a free
-  parameter: the suite carries assumptions about the *shape* of the tree that the machine block does
+  parameter: the suite carries assumptions about the _shape_ of the tree that the machine block does
   not express. Prefer the default and move the files.
 - **What returns:** triage and lane routing, per-work-item folders, the conventions adapter at
   `.claude/rules/lcd-conventions.md`, the three script permissions in `.claude/settings.json`, and
@@ -627,10 +686,11 @@
 - **Status:** active
 
 ## D-013 · 2026-08-12 · The planning pipeline is removed; this log and the MAP are what survive
+
 - **Context:** Measured on this repo: 1,855 lines of process docs against 1,978 lines of Rust, and
   the twelve commits after the list-command feature merged — four PRs — touched `crates/` zero
   times. 1,483 of those doc lines were per-work-item `spec`/`plan`/`tasks`/`JOURNAL`/`audit`, five
-  documents for each of three finished items, whose purpose was surviving a context reset *during*
+  documents for each of three finished items, whose purpose was surviving a context reset _during_
   work that is now done.
 - **Decision:** Delete `docs/lcd/work/` and the triage/lane machinery with it. Keep `DECISIONS.md`
   and `MAP.md`, promoted to `docs/`. The gate command and branch discipline move into `CLAUDE.md`,
@@ -639,7 +699,7 @@
   acceptance criterion had a test, and acceptance criteria only existed because the pipeline
   produced them. Without that, it is a no-op check that still has to be maintained — and D-009
   records what a required check that stops reporting does to a PR. `gate` and `claude-review` stay.
-  *(D-014 reinstates it, scoped to PRs that touch `docs/lcd/work/**`.)*
+  _(D-014 reinstates it, scoped to PRs that touch `docs/lcd/work/**`.)_
 - **`claude-review` is the piece that earned its keep**, which is the honest counterweight here:
   the audit passed on list-command and the review then found seven defects, two severe, in code no
   acceptance criterion described. Process that reads the code paid; process that counted documents
@@ -652,6 +712,7 @@
 - **Status:** superseded by D-014
 
 ## D-012 · 2026-08-11 · A Claude review gates `main`, and it blocks only on high-severity findings
+
 - **Context:** `gate` and `audit` check that the suite is green and that every AC has a test. Neither
   reads the code. The list-command work-item made the gap concrete: the audit passed, and a review of
   the same branch then found seven defects, two of them severe — both in code no AC described, which a
@@ -690,7 +751,7 @@
   behind it**. Never treat this action's exit status as evidence a review happened; require both
   `conclusion == success` and a verdict.
 - **Sequencing was the risk, not the workflow.** D-009 put `enforce_admins: true` on `main`, so a
-  required check that cannot authenticate blocks every PR *including the one that fixes it*. The check
+  required check that cannot authenticate blocks every PR _including the one that fixes it_. The check
   is therefore added unrequired, run green on a real PR first, and promoted only after — the same
   ordering the `paths:` trap in D-009 taught, arrived at from a different direction.
 - **Alternatives rejected:** Block on any finding at all — the strictest reading of the ask, and the
@@ -715,11 +776,12 @@
 - **Status:** active
 
 ## D-011 · 2026-08-11 · Describing an image and rebuilding it are held to different standards
+
 - **Context:** `list` was built on a single directory walk shared by `load` and the new `inspect`, and
   the design note claimed the two "cannot disagree about what an image contains **or about which
   images they refuse**". A code review found the second half wrong twice over. The walk refused a
   hidden entry with the reason "the builder has no way to express hiding, so loading it would silently
-  drop the flag" — a statement about *rebuilding* — and `inspect` ran `verify_regions`, whose entire
+  drop the flag" — a statement about _rebuilding_ — and `inspect` ran `verify_regions`, whose entire
   purpose is to stop a rebuild silently swapping firmware. Both fired on a command that rebuilds
   nothing, and the first discarded entries already collected, so one hidden entry in slot 0 emptied
   the listing. Refusing to describe a cart because it could not be reproduced is the opposite of what
@@ -728,8 +790,8 @@
   — malformed slots, entries reaching outside the image, and the well-formed shapes with no
   representation here. `load` layers the rebuild preconditions on top: the reserved regions must hold
   the embedded firmware, and no entry may carry a property `CartBuilder` cannot express. What an image
-  *contains* is still answered in exactly one place, which was the property worth having; what may be
-  *done* with it is answered by the caller that is going to do it.
+  _contains_ is still answered in exactly one place, which was the property worth having; what may be
+  _done_ with it is answered by the caller that is going to do it.
 - **Two consequences worth stating, since they change the model rather than just the control flow:**
   a hidden entry now decodes as `Slot::Program` carrying `hidden: true` rather than a `Slot::Hidden`
   that dropped its position and size — `decode` is a true inverse of `encode` again, and `load` finds
@@ -756,11 +818,12 @@
 - **Status:** active
 
 ## D-010 · 2026-08-11 · The Rust toolchain is pinned in-repo, not tracked as `stable`
+
 - **Context:** [[D-009]] made `gate` a required status check on `main` with `enforce_admins: true`, and
   the gate runs `clippy -- -D warnings`. CI installed plain `stable`, so the toolchain was an input that
   changed on the Rust release calendar rather than on a commit here. A new stable adding one lint would
   fail CI on code nobody touched — and because the check is required with no owner bypass, it would
-  block every PR *including the one that fixes it*.
+  block every PR _including the one that fixes it_.
 - **Decision:** `rust-toolchain.toml` pins `channel = "1.97.1"` (current stable) with `rustfmt` and
   `clippy` on the minimal profile. CI runs `rustup toolchain install` with **no toolchain argument**,
   which installs the active toolchain — the one this file names. Naming `stable` in the workflow would
@@ -785,6 +848,7 @@
 - **Status:** active
 
 ## D-009 · 2026-08-11 · `main` is protected behind a PR and one required check, `gate`
+
 - **Context:** The remote had no protection at all, so "never commit to `main`" was a convention held
   up by nothing but a session reading `CLAUDE.md`. Auto-merge and auto-delete were both off.
 - **Decision:** Protect `main`: PR required, force-push and deletion refused, conversation resolution
@@ -798,7 +862,7 @@
 - **The `paths:` trap, stated once so it is not re-derived:** a `paths:`-filtered job never reports on a
   PR outside the filter, and a required check that never reports sits in `Expected` forever — blocking
   the PR with no way to clear it. `lcd-audit.yml` was filtered to `docs/lcd/work/**`, which is why it
-  could not be required *as written*. That is a property of the filter, not of the workflow: its script
+  could not be required _as written_. That is a property of the filter, not of the workflow: its script
   already exits 0 when no work-item changed, so the filter was redundant and removing it made `audit`
   requirable. Any future required check must report on every PR — filter inside the job, not in `on:`.
 - **Alternatives rejected:** Require `lcd-audit` as it stood, keeping the filter — the `Expected`
@@ -811,6 +875,7 @@
 - **Status:** active
 
 ## D-008 · 2026-08-10 · Crate version stays 0.2.0, and the header default keeps tracking it
+
 - **Context:** Open question carried by write-path-skeleton since 2026-08-10. `versioning.md` bumped
   the minor on a `feat/` branch after the scaffold commit had already claimed `0.1.0`, so the crate
   merged to main at `0.2.0`. That string is the default CRT header name, so it sits inside every cart
@@ -822,12 +887,13 @@
 - **Alternatives rejected:** Roll back to `0.1.0` — a bytes-changing commit whose only benefit is that
   a first release "should" be 0.1.0. Decouple the header default from the crate version so output is
   reproducible across releases — a real argument, but it discards the field's actual purpose of
-  identifying the producing tool *and version*, and the read path preserves what it finds (D-007)
+  identifying the producing tool _and version_, and the read path preserves what it finds (D-007)
   rather than re-stamping, which is what would have made cross-version churn bite.
 - **Scope:** project-wide
 - **Status:** active
 
 ## D-007 · 2026-08-10 · Read-path divergence is decided per behaviour, not by a blanket rule
+
 - **Context:** D-003 deferred this deliberately. The proposal on the table was to be bug-compatible
   with ndefpack on accept/reject now and fix each quirk later, on the reasoning that reproducing them
   keeps byte parity a clean pass/fail oracle through the read path.
@@ -845,7 +911,7 @@
   round trip against the frozen fixtures, and all four (`single`, `named`, `two`, `spill`) are
   well-formed PRG-only carts that cannot trigger any of the quirks. Bug-compatibility buys zero oracle
   strength on the tests this work-item writes. It also breaks self-consistency: `CartBuilder::new()
-  .build()` succeeds today and emits a 16480-byte cart with the end marker in slot 0 — exactly the
+.build()` succeeds today and emits a 16480-byte cart with the end marker in slot 0 — exactly the
   empty directory ndefpack rejects — so a bug-compatible reader could not read what this library
   writes, failing the zero-program base case of the round-trip property.
 - **Alternatives rejected:** Blanket bug-compatible now, fix later — would mean writing code to reject
@@ -856,13 +922,14 @@
 - **Status:** active
 
 ## D-006 · 2026-08-10 · CRT header name and EF-Name are separate caller-supplied fields
+
 - **Context:** Byte parity against `ndeft` looked unsatisfiable: `ndeft` writes `PACKAGE_STRING`
   ("ndefpack 1.0.1") into the 32-byte CRT header name at offset `0x20` of every EasyFlash cart, and
-  `-e` does not change it. `-e` sets the *EF-Name*, a different 16-byte PETSCII string living inside
+  `-e` does not change it. `-e` sets the _EF-Name_, a different 16-byte PETSCII string living inside
   the flash image at `0x81b08` behind an `"ef-nAME:"` magic. Two strings, two offsets, easy to
   conflate — and conflating them produces a parity failure that reads like a deep bug.
 - **Decision:** `CartBuilder` takes both independently. `header_name` defaults to `stidcart <crate
-  version>`; `ef_name` defaults to the same `"(no EF-Name)"` placeholder `ndeft` writes when `-e` is
+version>`; `ef_name` defaults to the same `"(no EF-Name)"` placeholder `ndeft` writes when `-e` is
   omitted. The parity test sets `header_name` to `ndefpack 1.0.1` explicitly, so the divergence is an
   argument rather than a reason the test can never pass.
 - **Alternatives rejected:** Hardcode the header name to the crate version — makes AC-2 unsatisfiable
@@ -872,6 +939,7 @@
 - **Status:** active
 
 ## D-005 · 2026-08-10 · Firmware embedded as-is; custom menu later
+
 - **Context:** The C64-side menu (EasyLoader), boot launcher and EAPI are zlib-licensed 6502 blobs
   from the EasyFlash project. Writing our own is wanted eventually.
 - **Decision:** Embed the five `.prg` blobs unmodified in `firmware/`, keep them zlib, and treat a
@@ -884,6 +952,7 @@
 - **Status:** active · the custom menu now exists, opt-in, beside the blobs (D-037)
 
 ## D-004 · 2026-08-10 · GPL-2.0-or-later for everything outside `firmware/`
+
 - **Context:** The core is being written by reading ndefpack's GPL C and the extracted format spec.
 - **Decision:** The workspace is GPL-2.0-or-later. It is a derivative work and there is no honest
   reading under which it is not. `firmware/` stays zlib, as it arrived.
@@ -893,6 +962,7 @@
 - **Status:** active
 
 ## D-003 · 2026-08-10 · Write path first; read-path bug-compatibility left open
+
 - **Context:** ndefpack's loader has documented quirks — an empty new-format directory rejected, the
   CHIP magic never checked, wide 16k xbank carts unreadable. A new implementation must choose whether
   to reproduce each one, and that choice changes how the test harness is built.
@@ -906,6 +976,7 @@
 - **Status:** active
 
 ## D-002 · 2026-08-10 · `ndeft` is a differential oracle, and it decays
+
 - **Context:** `ndeft` is the only implementation known to produce images that boot on real hardware
   (bank 63 confirmed on an EF3, 2026-08-09). No shared code, but its output is trustworthy.
 - **Decision:** Freeze `ndeft`-built carts as fixtures with the exact command line for each, and gate
@@ -918,6 +989,7 @@
 - **Status:** active
 
 ## D-001 · 2026-08-10 · Rust workspace: core library plus thin CLI
+
 - **Context:** New product rather than a port of ndefpack. The GUI toolkit is deliberately undecided,
   and the goal is that deciding it later costs nothing.
 - **Decision:** Cargo workspace with `stidcart-core` (library: format, placement, firmware; no global
