@@ -10,7 +10,7 @@
 ## NOW
 - **Lane:** Deep
 - **Goal:** Our own C64 menu, first slice: it lists a cart's entries and boots them, is chosen opt-in at build/edit, and load/edit/GUI recognise it (D-037)
-- **Next action:** run /lcd:test-gen custom-menu (then red-green from T1; T6 is a hard checkpoint: AC-4 green on Linux CI before menu work)
+- **Next action:** run lcd:redgreen-loop from T1 (tests are red; T6 is a hard checkpoint: AC-4 green on Linux CI before menu work)
 - **Branch:** feat/custom-menu  ·  **Updated:** 2026-11-07
 
 ## STEPS
@@ -32,13 +32,42 @@
 - none blocking; headless VICE's build deps and `script` behaviour come from the CI spike
 
 ## EDIT BOUNDARY (paths this work may touch)
-- `menu/` (README.md, build.sh, src/menu.s, src/launch.s, menu.bin, menu.lbl)
-- `crates/stidcart-core/src/{menu,lib,reserved,read,listing}.rs`, `crates/stidcart-core/tests/{menu,listing}.rs`
-- `crates/stidcart-cli/src/lib.rs`, `crates/stidcart-cli/tests/{menu_cli,menu_boot,boot,list,list_golden}.rs`, `crates/stidcart-cli/tests/support/`, `crates/stidcart-cli/tests/golden/`
-- `gui/src-tauri/src/lib.rs`, `gui/src-tauri/tests/{menu,contract}.rs`, `gui/src/lib/{types.ts,Listing.svelte,Listing.test.ts}`, `gui/src/lib/fixtures/`
-- `Cargo.toml`, `Cargo.lock`, `gui/src-tauri/Cargo.toml`, `gui/src-tauri/Cargo.lock`
-- `.github/workflows/ci.yml`, `docs/lcd/ci/install-menu-tools.sh`
-- `docs/format/easyflash-cart-format.md`, `docs/lcd/{MAP,DECISIONS}.md`, `docs/lcd/work/custom-menu/`, `.claude/rules/lcd-conventions.md`, `README.md`
+- `menu/`
+- `crates/stidcart-core/src/menu.rs`
+- `crates/stidcart-core/src/lib.rs`
+- `crates/stidcart-core/src/reserved.rs`
+- `crates/stidcart-core/src/read.rs`
+- `crates/stidcart-core/src/listing.rs`
+- `crates/stidcart-core/tests/menu.rs`
+- `crates/stidcart-core/tests/listing.rs`
+- `crates/stidcart-cli/src/lib.rs`
+- `crates/stidcart-cli/tests/menu_cli.rs`
+- `crates/stidcart-cli/tests/menu_boot.rs`
+- `crates/stidcart-cli/tests/boot.rs`
+- `crates/stidcart-cli/tests/list.rs`
+- `crates/stidcart-cli/tests/list_golden.rs`
+- `crates/stidcart-cli/tests/support/`
+- `crates/stidcart-cli/tests/golden/`
+- `gui/src-tauri/src/lib.rs`
+- `gui/src-tauri/src/document.rs`
+- `gui/src-tauri/tests/menu.rs`
+- `gui/src-tauri/tests/contract.rs`
+- `gui/src/lib/types.ts`
+- `gui/src/lib/Listing.svelte`
+- `gui/src/lib/Listing.test.ts`
+- `gui/src/lib/fixtures/`
+- `Cargo.toml`
+- `Cargo.lock`
+- `gui/src-tauri/Cargo.toml`
+- `gui/src-tauri/Cargo.lock`
+- `.github/workflows/ci.yml`
+- `docs/lcd/ci/install-menu-tools.sh`
+- `docs/format/easyflash-cart-format.md`
+- `docs/lcd/MAP.md`
+- `docs/lcd/DECISIONS.md`
+- `docs/lcd/work/custom-menu/`
+- `.claude/rules/lcd-conventions.md`
+- `README.md`
 <!-- /lcd-resume -->
 
 ---
@@ -79,10 +108,18 @@ AC-81..AC-95 live in `spec.md`.
   only *after* a BASIC cold start, through a CHRIN trap, not before the KERNAL init. Spec amended
   with AC-95 (programs touching `$D000-$DFFF` refused with our menu), called out to the user. CI:
   the user chose to build VICE 3.10 headless from source, cached, over apt or a macOS job.
+- 2026-11-07 — test-gen: 16 AC tokens across `core/tests/menu.rs` (AC-93), `cli/tests/menu_cli.rs`
+  (AC-81..85, AC-95 CLI), `cli/tests/menu_boot.rs` (AC-87..92, AC-94), `gui/src-tauri/tests/menu.rs`
+  (AC-85, AC-86 RENDER) and `Listing.test.ts` (AC-85 RENDER). The root targets are compile-red on the
+  missing `stidcart_core::menu` (T12) and `tests/support` (T3, T31), whose API the boot tests fix:
+  `vice::{boot, Step, Target, key, screen_text, find, is_reversed, menu_labels, require_tool[_in]}`
+  and `markers::{basic_prg, high_prg, cart, CartKind, Marker{bytes, spin, text}}`. The GUI ones
+  are runtime-red. The EDIT BOUNDARY was rewritten one path per bullet, because the hook couldn't
+  parse brace globs.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->

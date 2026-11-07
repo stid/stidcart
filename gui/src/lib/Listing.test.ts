@@ -29,6 +29,16 @@ test('AC-51 (RENDER): every listing value is shown', () => {
   expect(screen.getByText(new RegExp(listing.freeText.replace(/[$()]/g, '\\$&')))).toBeInTheDocument();
 });
 
+test('AC-85 (RENDER): the window shows which menu the cart carries', () => {
+  render(Listing, { props: { listing, file: 'two.crt' } });
+  expect(screen.getByText('EasyLoader')).toBeInTheDocument();
+  cleanup();
+
+  const ours = { ...listing, menu: 'stidcart' };
+  render(Listing, { props: { listing: ours, file: 'ours.crt' } });
+  expect(screen.getByText('stidcart')).toBeInTheDocument();
+});
+
 function editable(extra: Record<string, unknown> = {}) {
   const onedit = vi.fn();
   const onreplace = vi.fn();
