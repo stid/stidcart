@@ -33,7 +33,8 @@
     too. Found on the first screenshot and added with the user told.
   - Before a program starts, the menu restores the C64's own colours (border and text light blue,
     background blue) and the upper-case set. `basic_go` enters the reset after CINT, so nothing
-    else would undo them. Cartridges and RUN/STOP go through a full reset, which does.
+    else would undo them. Cartridges and RUN/STOP go through a full reset, which does, except
+    the SHIFT+C= lock: a cart's reset runs before CINT, so the menu clears it before a cart starts.
 - **Alternatives rejected:** a custom font, and sprites or raster effects, which need RAM copies,
   an IRQ beside the KERNAL's, and harder tests, for a look the user didn't ask for. A full PETSCII
   frame, which costs two rows of the list. Colour alone on today's layout. The classic blue and

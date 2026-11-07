@@ -75,7 +75,7 @@ yellow after a medium grey label, and with no text row 1 stays empty.
 
 **AC-104** (surfaces: none): Given our menu, when it starts a program or leaves to BASIC, then what
 runs next finds the C64's own colours (border light blue, background blue, text colour light blue)
-and the upper-case character set.
+and the upper-case character set. Nothing it starts, a cartridge included, finds SHIFT+C= locked.
 
 ## LOG (append-only; not read on resume)
 
@@ -99,3 +99,7 @@ and the upper-case character set.
   frame, so wait about 20000 idle hits first.
 - 2026-11-07 — audit: PASS (test-presence). All three ACs are surface `none`, so as in menu-search-sort there is no token row. Their tests are `ac_102`..`ac_104` in `menu_boot.rs`, plus the negative control `the_look_checks_reject_the_default_screen`, green at 6b80bb6 with STIDCART_REQUIRE_TOOLS=1 (root 219/0, GUI 31/0). Closeout line appended.
 - 2026-11-07 — reconciled: folded AC-102..AC-104 → SPEC.md/Internal as 1 new row. The boot row (AC-87..AC-92) and the filter row (AC-96..AC-101) still hold, so nothing was superseded.
+- 2026-11-07 — Advisor review after the PR opened: the menu's SHIFT+C= lock (`$0291=$80`) reached
+  started cartridges, whose reset runs before CINT. AC-104 now dumps `$0291` on all three paths.
+  It was red on the cart path (128) and green on the other two, where CINT clears it. `_cart` now
+  clears it.

@@ -264,6 +264,7 @@ _cart:
         lda $dc0d
         lda $dd0d
         lda #0
+        sta SHIFT_LOCK          ; the cart's reset runs before CINT, which would clear it (D-040)
         ldx #$2e
 -       sta $d000,x
         dex

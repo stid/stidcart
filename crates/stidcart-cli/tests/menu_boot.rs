@@ -773,6 +773,8 @@ const VIC: (u16, u16) = (0xd018, 0xd021);
 const UPPER_CASE: u8 = 0x15;
 const MIXED_CASE: u8 = 0x17;
 const TEXT_COLOUR: (u16, u16) = (0x0286, 0x0286);
+/// The KERNAL's SHIFT+C= lock: bit 7 set stops the keys switching the character set.
+const SHIFT_LOCK: (u16, u16) = (0x0291, 0x0291);
 const HELP_ROW: usize = 24;
 const SELECTION_BAR: std::ops::RangeInclusive<usize> = 1..=38;
 
@@ -1028,7 +1030,7 @@ fn ac_103_the_filter_text_is_yellow_after_a_grey_label() {
 }
 
 // AC-104: a program started from the menu, and BASIC after RUN/STOP, find the C64's own colours
-// and character set
+// and character set, and nothing the menu starts finds SHIFT+C= locked
 #[test]
 fn ac_104_what_the_menu_hands_over_has_the_c64_colours() {
     if !vice::require_tool("x64sc") {
@@ -1047,10 +1049,12 @@ fn ac_104_what_the_menu_hands_over_has_the_c64_colours() {
         steps.push(screen());
         steps.push(Step::Dump(VIC.0, VIC.1));
         steps.push(Step::Dump(TEXT_COLOUR.0, TEXT_COLOUR.1));
+        steps.push(Step::Dump(SHIFT_LOCK.0, SHIFT_LOCK.1));
         let dumps = boot_or_panic(&dir, &cart, &steps);
         if key == key::RETURN {
             assert_marker(&dumps[0], &m);
         }
+        assert_eq!(dumps[3][0] & 0x80, 0, "{what}: SHIFT+C= is locked");
         let got = (
             dumps[1][8] & 0x0f,
             dumps[1][9] & 0x0f,
@@ -1068,4 +1072,20 @@ fn ac_104_what_the_menu_hands_over_has_the_c64_colours() {
             "{what}: (border, background, text colour, $D018)"
         );
     }
+
+    // A cartridge's own reset code runs before the KERNAL's CINT, so whatever the menu left in RAM
+    // reaches it.
+    let dir = scratch("ac104-cart");
+    let m = markers::cart(CartKind::K8, "SHIFT LOCK CART RAN");
+    let cart = build(&dir, "lock", &[], &[write(&dir, "k8.crt", &m.bytes)]);
+    let mut steps = press_then_wait(&[key::RETURN], m.spin);
+    steps.push(screen());
+    steps.push(Step::Dump(SHIFT_LOCK.0, SHIFT_LOCK.1));
+    let dumps = boot_or_panic(&dir, &cart, &steps);
+    assert_marker(&dumps[0], &m);
+    assert_eq!(
+        dumps[1][0] & 0x80,
+        0,
+        "the started cart: SHIFT+C= is locked"
+    );
 }
