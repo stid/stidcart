@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Search (substring filter as you type) and an F1 sort toggle (directory order ↔ A-Z) in our C64 menu (D-039)
-- **Next action:** S8, audit, reconcile SPEC and open the PR. Then show the user the menu in VICE
+- **Next action:** done; the PR is open and awaits CI (gate, gui, claude-review) and the user's merge
 - **Branch:** feat/menu-search-sort · **Updated:** 2026-11-07
 
 ## STEPS
@@ -24,7 +24,7 @@
 - [x] S5 — filter: typed characters, DEL, CLR/HOME, cap 16, fold, "no matches" (AC-96..AC-99)
 - [x] S6 — F1 sort, computed on first press and kept, stable (AC-100, AC-101)
 - [x] S7 — `menu/README.md` key table. `menu.bin`/`menu.lbl` reassembled with every menu commit (AC-93)
-- [ ] S8 — full gate, audit, reconcile SPEC row "Booted, our menu shows…", PR  ← next
+- [x] S8 — full gate, audit, reconcile SPEC row "Booted, our menu shows…", PR
 
 ## DECISIONS (this work-item)
 
@@ -110,3 +110,5 @@ in the new order and the typed text is kept. Typing with A-Z in use lists the ma
   reverse order): plain insertion sort took 6.06M cycles, about 6 s at 1 MHz. Binary insertion
   takes 966k, about 1 s, once per boot. Note that `stidcart` embeds `menu.bin` at compile time, so
   a reassembled menu needs `cargo build` before a hand-built cart carries it.
+- 2026-11-07 — audit: PASS (test-presence). All six ACs are surface `none`, so as in custom-menu's audit there is no token row. Their tests are `ac_96`..`ac_101` in `menu_boot.rs`, one each, green at ee3ec0f with STIDCART_REQUIRE_TOOLS=1 (root 215/0, GUI 31/0). Closeout line appended.
+- 2026-11-07 — reconciled: folded AC-96..AC-101 → SPEC.md/Internal as 1 new row. The boot row (AC-87..AC-92) still holds, so nothing was superseded.
