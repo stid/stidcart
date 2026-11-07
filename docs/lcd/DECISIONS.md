@@ -8,7 +8,27 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-042 -->
+<!-- Next id: D-043 -->
+
+---
+
+## D-042 · 2026-11-07 · The window switches the menu as an edit, through the same refusals as `edit --menu`
+- **Context:** menu-picker. D-037 had the window recognise, show and keep the menu but not choose
+  it; switching stayed `edit --menu`. With our menu usable on the user's real collection, they
+  asked to choose it in the window, where the menu box already looked like a control.
+- **Decision:**
+  - On an editable cart the menu box is a picker with EasyLoader and stidcart, the cart's own
+    selected. Choosing the other is one edit (`setMenu`): undoable, marked unsaved, and saved as
+    the bytes `edit --menu` writes.
+  - The refusals are the core's, unchanged: a cart with an Ocean entry, or a program loading into
+    `$D000-$DFFF`, refuses stidcart naming the entry, and the cart stays as it was.
+  - A view-only cart, or one whose slot holds neither menu, shows the menu as text with no picker.
+- **Alternatives rejected:** a menu-bar item, which hides a per-cart setting away from where the
+  menu is shown. A two-button toggle, which reads as an on/off switch for two names. Greying out
+  stidcart for carts it would refuse, which needs the refusal checked ahead of time and hides the
+  reason the user would want to read.
+- **Scope:** `gui/src-tauri/src/document.rs`, `gui/src/lib/Listing.svelte`, `gui/src/lib/types.ts`, GUI tests
+- **Status:** active · refines D-037 (the window now chooses the menu)
 
 ---
 

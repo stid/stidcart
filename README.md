@@ -99,6 +99,9 @@ The window edits what `edit` edits:
 - Rename an entry by clicking its name. Its "⋯" or right-click menu replaces, hides or shows,
   aligns or removes it.
 - Click the cart name or the header name to change either one.
+- Choose the menu the cart boots into, EasyLoader or stidcart, from the menu picker under the
+  names. A cart with an Ocean entry, or a program that loads into `$D000-$DFFF`, refuses stidcart
+  and names the entry, as `edit --menu` does (D-042).
 - New (⌘N) starts an empty cart.
 
 Changes stay in memory until you save:

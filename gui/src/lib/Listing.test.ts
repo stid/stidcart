@@ -93,3 +93,33 @@ test('AC-71 (RENDER): rows show the bank and layout they are given, after an edi
   });
   expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(replaced.rows.length);
 });
+
+test('AC-112 (RENDER): on an editable cart the menu is a choice, and choosing the other is an edit', async () => {
+  const { onedit } = editable();
+  const picker = screen.getByRole('combobox', { name: /menu/i }) as HTMLSelectElement;
+  expect(picker.value).toBe('EasyLoader');
+  expect(within(picker).getAllByRole('option').map((o) => o.textContent)).toEqual(['EasyLoader', 'stidcart']);
+
+  await fireEvent.change(picker, { target: { value: 'stidcart' } });
+  expect(onedit).toHaveBeenLastCalledWith({ kind: 'setMenu', menu: 'stidcart' });
+  expect(onedit).toHaveBeenCalledTimes(1);
+});
+
+test('AC-113 (RENDER): until the cart answers with a new menu, the choice shows the one it has', async () => {
+  // A refused switch leaves the listing as it was, so the picker must not keep showing the refused menu.
+  editable();
+  const picker = screen.getByRole('combobox', { name: /menu/i }) as HTMLSelectElement;
+  await fireEvent.change(picker, { target: { value: 'stidcart' } });
+  expect(picker.value).toBe('EasyLoader');
+});
+
+test('AC-114 (RENDER): a view-only cart, or a listing without edits, shows the menu as text', () => {
+  editable({ readOnly: 'reserved region EAPI differs from the embedded firmware' });
+  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(screen.getByText('EasyLoader')).toBeInTheDocument();
+  cleanup();
+
+  render(Listing, { props: { listing, file: 'two.crt' } });
+  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(screen.getByText('EasyLoader')).toBeInTheDocument();
+});

@@ -50,7 +50,10 @@ else
   tar -xzf "$work/vice.tar.gz" -C "$work"
   (
     cd "$work/vice-${VICE_VERSION}"
+    # --disable-arch: VICE defaults to -march=native (configure.ac:674-677), which ties the cached
+    # binary to the CPU of the runner that built it; on another runner it dies with SIGILL.
     ./configure --prefix="$prefix" \
+      --disable-arch \
       --enable-headlessui \
       --disable-html-docs --disable-pdf-docs \
       --without-pulse --without-alsa --without-png --without-libcurl \

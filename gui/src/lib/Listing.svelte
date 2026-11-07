@@ -22,6 +22,9 @@
     onreplace?: (index: number) => void;
   } = $props();
 
+  /** The menus a cart can boot into, by the names the listing shows (D-042). */
+  const MENUS = ['EasyLoader', 'stidcart'];
+
   const count = $derived(`${listing.rows.length} ${listing.rows.length === 1 ? 'entry' : 'entries'}`);
   const editable = $derived(onedit !== undefined && readOnly === null);
 
@@ -89,7 +92,25 @@
             />{:else}{listing.builtBy}{/if}</span
         >
       </p>
-      <p class="menu">menu <span>{listing.menu}</span></p>
+      {#if editable}
+        <label class="menu">
+          menu
+          <select
+            value={listing.menu}
+            onchange={(e) => {
+              const menu = e.currentTarget.value;
+              // The listing changes only once the cart has the new menu; a refused switch leaves it,
+              // so the choice goes back to the menu the cart has until then.
+              e.currentTarget.value = listing.menu;
+              edit({ kind: 'setMenu', menu });
+            }}
+          >
+            {#each MENUS as m (m)}<option value={m}>{m}</option>{/each}
+          </select>
+        </label>
+      {:else}
+        <p class="menu">menu <span>{listing.menu}</span></p>
+      {/if}
     </div>
     <dl class="stats">
       <div>
@@ -208,6 +229,27 @@
   .menu span {
     color: var(--text);
     user-select: text;
+  }
+
+  label.menu {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .menu select {
+    font: inherit;
+    color: var(--text);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 2px var(--space-1);
+    cursor: pointer;
+  }
+
+  .menu select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 
   .stats {

@@ -51,7 +51,9 @@ export type Edit =
   | { kind: 'setHidden'; index: number; hidden: boolean }
   | { kind: 'setAligned'; index: number; aligned: boolean }
   | { kind: 'setCartName'; name: string }
-  | { kind: 'setHeaderName'; name: string };
+  | { kind: 'setHeaderName'; name: string }
+  /** The C64-side menu, by the name the listing shows (D-042). */
+  | { kind: 'setMenu'; menu: string };
 
 /** The answer to "save changes?". */
 export type Unsaved = 'save' | 'discard' | 'cancel';

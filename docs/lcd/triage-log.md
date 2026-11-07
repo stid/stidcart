@@ -28,3 +28,5 @@
 2026-11-07 · menu-look · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
 2026-11-07 · menu-details · 3 signals · Standard · hard:no · risk:no
 2026-11-07 · menu-details · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 1
+2026-11-07 · menu-picker · 2 signals · Standard · hard:no · risk:no
+2026-11-07 · menu-picker · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0

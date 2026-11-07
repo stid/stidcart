@@ -1,5 +1,6 @@
 //! custom-menu in the window: the listing says which menu a cart carries (AC-85), and a cart with
-//! our menu opens editable and saves what `edit` writes (AC-86).
+//! our menu opens editable and saves what `edit` writes (AC-86). menu-picker: switching the menu is
+//! an edit that saves what `edit --menu` writes (AC-112), through the same refusals (AC-113).
 
 use std::path::{Path, PathBuf};
 
@@ -112,4 +113,156 @@ fn ac_86_render_our_menu_opens_editable_and_saves_what_edit_writes() {
         std::fs::read(&expected).unwrap(),
         "the window's save and edit disagree on a cart with our menu"
     );
+}
+
+/// The menu the listing the window receives names.
+fn menu_of(doc: &Document) -> String {
+    serde_json::to_value(&doc.dto().listing).unwrap()["menu"]
+        .as_str()
+        .unwrap()
+        .to_string()
+}
+
+// AC-112 (RENDER): switching the menu is one edit, undoable, saved as `edit --menu` writes it
+#[test]
+fn ac_112_render_switching_the_menu_is_an_undoable_edit_saving_what_edit_writes() {
+    let dir = scratch("ac112");
+
+    let mut doc = Document::open(&fixtures().join("two.crt")).unwrap();
+    assert_eq!(menu_of(&doc), "EasyLoader");
+    doc.apply(Edit::SetMenu {
+        menu: s("stidcart"),
+    })
+    .unwrap();
+    assert_eq!(menu_of(&doc), "stidcart");
+    let dto = doc.dto();
+    assert!(
+        dto.dirty,
+        "switching the menu did not mark the cart unsaved"
+    );
+    assert!(dto.can_undo, "switching the menu left nothing to undo");
+
+    let saved = dir.join("saved.crt");
+    doc.save_as(&saved).unwrap();
+    let expected = dir.join("expected.crt");
+    run(&[
+        s("edit"),
+        fx("two.crt"),
+        s("--menu"),
+        s("stidcart"),
+        s("-o"),
+        path(&expected),
+    ]);
+    assert_eq!(
+        std::fs::read(&saved).unwrap(),
+        std::fs::read(&expected).unwrap(),
+        "the window's switch to stidcart and edit --menu disagree"
+    );
+
+    doc.undo();
+    assert_eq!(
+        menu_of(&doc),
+        "EasyLoader",
+        "undo did not give back EasyLoader"
+    );
+
+    // And back the other way, by the name the listing shows.
+    let ours = ours(&dir);
+    let mut back = Document::open(&ours).unwrap();
+    back.apply(Edit::SetMenu {
+        menu: s("EasyLoader"),
+    })
+    .unwrap();
+    assert_eq!(menu_of(&back), "EasyLoader");
+    let saved = dir.join("back.crt");
+    back.save_as(&saved).unwrap();
+    let expected = dir.join("back-expected.crt");
+    run(&[
+        s("edit"),
+        path(&ours),
+        s("--menu"),
+        s("easyloader"),
+        s("-o"),
+        path(&expected),
+    ]);
+    assert_eq!(
+        std::fs::read(&saved).unwrap(),
+        std::fs::read(&expected).unwrap(),
+        "the window's switch to EasyLoader and edit --menu disagree"
+    );
+}
+
+/// Apply `edit` and assert it is refused with text containing every one of `words`, leaving the
+/// document exactly as it was.
+fn assert_refused(doc: &mut Document, edit: Edit, words: &[&str], what: &str) {
+    let (bytes, dirty, can_undo) = (doc.bytes().to_vec(), doc.dto().dirty, doc.dto().can_undo);
+    let err = doc
+        .apply(edit)
+        .expect_err(&format!("{what}: stidcart was not refused"));
+    for w in words {
+        assert!(
+            err.contains(w),
+            "{what}: the refusal does not say '{w}': {err}"
+        );
+    }
+    assert_eq!(
+        doc.bytes(),
+        bytes,
+        "{what}: the refused switch changed the cart"
+    );
+    let dto = doc.dto();
+    assert_eq!(
+        (dto.dirty, dto.can_undo),
+        (dirty, can_undo),
+        "{what}: the refused switch became a step"
+    );
+}
+
+// AC-113 (RENDER): a cart our menu cannot run refuses it with edit's reason, and stays unchanged
+#[test]
+fn ac_113_render_a_cart_our_menu_cannot_run_refuses_it_unchanged() {
+    let dir = scratch("ac113");
+
+    // An Ocean entry: the refusal is the one edit --menu prints.
+    let mut ocean = Document::open(&fixtures().join("cocean.crt")).unwrap();
+    let cli = stidcart_cli::run(&[
+        s("edit"),
+        fx("cocean.crt"),
+        s("--menu"),
+        s("stidcart"),
+        s("-o"),
+        path(&dir.join("never.crt")),
+    ])
+    .expect_err("edit --menu stidcart accepted an Ocean cart");
+    assert!(!dir.join("never.crt").exists());
+    assert_refused(
+        &mut ocean,
+        Edit::SetMenu {
+            menu: s("stidcart"),
+        },
+        &[&cli],
+        "an Ocean cart",
+    );
+    assert_eq!(menu_of(&ocean), "EasyLoader");
+
+    // A program that loads into $D000-$DFFF, added in the window first.
+    let prg = dir.join("upper.prg");
+    let mut bytes = 0xcf00u16.to_le_bytes().to_vec();
+    bytes.extend([0xeau8; 0x200]);
+    std::fs::write(&prg, bytes).unwrap();
+    let mut doc = Document::new();
+    doc.apply(Edit::Add {
+        paths: vec![path(&prg)],
+        aligned: false,
+    })
+    .unwrap();
+    assert_refused(
+        &mut doc,
+        Edit::SetMenu {
+            menu: s("stidcart"),
+        },
+        &["upper", "$D000-$DFFF"],
+        "a program over $D000",
+    );
+    assert_eq!(menu_of(&doc), "EasyLoader");
 }
