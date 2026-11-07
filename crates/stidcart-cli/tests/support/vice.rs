@@ -130,24 +130,30 @@ pub fn boot(dir: &Path, cart: &Path, steps: &[Step]) -> Option<Vec<Vec<u8>>> {
     let mon_path = dir.join("mon.txt");
     std::fs::write(&mon_path, mon).unwrap();
 
-    // -default ignores any saved vicerc so the run does not depend on it; +saveres keeps the reset
-    // settings from being written back over it.
-    let mut args: Vec<String> = [
-        "-default",
-        "+saveres",
-        "+easyflashcrtwrite",
-        "-warp",
-        "-sounddev",
-        "dummy",
-        "-jamaction",
-        "1",
-        "-limitcycles",
-        LIMIT_CYCLES,
-        "-nativemonitor",
-        "+confirmonexit",
-    ]
-    .map(String::from)
-    .to_vec();
+    // -default ignores any saved vicerc so the run does not depend on it. +saveres keeps the reset
+    // settings from being written back over it, but only a build with a UI has that option: the
+    // headless one CI builds rejects it and bails out, and it saves nothing anyway.
+    let mut args: Vec<String> = vec!["-default".to_string()];
+    if has_option("+saveres") {
+        args.push("+saveres".to_string());
+    }
+    args.extend(
+        [
+            "-logfile",
+            "vice-internal.log",
+            "+easyflashcrtwrite",
+            "-warp",
+            "-sounddev",
+            "dummy",
+            "-jamaction",
+            "1",
+            "-limitcycles",
+            LIMIT_CYCLES,
+            "-nativemonitor",
+            "+confirmonexit",
+        ]
+        .map(String::from),
+    );
     args.extend([
         "-cartcrt".to_string(),
         cart.display().to_string(),
@@ -172,15 +178,36 @@ pub fn boot(dir: &Path, cart: &Path, steps: &[Step]) -> Option<Vec<Vec<u8>>> {
         .map(|d| std::fs::read(dir.join(d)).ok())
         .collect();
     if result.is_none() {
-        let text = std::fs::read_to_string(&log_path).unwrap_or_default();
-        let tail: Vec<&str> = text.lines().rev().take(40).collect();
-        eprintln!(
-            "x64sc did not write every dump; last lines of {}:\n{}",
-            log_path.display(),
-            tail.into_iter().rev().collect::<Vec<_>>().join("\n")
-        );
+        // Option errors come before VICE opens its log; everything after goes to the log.
+        for name in ["vice.log", "vice-internal.log"] {
+            let text = std::fs::read_to_string(dir.join(name)).unwrap_or_default();
+            let tail: Vec<&str> = text.lines().rev().take(25).collect();
+            eprintln!(
+                "x64sc did not write every dump; last lines of {}:\n{}",
+                dir.join(name).display(),
+                tail.into_iter().rev().collect::<Vec<_>>().join("\n")
+            );
+        }
     }
     result
+}
+
+/// Whether this `x64sc` accepts `option`, from its `-help` listing (asked once per test binary).
+fn has_option(option: &str) -> bool {
+    static HELP: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    let help = HELP.get_or_init(|| {
+        Command::new("x64sc")
+            .arg("-help")
+            .stdin(Stdio::null())
+            .output()
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout).into_owned()
+                    + &String::from_utf8_lossy(&o.stderr)
+            })
+            .unwrap_or_default()
+    });
+    help.lines()
+        .any(|l| l.split_whitespace().next() == Some(option))
 }
 
 /// `x64sc args…` under `script`, which gives it the tty its monitor needs.
