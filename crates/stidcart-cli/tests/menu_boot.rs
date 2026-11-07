@@ -265,15 +265,18 @@ fn ac_90_every_non_ocean_cartridge_kind_starts() {
     }
 }
 
-/// Control for AC-90: each marker cart, booted on its own without any menu, writes its marker and
-/// reaches its spin address. If this fails, the marker is broken, not the menu.
+/// Control for AC-90: each generic marker cart, booted on its own without any menu, writes its
+/// marker and reaches its spin address. If this fails, the marker is broken, not the menu. The xbank
+/// markers can't be checked this way: VICE has no stand-alone xbank cartridge (type 33 attach
+/// returns "NO CART EXISTS", `c64carthooks.c`), so it only meets them inside an EasyFlash image.
 #[test]
 fn every_marker_cart_runs_on_its_own() {
     if !vice::require_tool("x64sc") {
         eprintln!("marker control: skipping — x64sc is not installed");
         return;
     }
-    for kind in CartKind::ALL {
+    let generic = [CartKind::K8, CartKind::K16, CartKind::Ultimax8, CartKind::Ultimax16];
+    for kind in generic {
         let dir = scratch(&format!("marker-{}", kind.name()));
         let m = markers::cart(kind, "MARKER RAN");
         let cart = write(&dir, "marker.crt", &m.bytes);
