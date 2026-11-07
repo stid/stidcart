@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-11-07 (menu-search-sort)
+**Last compacted:** 2026-11-07 (menu-look)
 
 ---
 
@@ -88,6 +88,7 @@
 | A cart saved from the window after edits is byte-identical to what `edit` writes for the equivalent request on the same input, and a New cart saved after adding files is byte-identical to `build` of the same files in order — held against the real CLI over the fixtures | AC-80 | D-035 (gui-edit) |
 | Booted, our menu shows the cart name and the visible entries in directory order (hidden ones absent, the first selected in reverse), scrolls past 20 rows on CRSR, starts the selection on RETURN — a program loaded with the cart switched out and started by `RUN` (load address ≤ `$0801`) or `SYS`, or any non-Ocean cartridge kind by bank, mode and reset — says so when nothing is visible, and leaves to BASIC with full memory on RUN/STOP. Proven by VICE boots, not the reference tool | AC-87..AC-92 | D-037 · D-038 (custom-menu) |
 | In our menu, typed characters (up to 16, not `"`) filter the list to visible entries whose name contains them, ignoring case. DEL removes one, CLR/HOME clears them, and a filter matching nothing says so. F1 toggles A-Z with stable ties (sorted on the first press) and back to directory order, keeping the text. The text shows on row 1, and the match count and order on row 23. Proven by VICE boots | AC-96..AC-101 | D-039 (menu-search-sort) |
+| Our menu is black, in the ROM's mixed-case set: a cyan reverse title bar on row 0 with "stidcart" and the cart name, light grey entries with the selection in a cyan reverse bar, yellow filter text after a grey label, the count and order in grey on row 23, and a grey reverse key-help bar on row 24, empty cart included. A program it starts, and BASIC after RUN/STOP, get the C64's own colours and upper-case set. Proven by VICE boots | AC-102..AC-104 | D-040 (menu-look) |
 | The menu embedded in carts is exactly what `menu/build.sh` assembles from `menu/src/` and fits the 8 KiB loader slot; a check reassembles and compares | AC-93 | D-037 (custom-menu) |
 | The required CI gate builds the pinned 64tass and VICE and sets `STIDCART_REQUIRE_TOOLS=1`, so the boot and reassembly checks fail rather than skip when a tool is missing | AC-94 | D-038 (custom-menu) |
 

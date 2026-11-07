@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** A designed look for our C64 menu: dark colours, a cyan title bar, a cyan selection bar and a grey help bar (D-040)
-- **Next action:** S7, the full gate, then audit, reconcile and PR
+- **Next action:** done; the PR is open and awaits CI (gate, gui, claude-review) and the user's merge
 - **Branch:** feat/menu-look · **Updated:** 2026-11-07
 
 ## STEPS
@@ -23,7 +23,7 @@
 - [x] S4 — `draw` writes screen and colour RAM directly: title bar, filter row, list with selection bar, status row, help bar. Colours set after `kernal_init`. AC-87..AC-101 stay green
 - [x] S5 — AC-104 red (a started program inherits the menu's colours), then the restore in `start_prg`
 - [x] S6 — `menu/README.md`, `menu.bin`/`menu.lbl` reassembled with every menu commit (AC-93)
-- [ ] S7 — VICE screenshot shown to the user, full gate, audit, reconcile SPEC, PR
+- [x] S7 — VICE screenshot shown to the user, full gate, audit, reconcile SPEC, PR
 
 ## DECISIONS (this work-item)
 
@@ -97,3 +97,5 @@ and the upper-case character set.
 - 2026-11-07 — Screenshot gotchas: VICE's monitor reads `ignore` counts as hex, and checkpoint
   numbers restart at 1 after `del`. A screenshot taken right at `menu_idle` can show a half-drawn
   frame, so wait about 20000 idle hits first.
+- 2026-11-07 — audit: PASS (test-presence). All three ACs are surface `none`, so as in menu-search-sort there is no token row. Their tests are `ac_102`..`ac_104` in `menu_boot.rs`, plus the negative control `the_look_checks_reject_the_default_screen`, green at 6b80bb6 with STIDCART_REQUIRE_TOOLS=1 (root 219/0, GUI 31/0). Closeout line appended.
+- 2026-11-07 — reconciled: folded AC-102..AC-104 → SPEC.md/Internal as 1 new row. The boot row (AC-87..AC-92) and the filter row (AC-96..AC-101) still hold, so nothing was superseded.
