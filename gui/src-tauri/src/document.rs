@@ -10,11 +10,13 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use stidcart_core::listing::{self, Listing};
+use stidcart_core::menu::Menu;
 use stidcart_core::{read, CartBuilder, Entry, InputError};
 
 use crate::ListingDto;
 
-/// One change the window asks for. Indices are the ones the listing shows.
+/// One change the window asks for. Indices are the ones the listing shows; a menu is named as the
+/// listing names it (D-042).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Edit {
@@ -26,6 +28,7 @@ pub enum Edit {
     SetAligned { index: usize, aligned: bool },
     SetCartName { name: String },
     SetHeaderName { name: String },
+    SetMenu { menu: String },
 }
 
 /// What the window knows about the open cart. Mirrored by `Document` in `gui/src/lib/types.ts`
@@ -202,6 +205,14 @@ impl Document {
             }
             Edit::SetCartName { name } => builder.set_ef_name(&name),
             Edit::SetHeaderName { name } => builder.set_header_name(&name),
+            Edit::SetMenu { menu } => {
+                let menu = Menu::from_name(&menu).ok_or_else(|| {
+                    format!("no menu named '{menu}'; it is EasyLoader or stidcart")
+                })?;
+                // The build below refuses a menu the cart can't carry, in the words `edit --menu`
+                // uses, before anything becomes a step.
+                builder.set_menu(menu);
+            }
         }
 
         let bytes = builder.build().map_err(|e| e.to_string())?;

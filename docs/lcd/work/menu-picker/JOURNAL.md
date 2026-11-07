@@ -12,15 +12,15 @@
 
 - **Lane:** Standard
 - **Goal:** Choose the cart's C64 menu (EasyLoader or stidcart) in the desktop app, as an undoable edit with `edit --menu`'s refusals (D-042)
-- **Next action:** S3, the failing tests AC-112..AC-114
+- **Next action:** S5, live check in the app, audit, reconcile, PR
 - **Branch:** feat/menu-picker · **Updated:** 2026-11-07
 
 ## STEPS
 
 - [x] S1 — version 0.12.0 → 0.13.0 (first commit on the branch)
 - [x] S2 — triage, D-042, AC-112..AC-114 claimed, this JOURNAL
-- [ ] S3 — failing tests: Rust `gui/src-tauri/tests/menu.rs` (AC-112, AC-113), vitest `Listing.test.ts` (AC-112, AC-114)
-- [ ] S4 — `Edit::SetMenu` in `document.rs`, `setMenu` in `types.ts`, the picker in `Listing.svelte`
+- [x] S3 — failing tests: Rust `gui/src-tauri/tests/menu.rs` (AC-112, AC-113), vitest `Listing.test.ts` (AC-112, AC-114)
+- [x] S4 — `Edit::SetMenu` in `document.rs`, `setMenu` in `types.ts`, the picker in `Listing.svelte`
 - [ ] S5 — README desktop-app section, GUI gate, live check in the app, audit, reconcile, PR
 
 ## DECISIONS (this work-item)
@@ -73,3 +73,11 @@ edits, then the menu is shown as text and offers no choice.
   (the box only shows it, D-037) and then to start this slice. The core already does the switch
   (`CartBuilder::set_menu`) and the refusals (`build`), so the window adds one edit kind and a
   picker → D-042. AC-112..AC-114 claimed, next free AC-115.
+- 2026-11-07 — Red run: Rust didn't compile (no `Edit::SetMenu`), vitest failed AC-112 and AC-113
+  (no picker), and AC-114 passed, since the text-only box was already that behaviour. Green after
+  one pass. The Ocean refusal in the window contains the exact text `edit --menu` prints. GUI gate
+  33/0 cargo + 43/0 vitest, root 225/0. Two snags: the GUI workspace has its own `cargo fmt`, and a
+  doc comment on one `Edit` variant made rustfmt expand the whole enum, so the note moved to the
+  enum's doc. Prettier's `--write` on `types.ts` would switch the file to double quotes; the repo
+  doesn't run Prettier, so that was reverted.
+
