@@ -16,6 +16,8 @@ export interface Row {
 export interface Listing {
   cart: string;
   builtBy: string;
+  /** The C64-side menu the cart boots into: `EasyLoader`, `stidcart`, or `unrecognised`. */
+  menu: string;
   rows: Row[];
   free: number;
   freeText: string;

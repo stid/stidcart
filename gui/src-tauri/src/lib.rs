@@ -25,6 +25,8 @@ use document::{Document, DocumentDto, Edit};
 pub struct ListingDto {
     pub cart: String,
     pub built_by: String,
+    /// The C64-side menu the cart boots into, as `listing` names it (D-038).
+    pub menu: String,
     pub rows: Vec<RowDto>,
     pub free: usize,
     pub free_text: String,
@@ -47,6 +49,7 @@ impl From<&Listing> for ListingDto {
         ListingDto {
             cart: l.cart.clone(),
             built_by: l.built_by.clone(),
+            menu: l.menu.clone(),
             rows: l.rows.iter().map(RowDto::from).collect(),
             free: l.free,
             free_text: l.free_text(),
