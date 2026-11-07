@@ -130,30 +130,32 @@ pub fn boot(dir: &Path, cart: &Path, steps: &[Step]) -> Option<Vec<Vec<u8>>> {
     let mon_path = dir.join("mon.txt");
     std::fs::write(&mon_path, mon).unwrap();
 
-    // -default ignores any saved vicerc so the run does not depend on it. +saveres keeps the reset
-    // settings from being written back over it, but only a build with a UI has that option: the
-    // headless one CI builds rejects it and bails out, and it saves nothing anyway.
-    let mut args: Vec<String> = vec!["-default".to_string()];
-    if has_option("+saveres") {
-        args.push("+saveres".to_string());
+    // -default ignores any saved vicerc so the run does not depend on it.
+    let mut args: Vec<String> = [
+        "-default",
+        "-logfile",
+        "vice-internal.log",
+        "+easyflashcrtwrite",
+        "-warp",
+        "-sounddev",
+        "dummy",
+        "-jamaction",
+        "1",
+        "-limitcycles",
+        LIMIT_CYCLES,
+    ]
+    .map(String::from)
+    .to_vec();
+    // These exist only in a build with a UI (VICE 3.10 registers them in arch/gtk3 and arch/sdl),
+    // and the headless x64sc CI builds bails out on them. There they are also moot: it saves no
+    // settings, asks nothing on exit, and its monitor is the terminal already. +saveres keeps the
+    // reset settings from being written back over the user's vicerc; -nativemonitor puts the
+    // monitor on the terminal instead of a window.
+    for option in ["+saveres", "-nativemonitor", "+confirmonexit"] {
+        if has_option(option) {
+            args.push(option.to_string());
+        }
     }
-    args.extend(
-        [
-            "-logfile",
-            "vice-internal.log",
-            "+easyflashcrtwrite",
-            "-warp",
-            "-sounddev",
-            "dummy",
-            "-jamaction",
-            "1",
-            "-limitcycles",
-            LIMIT_CYCLES,
-            "-nativemonitor",
-            "+confirmonexit",
-        ]
-        .map(String::from),
-    );
     args.extend([
         "-cartcrt".to_string(),
         cart.display().to_string(),
