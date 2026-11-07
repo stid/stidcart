@@ -40,6 +40,27 @@ AC-81..AC-94 live in `spec.md`.
   bytes). User picked opt-in, GPL `menu/`, 64tass, and all four goals split into slices → D-037.
   Scope forks for this slice: Ocean refused, GUI recognise/show only, VICE installed in CI, VICE
   is enough without a hardware check. Spec written: AC-81..AC-94.
+- 2026-11-07 — Recon digest (web and repo; Context7 not reachable from the agent):
+  - 64tass 1.60.3243: `-a -C -Wall -Werror -b --list -l --vice-labels`, `* = $8000` with the entry
+    vector first, then `.fill $a000-*, $ff` plus a `.cerror * > $a000` guard so the image is exactly 8 KiB.
+    Avoid `-f` and the default cbm-prg output.
+  - CI pin: build 64tass from the SourceForge source zip with a committed sha256 and assert
+    `--version`. Apt varies (1.59 on 24.04, 1.60 on 26.04, and `ubuntu-latest` is migrating this
+    month). Homebrew can't pin.
+  - PRG boot: copier and kill code in I/O2 RAM `$DF00-$DFFF`. Copy bank by bank from `$8000-$BFFF`
+    with the cart on, then run the KERNAL init with the cart off (`$DE02=$04`). Set the BASIC
+    pointers to the end address, `$BA=8`, and put `RUN\r` or `SYS nnnn\r` in `$0277`/`$C6`. A PRG
+    overlapping `$D000-$DFFF` can't use a `$DF00` copier as is.
+  - Cart boot: from `$DF00`, write the bank to `$DE00` and the mode to `$DE02` (`$05` Ultimax,
+    `$06` 8K, `$07` 16K), then `jmp ($FFFC)`. xbank's base bank goes in `$DF00`/`$DF01`
+    (EasyLoader's convention, `easyloader.asm:1789`, not a published spec).
+  - VICE key injection (`keybuf`, `-keybuf`, binary monitor) only fills `$0277`/`$C6`. Nothing
+    presses keys in the CIA matrix. **So the menu must read keys from the KERNAL buffer**, or merge
+    the buffer with its own scan. EasyLoader's direct `$DC01` scan could never be driven by a test.
+  - VICE 3.10 (2025-12) is current and fixed checkpoint triggering. No EasyFlash changes since 3.8.
+    Tests can `ll` the labels and `break .label` instead of boot.rs's ignore-count.
+  - `boot.rs` (AC-4) matches EasyLoader's screen codes. It stays valid because EasyLoader stays the
+    default, but the new boot tests need their own matcher.
 
 ## DEEP PIPELINE (Deep lane only)
 
