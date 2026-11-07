@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-11-07 (menu-details)
+**Last compacted:** 2026-11-07 (menu-picker)
 
 ---
 
@@ -51,7 +51,7 @@
 | On opening, the desktop app shows the same listing as `list`, value for value: file name, cart name, producing tool, menu, every row (index, name, flags, kind, bank, layout, size), entry count and free bytes, for every image `list` describes. Both render one core description | AC-51, AC-85 | D-032 (gui-shell) · D-030 · D-038 (custom-menu) |
 | The desktop app opens a `.crt` picked with Open…/⌘O (dismissing the chooser changes nothing), or one dropped while no editable cart is open (empty, an error, or view-only); several dropped then open none and it says to drop one. Before any file it shows an empty state inviting either. With an editable cart open, every drop (`.prg` or `.crt`) adds instead, never opens | AC-52, AC-53, AC-56, AC-57, AC-79 | D-030 (gui-shell) · D-033 (gui-edit) |
 | A file `list` refuses shows the reason `list` gives and no rows, replacing whatever cart was shown; the next valid open clears it | AC-54, AC-55 | D-032 (gui-shell) |
-| A cart `edit` accepts opens editable and clean, whichever menu it carries, and its saves keep that menu as `edit` does; one `list` describes but `edit` refuses (firmware differing from the embedded blobs) opens view-only, with `edit`'s reason and no edit commands. The window shows the menu but does not switch it | AC-59, AC-60, AC-86 | D-033 · D-035 (gui-edit) · D-037 (custom-menu) |
+| A cart `edit` accepts opens editable and clean, whichever menu it carries, and its saves keep that menu as `edit` does; one `list` describes but `edit` refuses (firmware differing from the embedded blobs) opens view-only, with `edit`'s reason and no edit commands. On an editable cart the menu is a picker between EasyLoader and stidcart; choosing the other is one undoable edit that saves what `edit --menu` writes, and a cart with an Ocean entry or a program loading into `$D000-$DFFF` refuses stidcart with `edit`'s reason, unchanged. A view-only cart shows the menu as text | AC-59, AC-60, AC-86, AC-112..AC-114 | D-033 · D-035 (gui-edit) · D-037 (custom-menu) · D-042 (menu-picker) |
 | The window edits what `edit` does — add (picked or dropped; several at once all-or-none as one step; Add Aligned for an xbank), remove, rename (inline, shown as stored), replace (name, hidden and place kept, kind follows the file), hide/show, align/unalign (offered only on an xbank), cart and header names — plus New, an empty untitled cart with `build`'s default names. Each new entry is named by its file stem and classified as `edit --add` classifies it | AC-61..AC-69, AC-77 | D-033 · D-034 (gui-edit) |
 | An edit `edit` would refuse shows `edit`'s reason and changes nothing — listing, unsaved state and undo history stay as they were | AC-70 | D-035 (gui-edit) |
 | After an edit the listing describes the cart as saving would write it: the whole set is re-placed, so an untouched entry may show a new position, and the free bytes are recomputed | AC-71 | D-035 (gui-edit) · D-011 |

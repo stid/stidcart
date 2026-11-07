@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Choose the cart's C64 menu (EasyLoader or stidcart) in the desktop app, as an undoable edit with `edit --menu`'s refusals (D-042)
-- **Next action:** S5, live check in the app, audit, reconcile, PR
+- **Next action:** done; the PR awaits CI and the user's merge
 - **Branch:** feat/menu-picker · **Updated:** 2026-11-07
 
 ## STEPS
@@ -21,7 +21,7 @@
 - [x] S2 — triage, D-042, AC-112..AC-114 claimed, this JOURNAL
 - [x] S3 — failing tests: Rust `gui/src-tauri/tests/menu.rs` (AC-112, AC-113), vitest `Listing.test.ts` (AC-112, AC-114)
 - [x] S4 — `Edit::SetMenu` in `document.rs`, `setMenu` in `types.ts`, the picker in `Listing.svelte`
-- [ ] S5 — README desktop-app section, GUI gate, live check in the app, audit, reconcile, PR
+- [x] S5 — README desktop-app section, GUI gate, live check in the app, audit, reconcile, PR
 
 ## DECISIONS (this work-item)
 
@@ -80,4 +80,8 @@ edits, then the menu is shown as text and offers no choice.
   doc comment on one `Edit` variant made rustfmt expand the whole enum, so the note moved to the
   enum's doc. Prettier's `--write` on `types.ts` would switch the file to double quotes; the repo
   doesn't run Prettier, so that was reverted.
+- 2026-11-07 — Live check: the user opened their collection in the dev app, switched the menu and
+  confirmed it works ("done - it's working").
+- 2026-11-07 — audit: PASS (test-presence). `AC-112 (RENDER)` and `AC-113 (RENDER)` are in `gui/src-tauri/tests/menu.rs` and `Listing.test.ts`, `AC-114 (RENDER)` in `Listing.test.ts`, green at 303c24b (GUI 33/0 cargo + 43/0 vitest, root 225/0). Closeout line appended.
+- 2026-11-07 — reconciled: folded AC-112..AC-114 → SPEC.md/RENDER, rewriting the editable-cart row in place ("does not switch it" is gone). D-042 records the refinement of D-037.
 
