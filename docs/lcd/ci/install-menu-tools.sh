@@ -62,5 +62,13 @@ else
 fi
 
 "$prefix/bin/64tass" --version | head -1
-test -x "$prefix/bin/x64sc"
+# Run it, not just find it: a binary restored from the cache can be present and still not start
+# (a shared library the build found is missing on this run). Say why instead of letting every
+# boot test fail with an empty log.
+if ! "$prefix/bin/x64sc" -help >/dev/null 2>&1; then
+  echo "x64sc is installed but does not run:" >&2
+  "$prefix/bin/x64sc" -help 2>&1 | tail -5 >&2 || true
+  ldd "$prefix/bin/x64sc" >&2 || true
+  exit 1
+fi
 echo "x64sc: $prefix/bin/x64sc (VICE ${VICE_VERSION})"
