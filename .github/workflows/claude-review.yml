@@ -14,6 +14,10 @@
 # Auth is the Claude GitHub App's OAuth token (`/install-github-app`), which draws on the
 # Claude subscription rather than API billing. One review per PR-push is the budget; do not
 # add a second reviewing workflow alongside this one.
+#
+# A pull request whose whole diff against its base is Markdown is not reviewed: the check passes
+# with a notice instead (D-043). The test is the whole diff, never the latest push, so a
+# docs-only push after a blocking finding cannot turn the gate green.
 
 name: Claude review
 
@@ -36,8 +40,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Decide whether the change has code to review
+        id: scope
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only "$BASE...$HEAD")
+          echo "$changed"
+          # Markdown only: every changed path ends in .md. An empty diff is reviewed as usual.
+          if [ -n "$changed" ] && ! grep -qv '\.md$' <<<"$changed"; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Review the pull request
         id: review
+        if: steps.scope.outputs.docs_only != 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -93,10 +114,16 @@ jobs:
 
       - name: Gate the merge on the verdict
         env:
+          DOCS_ONLY: ${{ steps.scope.outputs.docs_only }}
           CONCLUSION: ${{ steps.review.outputs.conclusion }}
           VERDICT: ${{ steps.review.outputs.structured_output }}
         run: |
           set -euo pipefail
+
+          if [ "${DOCS_ONLY:-}" = "true" ]; then
+            echo "::notice::not reviewed: every file this pull request changes is Markdown (D-043)"
+            exit 0
+          fi
 
           # Liveness first. This action exits SUCCESSFULLY when it has done nothing at all —
           # observed three separate times while building this: no OAuth secret configured, and
