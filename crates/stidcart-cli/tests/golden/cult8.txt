@@ -4,9 +4,9 @@ cart: cult8
 built by: ndefpack 1.0.1
 menu: EasyLoader
 
-    #  name              flags  type    bank  layout            size
-    0  hello             -      PRG-L    $01  $0000          $000066
-    1  in_ult8           -      ULT8     $01  H1@0           $002000
+    #  name              flags  type    bank  layout              size
+    0  hello             -      PRG-L    $01  $0000          102 bytes
+    1  in_ult8           -      ULT8     $01  H1@0                8 KB
 
-2 entries, $0f8000 (1015808) bytes free
+2 entries, 992 KB free
 -- stderr --

@@ -4,9 +4,9 @@ cart: cocean512
 built by: ndefpack 1.0.1
 menu: EasyLoader
 
-    #  name              flags  type    bank  layout            size
-    0  hello             -      PRG-H    $02  $2000          $000066
-    1  in_ocean512       -      OCN512   $00  L64@0          $080000
+    #  name              flags  type    bank  layout              size
+    0  hello             -      PRG-H    $02  $2000          102 bytes
+    1  in_ocean512       -      OCN512   $00  L64@0             512 KB
 
-2 entries, $07a000 (499712) bytes free
+2 entries, 488 KB free
 -- stderr --

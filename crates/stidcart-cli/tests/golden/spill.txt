@@ -4,8 +4,8 @@ cart: spill
 built by: ndefpack 1.0.1
 menu: EasyLoader
 
-    #  name              flags  type    bank  layout            size
-    0  big               -      PRG      $01  $0000          $004e22
+    #  name              flags  type    bank  layout              size
+    0  big               -      PRG      $01  $0000            19.5 KB
 
-1 entry, $0f71de (1012190) bytes free
+1 entry, 988.5 KB free
 -- stderr --

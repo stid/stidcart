@@ -31,6 +31,11 @@
   /** The row whose name is being edited, started from its menu's Rename. */
   let renaming = $state<number | null>(null);
 
+  /** An exact byte count, for the hover on a size the listing shows rounded (D-044). */
+  function exact(bytes: number): string {
+    return `${bytes.toLocaleString('en-US')} bytes`;
+  }
+
   function edit(e: Edit) {
     onedit?.(e);
   }
@@ -59,7 +64,7 @@
   <td><span class="kind">{row.kind}</span></td>
   <td class="num mono">{row.bank}</td>
   <td class="mono muted">{row.layout}</td>
-  <td class="num mono">{row.size}</td>
+  <td class="num mono" title={exact(row.sizeBytes)}>{row.size}</td>
 {/snippet}
 
 <section class="listing">
@@ -119,7 +124,7 @@
       </div>
       <div>
         <dt>Free</dt>
-        <dd class="mono">{listing.freeText}</dd>
+        <dd class="mono" title={exact(listing.free)}>{listing.freeText}</dd>
       </div>
     </dl>
   </header>

@@ -10,7 +10,10 @@ export interface Row {
   kind: string;
   bank: string;
   layout: string;
+  /** The size as the listing reads it: "652 bytes", "10.0 KB", "1 MB" (D-044). */
   size: string;
+  /** The exact size in bytes, shown on hover. */
+  sizeBytes: number;
 }
 
 export interface Listing {

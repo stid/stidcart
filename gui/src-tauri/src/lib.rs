@@ -42,6 +42,8 @@ pub struct RowDto {
     pub bank: String,
     pub layout: String,
     pub size: String,
+    /// The exact size the `size` text rounds, shown on hover (D-044).
+    pub size_bytes: usize,
 }
 
 impl From<&Listing> for ListingDto {
@@ -67,6 +69,7 @@ impl From<&Row> for RowDto {
             bank: r.bank.clone(),
             layout: r.layout.clone(),
             size: r.size.clone(),
+            size_bytes: r.size_bytes,
         }
     }
 }

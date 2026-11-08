@@ -123,3 +123,14 @@ test('AC-114 (RENDER): a view-only cart, or a listing without edits, shows the m
   expect(screen.queryByRole('combobox')).toBeNull();
   expect(screen.getByText('EasyLoader')).toBeInTheDocument();
 });
+
+test('AC-117 (RENDER): every size and the free figure show their exact byte count on hover', () => {
+  render(Listing, { props: { listing, file: 'two.crt' } });
+  const exact = (n: number) => `${n.toLocaleString('en-US')} bytes`;
+
+  const rows = screen.getAllByRole('row').slice(1);
+  listing.rows.forEach((r, i) => {
+    expect(within(rows[i]).getByText(r.size)).toHaveAttribute('title', exact(r.sizeBytes));
+  });
+  expect(screen.getByText(listing.freeText)).toHaveAttribute('title', exact(listing.free));
+});

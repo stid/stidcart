@@ -34,13 +34,40 @@ pub struct Row {
     pub kind: &'static str,
     pub bank: String,
     pub layout: String,
+    /// The size as the listing reads it ([`readable_size`]).
     pub size: String,
+    /// The exact size in bytes, for a renderer that offers it (`list --bytes`, the window's hover).
+    pub size_bytes: usize,
 }
 
 impl Listing {
-    /// The free figure as the listing displays it: hex, then decimal in parentheses.
+    /// The free figure as the listing displays it ([`readable_size`]).
     pub fn free_text(&self) -> String {
-        format!("${:06x} ({})", self.free, self.free)
+        readable_size(self.free)
+    }
+}
+
+/// A byte count as the listing reads it (D-044): bytes under 1 KB ("652 bytes", "1 byte"), then
+/// 1024-based KB with one decimal rounded half up ("1.1 KB", "10.0 KB"), whole for an exact
+/// multiple ("8 KB"), and MB the same way once it rounds to 1024 KB or more.
+pub fn readable_size(bytes: usize) -> String {
+    const KB: usize = 1024;
+    const MB: usize = 1024 * KB;
+    if bytes < KB {
+        return format!("{bytes} {}", if bytes == 1 { "byte" } else { "bytes" });
+    }
+    let unit = |size: usize, name: &str| {
+        if bytes.is_multiple_of(size) {
+            return format!("{} {name}", bytes / size);
+        }
+        let tenths = (bytes * 10 + size / 2) / size;
+        format!("{}.{} {name}", tenths / 10, tenths % 10)
+    };
+    let kb_tenths = (bytes * 10 + KB / 2) / KB;
+    if bytes >= MB || kb_tenths >= 10240 {
+        unit(MB, "MB")
+    } else {
+        unit(KB, "KB")
     }
 }
 
@@ -64,7 +91,8 @@ pub fn describe(bytes: &[u8]) -> Result<Listing, ReadError> {
             kind: kind_label(e.kind),
             bank: format!("${:02x}", e.bank),
             layout: layout(e),
-            size: format!("${:06x}", e.size),
+            size: readable_size(e.size as usize),
+            size_bytes: e.size as usize,
         })
         .collect();
     // The cartridge name and every entry name arrive through the machine's own character mapping,
