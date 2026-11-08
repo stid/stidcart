@@ -41,6 +41,23 @@
   interrupt live, against D-048); a group filter key instead of folders (the user chose folders);
   the `←` key for going back (it is printable and the filter takes it; CRSR ← is page-up, D-051).
 - **Scope:** `menu/src/menu.s`, `menu/src/launch.s` if the copy loop lives there, the boot tests
+- **As built:**
+  - The copy runs through D-056's routine at `$0100` before `irq_on` and takes about 1.3 s of blank
+    screen for a full 16 KB (PAL, VICE). Tables sit at `$C600-$C9FF`, variables at `$C130-$C140`,
+    zero page `$26-$29`.
+  - The menu is stricter than the core's decoder: it also wants load address `$4000` and a payload
+    of at least 13 bytes. Anything else is a cart without metadata, which the tool never writes
+    anyway.
+  - An entry with any field set puts its facts on pane rows 6-10, a blank row 11, then the title,
+    year, author and note from row 12, hard-wrapped at 16. Group-only entries keep AC-108's
+    layout.
+  - Folder rows count visible entries, ignore F3, keep group order under F1, cut long names to fit
+    the count, and wear a white badge.
+  - Inside a folder, row 23 counts matches out of the folder's entries. RUN/STOP inside a folder
+    also clears the text. RUN/STOP at the top with a folder row selected spoils the resume state.
+  - Resume opens the folder of any grouped entry, including one started from a flat search.
+  - Tested: META confined to either half (types `0x02`/`0x03`) and the last of two candidates.
+    About 1.7 KB of ROM is left.
 - **Status:** active
 
 ---

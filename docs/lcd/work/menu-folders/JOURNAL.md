@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu reads the `STIDCART.META` entry once at boot and shows titles in the list, the full title, year, author and note in the pane, and groups as folders (D-057)
-- **Next action:** S6 — audit, reconcile (D-057 refinements to the orchestrator), closeout, PR
+- **Next action:** done; PR open, merge when gate, gui and claude-review are green (user authorised)
 - **Branch:** feat/menu-folders · **Updated:** 2026-11-08
 
 ## STEPS
@@ -22,7 +22,7 @@
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-166..AC-169 (carts built with `edit --title/--group/...` or the core API)
 - [x] S4 — implement in `menu/src/menu.s` (and `launch.s` if the copy loop lives there), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [x] S5 — `menu/README.md`, the F7 help (folder keys), gates with `STIDCART_REQUIRE_TOOLS=1`
-- [ ] S6 — audit, reconcile, closeout, PR
+- [x] S6 — audit, reconcile, closeout, PR
 
 ## DECISIONS (this work-item)
 
@@ -165,3 +165,9 @@ A record whose stored name doesn't match its slot is ignored.
   - Fix: `draw_find` counts out of `fcount[folder]` inside a folder. The replaced build (4e8f451)
     joins the earlier builds. ROM: 1674 bytes free. Gates: root 307 passed, 0 failed (36
     targets); GUI 46 cargo + 67 vitest.
+- 2026-11-08 — audit: PASS (test-presence). `AC-166 (none)`..`AC-169 (none)` are in
+  `crates/stidcart-cli/tests/menu_boot.rs`, green at 7a9a0c1 with `STIDCART_REQUIRE_TOOLS=1` (root
+  307/0, cargo 1.97.1; `gui-gate.sh` green). Closeout line appended. The as-built layout and the
+  departures in this LOG are folded into D-057.
+- 2026-11-08 — reconciled: folded AC-166..AC-169 → SPEC.md/none (one new row; the metadata row now
+  says our menu reads the entry).
