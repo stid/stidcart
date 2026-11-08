@@ -12,18 +12,18 @@
 
 - **Lane:** Standard
 - **Goal:** The window wears the stid design system (Catppuccin Mocha/Latte, peach, Geist bundled) with the "raster" cartridge as its mark, its icon and a five-band strip under the title bar (D-046, D-047)
-- **Next action:** S6, draw `icon-source.svg` on the macOS grid and regenerate the bundled icons
+- **Next action:** S7, the user's live check of the running app (dark and light, Dock icon), then audit
 - **Branch:** feat/raster-brand · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.14.0 → 0.15.0 (first commit on the branch)
 - [x] S2 — triage, D-046, D-047, AC-119..AC-122 claimed, this JOURNAL
-- [x] S3 — failing tests: tokens and fonts (`tokens.test.ts`), the strip (`App.test.ts`), the mark (Toolbar, EmptyState) ← next
+- [x] S3 — failing tests: tokens and fonts (`tokens.test.ts`), the strip (`App.test.ts`), the mark (Toolbar, EmptyState)
 - [x] S4 — `tokens.css` to stid values, `fonts.css` and the four woff2 files with OFL; MAP licence invariant names `gui/src/fonts/`
 - [x] S5 — `Mark.svelte`; the strip in `App.svelte`; the mark in the title bar and the empty state
-- [ ] S6 — app icon: `icon-source.svg` on the macOS grid, regenerate the six bundled files with `tauri icon`  ← next
-- [ ] S7 — both gates, the user's live check, audit, reconcile, PR; deploy locally after merge
+- [x] S6 — app icon: `icon-source.svg` on the macOS grid, regenerate the six bundled files with `tauri icon`
+- [ ] S7 — both gates, the user's live check, audit, reconcile, PR; deploy locally after merge  ← next
 
 ## DECISIONS (this work-item)
 
@@ -93,3 +93,6 @@ draws the same cartridge at every bundled size.
 - 2026-11-08 — red, as expected: no `fonts.css`, no strip, no mark. Vitest hands a `?raw` CSS import
   back empty unless it processes CSS, so `vite.config.ts` processes `src/styles/*.css` in tests only.
   Green: vitest 54/0, svelte-check clean, GUI gate passing; the four woff2 files land in `dist/assets`.
+- 2026-11-08 — S6: `icon-source.svg` draws the mark on the macOS grid (824 px tile on 1024).
+  `tauri icon` regenerated the set; only the six files `tauri.conf.json` lists were kept. Looked at
+  the 256 and 32 px PNGs: the label reads as bands at 256 and as a colour block at 32, as expected.
