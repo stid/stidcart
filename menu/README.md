@@ -11,15 +11,20 @@ code.
 
 ## Using it
 
-| Key             | Does                                                       |
-| --------------- | ---------------------------------------------------------- |
-| CRSR ↓ / CRSR ↑ | move the selection. The list scrolls past 16 rows          |
-| RETURN          | start the selected entry                                   |
-| letters, digits | filter: list only the entries whose name contains the text |
-| DEL             | remove the last character of the filter text               |
-| CLR/HOME        | clear the filter text                                      |
-| F1              | switch between the cart's own order and A-Z                |
-| RUN/STOP        | leave to BASIC with the cartridge switched off             |
+| Key             | Does                                                                     |
+| --------------- | ------------------------------------------------------------------------ |
+| CRSR ↓ / CRSR ↑ | move the selection. The list scrolls past 16 rows                        |
+| CRSR → / CRSR ← | move 16 entries down or up, stopping at the last or first                |
+| RETURN          | start the selected entry                                                 |
+| SHIFT+RETURN    | load the selected program and stop at `READY.`; on a cartridge, nothing  |
+| letters, digits | filter: list only the entries whose name contains the text               |
+| DEL             | remove the last character of the filter text                             |
+| HOME / CLR      | clear the filter text; with none, go to the first / last entry           |
+| F1              | switch between the cart's own order and A-Z                              |
+| F3              | list all entries, then only programs, then only cartridges               |
+| F5              | select a random entry among those listed, never the one already selected |
+| F7              | show every key; the next key press goes back to the menu                 |
+| RUN/STOP        | leave to BASIC with the cartridge switched off                           |
 
 The screen is black (D-041) and wears the stidcart brand (D-048): the cartridge mark, its label in
 five colour bands, sits left of a white block-letter logo, and a strip of the same five bands runs
@@ -29,13 +34,24 @@ those cartridges, "ULT" for Ultimax, and "XB" for multi-bank. The selected entry
 bar. When the list is longer than the screen, the divider to its right becomes a scroll bar: the
 thumb's length is the share of the list in view, and its place is where the view is. The pane on the
 right describes the selection: its type, size, load address (program) or first bank (cartridge),
-and how it starts. Below the list are the position ("17 of 40") and the order in use, then the
-filter text in yellow with the number of matches out of the visible entries, then a grey bar naming the
-keys. Hidden entries are not listed. The filter and A-Z both ignore case. The filter takes up to 16
-characters, any printable one except `"`. Every boot starts in
-the cart's own order, which is the order they were built in (D-039). A program that loads at or below `$0801` is started with `RUN`,
-and any other with `SYS` to its load address. It finds the C64's own colours and upper-case
-character set, as after a reset. The tool refuses to put this menu on a cart with an
+and how it starts. Below the list are the position ("17 of 40"), the order in use and the kind
+listed, then the filter text in yellow with the number listed out of the visible entries, then a
+grey bar naming the keys, `return go  f1 sort  f7 help  run/stop`. Hidden entries are not listed.
+The filter and A-Z both ignore case. The filter takes up to 16 characters, any printable one except
+`"`. Every boot starts in the cart's own order, which is the order they were built in (D-039), with
+all kinds listed. The kind filter (F3) combines with the text, and changing either lists again from
+the first match.
+
+A move that leaves the view (CRSR, a page, HOME/CLR, F5) scrolls only as far as it takes to show the
+selection, so one page down from the top puts it on the last row. F5 mixes the CIA timer, the raster
+line and the jiffy clock, which differ at every key press a person makes. The help screen keeps the
+logo and the cart name and replaces rows 5-24; the key that ends it, RUN/STOP and RETURN included,
+does nothing else (D-051).
+
+A program that loads at or below `$0801` is started with `RUN`, and any other with `SYS` to its load
+address. SHIFT+RETURN copies a program the same way and sets BASIC's pointers, but types nothing, so
+`LIST`, `RUN` or a `SYS` work from `READY.`. Either way the program finds the C64's own colours and
+upper-case character set, as after a reset. The tool refuses to put this menu on a cart with an
 Ocean entry, or with a program that would load into `$D000-$DFFF` (D-038).
 
 ## How it starts
@@ -73,7 +89,8 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
   - starting a cartridge: bank and mode, the entry's first bank left in `$DF00/$DF01` for xbank
     carts, then reset
   - starting a program: a BASIC cold start with CHRIN trapped. The trap copies the program bank by
-    bank and returns to the menu ROM, which sets BASIC's pointers and types `RUN` or `SYS`.
+    bank and returns to the menu ROM, which sets BASIC's pointers and types `RUN` or `SYS`, or
+    nothing when `p_only` is set (SHIFT+RETURN).
 
   `$DF00-$DFFF` belongs to the menu once it is entered.
 
@@ -96,4 +113,5 @@ until the replaced build's fingerprint is added to that list. `past/5b54e81.bin`
 stidcart 0.15 wrote; the tests use it to make a cart that carries an earlier build.
 
 The evidence that the menu works is VICE, because the reference tool knows nothing of it:
-`crates/stidcart-cli/tests/menu_boot.rs` boots carts and reads the screen back (AC-87..AC-92).
+`crates/stidcart-cli/tests/menu_boot.rs` boots carts and reads the screen back (AC-87..AC-92, and
+AC-136..AC-141 for the keys of D-051).

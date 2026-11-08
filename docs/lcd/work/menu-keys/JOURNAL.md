@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu gains SHIFT+RETURN load-without-run, page keys, HOME/CLR to the ends, an F3 kind filter, an F5 random pick and an F7 help screen (D-051)
-- **Next action:** S5 — `menu/README.md` key table, help bar and behaviour text
+- **Next action:** S6 — audit, reconcile SPEC, closeout, PR (orchestrator)
 - **Branch:** feat/menu-keys · **Updated:** 2026-11-08
 
 ## STEPS
@@ -21,7 +21,7 @@
 - [x] S2 — triage, D-051, AC-136..AC-141 claimed, this JOURNAL
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-136..AC-141
 - [x] S4 — implement in `menu/src/menu.s` (and `launch.s` for AC-136), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
-- [ ] S5 — `menu/README.md` key table and help bar, gates with `STIDCART_REQUIRE_TOOLS=1`
+- [x] S5 — `menu/README.md` key table and help bar, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
 
 ## DECISIONS (this work-item)
@@ -108,3 +108,5 @@ help bar names F7. The raster strip and mark need not show on the help screen, a
   (`0xeac9_353f_0e59_ab86`) joins `EARLIER_STIDCART_BUILDS`; current is `0xa4cb_0aba_6e81_53e0`.
   F5 never picks the entry already selected, so every press moves. Help bar is now
   "return go  f1 sort  f7 help  run/stop" (37 cells): "return start" with F7 added doesn't fit.
+- 2026-11-08 — S5: `menu/README.md` key table, help bar text, paging/random/help behaviour and the
+  `p_only` launch note. Gates green as at S4 (README only).
