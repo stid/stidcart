@@ -2,8 +2,8 @@
 
 Our own C64-side menu (D-037). It lists a cart's entries and starts the one picked: a program, or a
 cartridge of any kind except Ocean. It is opt-in. `build --menu stidcart` puts it into a cart, and
-`edit --menu stidcart|easyloader` switches an existing one. Without the option, carts keep
-EasyLoader, the zlib menu in `../firmware/`.
+`edit --menu stidcart|easyloader` switches an existing one, replacing whatever loader it carries.
+Without the option, carts keep EasyLoader, the zlib menu in `../firmware/`.
 
 GPL-2.0-or-later, like everything outside `firmware/` (see `../COPYING`). It is written fresh: the
 start sequences follow EasyLoader's technique, cited where they are used, and contain none of its

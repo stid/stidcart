@@ -7,6 +7,7 @@
     listing,
     file,
     readOnly = null,
+    menuReplaceable = false,
     rows = [],
     onedit,
     onreplace,
@@ -15,6 +16,8 @@
     file: string;
     /** Why the cart cannot be edited; the viewer shows it and offers no edits. */
     readOnly?: string | null;
+    /** On a view-only cart, the menu can still be chosen: that replaces an unknown loader (D-050). */
+    menuReplaceable?: boolean;
     /** What each row may offer, from the Rust side. */
     rows?: RowActions[];
     /** Given (with `onreplace`), the listing offers edits. Without it, it only shows. */
@@ -27,6 +30,7 @@
 
   const count = $derived(`${listing.rows.length} ${listing.rows.length === 1 ? 'entry' : 'entries'}`);
   const editable = $derived(onedit !== undefined && readOnly === null);
+  const menuPicker = $derived(editable || (onedit !== undefined && menuReplaceable));
 
   /** The row whose name is being edited, started from its menu's Rename. */
   let renaming = $state<number | null>(null);
@@ -70,7 +74,8 @@
 <section class="listing">
   {#if readOnly !== null}
     <p class="banner" role="status">
-      <strong>View only.</strong> This cartridge can't be edited: {readOnly}
+      <strong>View only.</strong> This cartridge can't be edited: {readOnly}{#if menuPicker}. Choose a
+        menu to replace its loader and edit it.{/if}
     </p>
   {/if}
 
@@ -97,7 +102,7 @@
             />{:else}{listing.builtBy}{/if}</span
         >
       </p>
-      {#if editable}
+      {#if menuPicker}
         <label class="menu">
           menu
           <select

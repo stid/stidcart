@@ -69,6 +69,12 @@ export function createViewer(host: Host) {
   }
 
   async function save(): Promise<boolean> {
+    if (doc?.readOnly != null && doc.dirty) {
+      // Undoing a saved menu switch brings back the cart as opened, which can't be written (D-050).
+      notice =
+        "This step can't be saved: it is the cart as opened, which can't be edited. Redo the menu switch to save, or choose Don't Save.";
+      return false;
+    }
     if (!editable || !doc) return false;
     if (doc.untitled) return saveAs();
     if (!doc.dirty) return true;
@@ -126,7 +132,9 @@ export function createViewer(host: Host) {
     save,
     saveAs,
     async edit(e: Edit) {
-      if (editable) await attempt(() => host.edit(e));
+      // A view-only cart takes one edit: a menu switch, when only its loader is unknown (D-050).
+      const menuSwitch = e.kind === 'setMenu' && doc !== null && doc.menuReplaceable;
+      if (editable || menuSwitch) await attempt(() => host.edit(e));
     },
     async add(aligned: boolean) {
       if (!editable) return;

@@ -44,6 +44,9 @@ export interface Document {
   rows: RowActions[];
   /** Why the cart cannot be edited, in the words `edit` uses; null when it can. */
   readOnly: string | null;
+  /** View-only only because the loader slot holds no known menu: choosing a menu replaces it and
+   * makes the cart editable (D-050). */
+  menuReplaceable: boolean;
   dirty: boolean;
   canUndo: boolean;
   canRedo: boolean;

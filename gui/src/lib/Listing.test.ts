@@ -136,6 +136,30 @@ test('AC-130 (RENDER): an older build of our menu shows as such, and choosing st
   expect(onedit).toHaveBeenLastCalledWith({ kind: 'setMenu', menu: 'stidcart' });
 });
 
+test('AC-134 (RENDER): a view-only cart whose loader is unknown offers the menu picker', async () => {
+  const { onedit } = editable({
+    readOnly: 'reserved region menu loader differs from the embedded firmware',
+    menuReplaceable: true,
+    listing: { ...listing, menu: 'unrecognised' },
+  });
+  expect(screen.getByText(/view only/i)).toBeInTheDocument();
+  expect(screen.getByText(/choose a menu/i)).toBeInTheDocument();
+  const picker = screen.getByRole('combobox', { name: /menu/i }) as HTMLSelectElement;
+  expect(picker.value).toBe('unrecognised');
+  const options = within(picker).getAllByRole('option') as HTMLOptionElement[];
+  expect(options.map((o) => o.textContent)).toEqual(['EasyLoader', 'stidcart', 'unrecognised']);
+  expect(options[2].disabled).toBe(true);
+
+  await fireEvent.change(picker, { target: { value: 'EasyLoader' } });
+  expect(onedit).toHaveBeenLastCalledWith({ kind: 'setMenu', menu: 'EasyLoader' });
+});
+
+test('AC-135 (RENDER): a cart refused for another reason offers no menu picker', () => {
+  editable({ readOnly: 'reserved region EAPI differs from the embedded firmware', menuReplaceable: false });
+  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(screen.queryByText(/choose a menu/i)).toBeNull();
+});
+
 test('AC-117 (RENDER): every size and the free figure show their exact byte count on hover', () => {
   render(Listing, { props: { listing, file: 'two.crt' } });
   const exact = (n: number) => `${n.toLocaleString('en-US')} bytes`;

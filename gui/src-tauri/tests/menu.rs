@@ -307,3 +307,106 @@ fn ac_130_render_an_older_build_opens_editable_and_upgrades_as_an_edit() {
     doc.undo();
     assert_eq!(menu_of(&doc), "stidcart (older build)");
 }
+
+/// Two programs with EasyLoader, then a loader slot this tool doesn't know and `patch` on the image.
+fn foreign(dir: &Path, patch: impl Fn(&mut stidcart_core::FlashImage)) -> PathBuf {
+    let built = dir.join("built.crt");
+    run(&[
+        s("build"),
+        s("-e"),
+        s("foreign"),
+        s("-o"),
+        path(&built),
+        fx("hello.prg"),
+        fx("ramp.prg"),
+    ]);
+    let mut container = stidcart_core::crt::parse(&std::fs::read(&built).unwrap()).unwrap();
+    let loader: Vec<u8> = (0..0x2000).map(|i| (i * 13 + 5) as u8).collect();
+    container.image.write_at(0, &loader);
+    patch(&mut container.image);
+    let cart = dir.join("foreign.crt");
+    std::fs::write(
+        &cart,
+        stidcart_core::crt::write(&container.image, &container.header_name),
+    )
+    .unwrap();
+    cart
+}
+
+// AC-134 (RENDER): an unknown loader opens view-only; choosing a menu is an undoable edit that
+// makes the cart editable
+#[test]
+fn ac_134_render_choosing_a_menu_replaces_an_unknown_loader() {
+    let dir = scratch("ac134");
+    let mut doc = Document::open(&foreign(&dir, |_| {})).unwrap();
+    let dto = doc.dto();
+    assert!(
+        dto.read_only
+            .as_deref()
+            .is_some_and(|r| r.contains("menu loader")),
+        "{:?}",
+        dto.read_only
+    );
+    assert!(dto.menu_replaceable);
+    assert_eq!(menu_of(&doc), "unrecognised");
+    assert!(
+        doc.apply(Edit::Rename {
+            index: 0,
+            name: s("x")
+        })
+        .is_err(),
+        "a view-only cart took an edit other than the menu"
+    );
+
+    doc.apply(Edit::SetMenu {
+        menu: s("stidcart"),
+    })
+    .unwrap();
+    let dto = doc.dto();
+    assert_eq!(
+        dto.read_only, None,
+        "the cart stayed view-only after the switch"
+    );
+    assert!(!dto.menu_replaceable && dto.dirty && dto.can_undo);
+    assert_eq!(menu_of(&doc), "stidcart");
+    doc.apply(Edit::Rename {
+        index: 0,
+        name: s("renamed"),
+    })
+    .unwrap();
+    let saved = dir.join("saved.crt");
+    doc.save_as(&saved).unwrap();
+    let listing = stidcart_core::listing::describe(&std::fs::read(&saved).unwrap()).unwrap();
+    assert_eq!(listing.menu, "stidcart");
+
+    doc.undo();
+    doc.undo();
+    let dto = doc.dto();
+    assert!(
+        dto.read_only.is_some(),
+        "undoing the switch left the cart editable"
+    );
+    assert!(dto.menu_replaceable);
+    assert_eq!(menu_of(&doc), "unrecognised");
+    assert!(doc.save_as(&dir.join("refused.crt")).is_err());
+}
+
+// AC-135 (RENDER): a cart refused for another reason offers no menu switch
+#[test]
+fn ac_135_render_other_refusals_offer_no_menu_switch() {
+    let dir = scratch("ac135");
+    let at = stidcart_core::reserved::EAPI_OFFSET;
+    let cart = foreign(&dir, |img| {
+        let byte = img.as_bytes()[at];
+        img.write_at(at, &[byte ^ 0xff]);
+    });
+    let mut doc = Document::open(&cart).unwrap();
+    let dto = doc.dto();
+    assert!(dto.read_only.is_some());
+    assert!(!dto.menu_replaceable);
+    assert!(doc
+        .apply(Edit::SetMenu {
+            menu: s("stidcart")
+        })
+        .is_err());
+}

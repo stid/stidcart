@@ -137,6 +137,25 @@ pub fn write_ef_name(img: &mut FlashImage, name: &str) {
 /// either menu this crate embeds (D-038), or an earlier build of ours (D-049); anything else is a
 /// mismatch.
 pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<Menu, crate::read::ReadError> {
+    verify(img, mode, None)
+}
+
+/// [`verify_regions`] for a rebuild that writes `menu` into the loader slot: the slot is not
+/// checked, because the rebuild overwrites it, and everything else is held exactly as before
+/// (D-050).
+pub fn verify_regions_replacing(
+    img: &FlashImage,
+    mode: Mode,
+    menu: Menu,
+) -> Result<Menu, crate::read::ReadError> {
+    verify(img, mode, Some(menu))
+}
+
+fn verify(
+    img: &FlashImage,
+    mode: Mode,
+    replacing: Option<Menu>,
+) -> Result<Menu, crate::read::ReadError> {
     let mut expected = FlashImage::erased();
     write_eapi(&mut expected);
     write_boot(&mut expected, mode);
@@ -157,7 +176,8 @@ pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<Menu, crate::read:
         }
     }
     // An earlier build of our menu loads as ours, so the rebuild writes the current one (D-049).
-    let Some(Recognised { menu, .. }) = detect_menu(img, mode) else {
+    let detected = || detect_menu(img, mode).map(|Recognised { menu, .. }| menu);
+    let Some(menu) = replacing.or_else(detected) else {
         return mismatch("menu loader");
     };
 

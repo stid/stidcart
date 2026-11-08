@@ -14,6 +14,7 @@ function doc(overrides: Partial<Document> = {}): Document {
     listing: two,
     rows: two.rows.map(() => ({ alignable: false })),
     readOnly: null,
+    menuReplaceable: false,
     dirty: false,
     canUndo: false,
     canRedo: false,

@@ -46,7 +46,8 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   --unalign N     clear that request
   -e NAME         set the cartridge name shown by the menu
   --header NAME   set the container header name
-  --menu MENU     switch the menu to easyloader or stidcart; without it the cart keeps its menu
+  --menu MENU     switch the menu to easyloader or stidcart, replacing whatever the loader slot
+                  holds; without it the cart keeps its menu
 
   Indices are the ones `list` prints, and every index in one invocation refers
   to the image as it was given, not to the state a previous operation left.
@@ -199,7 +200,13 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     let cart = cart.ok_or_else(|| format!("no cartridge image given\n{USAGE}"))?;
 
     let bytes = std::fs::read(&cart).map_err(|e| format!("reading '{cart}': {e}"))?;
-    let mut builder = read::load(&bytes).map_err(|e| e.to_string())?;
+    // An explicit menu overwrites the loader slot, so a slot holding no known menu is no reason to
+    // refuse (D-050).
+    let loaded = match menu {
+        Some(menu) => read::load_with_menu(&bytes, menu),
+        None => read::load(&bytes),
+    };
+    let mut builder = loaded.map_err(|e| e.to_string())?;
 
     // Every index is checked against the image as read, before anything is applied — so the two
     // halves of a request cannot disagree about what entry 1 is, and so a request that names an
