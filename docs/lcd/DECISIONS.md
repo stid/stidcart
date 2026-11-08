@@ -8,7 +8,35 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-050 -->
+<!-- Next id: D-051 -->
+
+---
+
+## D-050 · 2026-11-08 · An explicit menu switch replaces a loader slot that holds no known menu
+
+- **Context:** replace-loader, the second half of the user's choice in older-menus. A cart whose
+  loader slot holds neither embedded menu nor an earlier build of ours (D-049), for example a
+  loader another tool wrote, is described but refused by `load`, so it can only be viewed. The user
+  asked that choosing a menu be able to replace it.
+- **Decision:**
+  - The core gains `read::load_with_menu(bytes, menu)`. It holds EAPI, boot and the EF-Name magic
+    to exact bytes as `load` does, skips only the loader-slot check, and gives a builder carrying
+    the chosen menu. The slot is overwritten on build, so what was in it doesn't matter.
+  - `edit --menu easyloader|stidcart` takes that path, so it works on such a cart, and the other
+    operations in the same call apply too. Without `--menu`, `edit` refuses as before.
+  - The window opens such a cart view-only with `edit`'s reason and a menu picker showing
+    "unrecognised". Choosing a menu is one undoable edit, after which the cart is editable.
+    Undoing it returns to view-only, where nothing else can be edited or saved. A cart refused for
+    any other reason shows no picker.
+  - So read-only belongs to each step of the window's history, not to the document, and the
+    document says whether its menu can be replaced (`menuReplaceable` in the wire contract).
+- **Alternatives rejected:** replacing an unknown loader whenever a cart is loaded, which would
+  overwrite something the tool knows nothing about without anyone asking. Keeping the unknown slot's
+  bytes through an edit, which can't be vouched for: the tool can't know that loader works with a
+  re-placed directory. Leaving such carts view-only, the status quo.
+- **Scope:** `crates/stidcart-core/src/read.rs`, `crates/stidcart-core/src/reserved.rs`, `edit
+  --menu`, the window's document and its menu picker
+- **Status:** active · refines D-038 and D-042 (the picker on a view-only cart)
 
 ---
 
