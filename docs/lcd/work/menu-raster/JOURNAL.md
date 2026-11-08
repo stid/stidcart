@@ -102,3 +102,4 @@ menu left them.
 - 2026-11-08 — the user ran the committed menu (`final.crt`, built by the CLI) in VICE: "ok for now".
 - 2026-11-08 — audit: PASS (test-presence). All six ACs are surface `none`, so there is no token row. Their tests are `ac_123`..`ac_128` in `menu_boot.rs`, plus the `bank_writes` parser's unit test, green at d12a16d with STIDCART_REQUIRE_TOOLS=1 (root 237/0, GUI gate passing with 54/0 vitest). Closeout line appended.
 - 2026-11-08 — reconciled: folded AC-123..AC-128 → SPEC.md/none (the menu-look row rewritten in place); D-040 and D-041 marked superseded in part by D-048.
+- 2026-11-08 — CI red on AC-127 only: "no bank or mode write was seen". The headless VICE that CI builds prints each fragment of monitor output on its own `Monitor:` line in the log, so the register lines never reached the parser whole. AC-127 now reads the monitor's own log file (`logname`, `log on`), which reads the same in both builds; CI green at faaf6b3.
