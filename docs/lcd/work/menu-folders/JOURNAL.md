@@ -152,3 +152,13 @@ A record whose stored name doesn't match its slot is ignored.
   The F7 help went in with S4. Measured in VICE from `meta_load` to `irq_on` on AC-169's 16 KB
   cart: 1,310,596 cycles, 1.33 s of blank screen on PAL. Untested: a META confined to one half
   (0x02/0x03), and more than one candidate slot.
+- 2026-11-08 — Coordinator's two gaps, tests first:
+  - `ac_169_a_metadata_entry_confined_to_one_half_is_read`: three 8K (or Ultimax 8K) carts leave a
+    16 KB run of the other half below the top bank. The 10 KB META lands there as `PRG-H` (or
+    `PRG-L`) and crosses into the next bank's half; the test asserts the type and the crossing.
+    The first try with two carts came out interleaved: gaps are searched below the top bank only.
+  - `ac_169_the_last_of_two_metadata_entries_is_the_one`: two hidden `stidcart.meta` slots, last
+    wins; with the last lacking the magic, the earlier one.
+  - Both pass on the menu as built, so no menu change for them.
+  - AC-167 gains row 23 inside a folder, "1 of 2 match" (the folder's entries). Red run: it read
+    "1 of 6 match", the whole cart.

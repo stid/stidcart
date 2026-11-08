@@ -3993,6 +3993,10 @@ fn ac_167_groups_show_as_folders() {
         "text inside",
     );
     assert_not_listed(&s[8], &["p3"], "text inside");
+    assert!(
+        row_shows(&s[8], QUERY_ROW, "1 of 2 match"),
+        "text inside: row 23 does not count out of the folder's two entries"
+    );
     inside(
         9,
         &["p3", "zulu"],
@@ -4361,4 +4365,164 @@ fn ac_169_the_metadata_entry_is_checked_before_use() {
         log.lines().any(|l| l.trim_start().starts_with(".;01")),
         "no bank write was seen from the copy routine at $0100 during the boot"
     );
+}
+
+/// Every directory slot of `cart` as stored, up to the end marker.
+fn stored_slots(cart: &Path) -> Vec<stidcart_core::directory::DirEntry> {
+    use stidcart_core::directory::{self, Slot, ENTRY_LEN};
+    let bytes = std::fs::read(cart).unwrap();
+    let image = stidcart_core::crt::parse(&bytes).unwrap().image;
+    let mut out = Vec::new();
+    for slot in 0..256 {
+        let at = stidcart_core::reserved::DIRECTORY_OFFSET + slot * ENTRY_LEN;
+        let raw: [u8; ENTRY_LEN] = image.as_bytes()[at..at + ENTRY_LEN].try_into().unwrap();
+        match directory::decode(&raw) {
+            Slot::Program(e) | Slot::Cartridge(e) => out.push(e),
+            _ => break,
+        }
+    }
+    out
+}
+
+/// AC-169 (none): a metadata entry confined to one half (type `0x02` or `0x03`), as the placer
+/// makes one that fits a gap left between cartridges, is read like an interleaved one. Three 8K
+/// cartridges of a kind in banks 1-3 leave the other half of banks 1-2 free (gaps are searched
+/// below the top bank only), a 16 KB run, and a 10 KB entry placed there
+/// crosses from one bank's half into the next one's, with its records last. The test reads the
+/// slot's type and extent back from the cart, so a change in placement can't quietly turn it into
+/// an interleaved entry.
+#[test]
+fn ac_169_a_metadata_entry_confined_to_one_half_is_read() {
+    use stidcart_core::directory::EntryType;
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-169: skipping — x64sc is not installed");
+        return;
+    }
+    for (kind, tag, want) in [
+        (CartKind::K8, "romh", EntryType::PrgRomH),
+        (CartKind::Ultimax8, "roml", EntryType::PrgRomL),
+    ] {
+        let dir = scratch(&format!("ac169-confined-{tag}"));
+        let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+        let carts = ["c1", "c2", "c3"].map(|n| {
+            let m = markers::cart(kind, &format!("{} RAN", n.to_uppercase()));
+            write(&dir, &format!("{n}.crt"), &m.bytes)
+        });
+        let meta = meta_data(
+            1,
+            &[],
+            &[
+                meta_record(3, "alpha", 0, "Alpha Title"),
+                meta_record(4, "bravo", 0, "Bravo Title"),
+            ],
+            10000,
+        );
+        let meta = write(&dir, "stidcart.meta.prg", &meta);
+        let inputs = [
+            carts[0].clone(),
+            carts[1].clone(),
+            carts[2].clone(),
+            write(&dir, "alpha.prg", &hello),
+            write(&dir, "bravo.prg", &hello),
+            meta.clone(),
+        ];
+        let cart = build(
+            &dir,
+            "confined",
+            &["--hide", meta.to_str().unwrap()],
+            &inputs,
+        );
+        let slot = stored_slots(&cart)
+            .into_iter()
+            .find(|e| e.name == "stidcart.meta")
+            .expect("no metadata slot");
+        assert_eq!(
+            slot.kind, want,
+            "{tag}: the entry is not confined to that half"
+        );
+        assert!(
+            (slot.offset as usize & 0x1fff) + slot.size as usize > 0x2000,
+            "{tag}: the entry doesn't cross into the next bank's half"
+        );
+
+        let s = menu_screen(&dir, &cart);
+        assert_eq!(
+            row_name(&s, 8),
+            vice::screen_text("Alpha Title"),
+            "{tag}: alpha"
+        );
+        assert_eq!(
+            row_name(&s, 9),
+            vice::screen_text("Bravo Title"),
+            "{tag}: bravo"
+        );
+    }
+}
+
+/// AC-169 (none): with two hidden `STIDCART.META` slots carrying the magic, the last one is the
+/// metadata, and with the last one lacking the magic, the one before it is.
+#[test]
+fn ac_169_the_last_of_two_metadata_entries_is_the_one() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-169: skipping — x64sc is not installed");
+        return;
+    }
+    let titles = |prefix: &str| {
+        meta_data(
+            1,
+            &[],
+            &[
+                meta_record(0, "alpha", 0, &format!("{prefix} Alpha")),
+                meta_record(1, "bravo", 0, &format!("{prefix} Bravo")),
+            ],
+            200,
+        )
+    };
+    let mut no_magic = titles("Last");
+    no_magic[2] = b'X';
+    for (tag, last, want) in [
+        ("both", titles("Last"), "Last"),
+        ("no-magic", no_magic, "First"),
+    ] {
+        let dir = scratch(&format!("ac169-two-{tag}"));
+        let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+        let first = write_in(&dir, "a", "stidcart.meta", &titles("First"));
+        let second = write_in(&dir, "b", "stidcart.meta", &last);
+        let inputs = [
+            write(&dir, "alpha.prg", &hello),
+            write(&dir, "bravo.prg", &hello),
+            first.clone(),
+            second.clone(),
+        ];
+        let cart = build(
+            &dir,
+            "two metas",
+            &[
+                "--hide",
+                first.to_str().unwrap(),
+                "--hide",
+                second.to_str().unwrap(),
+            ],
+            &inputs,
+        );
+        let slots: Vec<(String, bool)> = stored_slots(&cart)
+            .into_iter()
+            .map(|e| (e.name, e.hidden))
+            .collect();
+        let meta = ("stidcart.meta".to_string(), true);
+        assert_eq!(
+            slots[2..],
+            [meta.clone(), meta],
+            "{tag}: the cart doesn't carry two hidden metadata slots last"
+        );
+
+        let s = menu_screen(&dir, &cart);
+        for (n, entry) in [(5, "Alpha"), (6, "Bravo")] {
+            assert_eq!(
+                row_name(&s, n),
+                vice::screen_text(&format!("{want} {entry}")),
+                "{tag}: row {n}"
+            );
+        }
+    }
 }
