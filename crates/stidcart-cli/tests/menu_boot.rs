@@ -1597,8 +1597,10 @@ fn ac_104_what_the_menu_hands_over_has_the_c64_colours() {
 // --- the raster brand (AC-123..AC-128, D-048) ----------------------------------------------------
 //
 // The strip and the mark's label are made by a raster interrupt, so screen and colour RAM can't
-// show them: these read VICE's own picture of the frame (`Step::Shot`). In the 384x272 PAL capture,
-// raster line L is image row L - 16 and the 320 visible pixels start at column 32.
+// show them: these read VICE's own picture of the frame (`Step::Shot`). Each waits two interrupts
+// first, because VICE's picture of the frame in progress still holds the previous frame below the
+// beam. In the 384x272 PAL capture, raster line L is image row L - 16 and the 320 visible pixels
+// start at column 32.
 
 const SHOT_SIZE: (usize, usize) = (384, 272);
 const SHOT_X: usize = 32;
@@ -1693,7 +1695,13 @@ fn shot_after_boot(dir: &Path, cart: &Path) -> vice::Shot {
     let dumps = boot_or_panic(
         dir,
         cart,
-        &[Step::Labels(vice::menu_labels()), idle(), Step::Shot],
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Break(Target::Label("irq")),
+            Step::Break(Target::Label("irq")),
+            Step::Shot,
+        ],
     );
     let shot = vice::Shot::parse(&dumps[0]);
     assert_eq!(
@@ -1770,6 +1778,8 @@ fn ac_125_the_cartridge_mark_heads_the_menu() {
         &[
             Step::Labels(vice::menu_labels()),
             idle(),
+            Step::Break(Target::Label("irq")),
+            Step::Break(Target::Label("irq")),
             Step::Shot,
             screen(),
             Step::Dump(CHARSET.0, CHARSET.1),

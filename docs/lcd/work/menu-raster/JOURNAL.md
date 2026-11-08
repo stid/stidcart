@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu wears the raster brand (D-048): white logo beside the multicolour cartridge mark, a five-scanline raster strip under the cart name, an orange selection bar, the raster interrupt safe on every path
-- **Next action:** S5, menu README, one NTSC run, then VICE live for the user
+- **Next action:** S5, the user's live run of the built menu in VICE, then S6
 - **Branch:** feat/menu-raster · **Updated:** 2026-11-08
 
 ## STEPS
@@ -95,3 +95,7 @@ menu left them.
   Green: menu_boot 36/0, root gate 237/0 with STIDCART_REQUIRE_TOOLS=1. VICE's BMP screenshots are
   4-bit with the palette in VIC-II order, so a pixel is its C64 colour number; `Shot::parse` checks
   the palette starts black, white.
+- 2026-11-08 — NTSC run (`-ntsc`, the built CLI's menu): the mark, the strip and the pane render as
+  on PAL. A capture taken at the first idle showed a pane mixing two entries: VICE's picture of the
+  frame in progress still holds the previous frame below the beam. So AC-124 and AC-125 now wait two
+  interrupts before their screenshot. README describes the brand and the interrupt. Gate 237/0.
