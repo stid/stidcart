@@ -1948,7 +1948,18 @@ fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
         let log =
             String::from_utf8_lossy(&std::fs::read(dir.join("vice.log")).unwrap()).into_owned();
         let writes = bank_writes(&log);
-        assert!(!writes.is_empty(), "{name}: no bank or mode write was seen");
+        if writes.is_empty() {
+            let internal = String::from_utf8_lossy(
+                &std::fs::read(dir.join("vice-internal.log")).unwrap_or_default(),
+            )
+            .into_owned();
+            let tail = |t: &str| t.lines().rev().take(40).collect::<Vec<_>>().join("\n");
+            panic!(
+                "{name}: no bank or mode write was seen\n-- vice.log, last lines reversed --\n{}\n-- vice-internal.log, last lines reversed --\n{}",
+                tail(&log),
+                tail(&internal)
+            );
+        }
         for (i, (masked, live)) in writes.iter().enumerate() {
             assert!(
                 *masked || !*live,
