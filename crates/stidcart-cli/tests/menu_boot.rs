@@ -2874,3 +2874,527 @@ fn ac_146_the_keyboard_works_beside_the_stick_and_no_bank_moves_under_the_interr
         );
     }
 }
+
+// --- menu-resume: after a reset the menu comes back where it was left (AC-147..AC-152, D-053) -------
+//
+// A soft reset is the monitor's `reset 0`, which keeps the EasyFlash RAM page at $DF00 as the RESET
+// button does; `reset 1` is a power cycle, which refills it with VICE's power-on pattern. `reset`
+// resumes execution itself, so its step sets the breakpoint first and sends no `g`.
+
+/// Where the menu keeps its state (D-053).
+const STATE: (u16, u16) = (0xdff6, 0xdfff);
+
+fn state() -> Step {
+    Step::Dump(STATE.0, STATE.1)
+}
+
+/// Soft-reset and stop when the menu is idle again.
+fn soft_reset() -> Step {
+    Step::Raw("break exec .menu_idle\nreset 0\ndel".into())
+}
+
+/// Power-cycle and stop when the menu is idle again.
+fn hard_reset() -> Step {
+    Step::Raw("break exec .menu_idle\nreset 1\ndel".into())
+}
+
+/// The cart the resume tests share, 33 entries in this directory order: two 8K cartridges, an xbank
+/// one, a marker program, then p01..p29 (hello.prg). A fresh boot selects "k cart a". `p99` names
+/// the marker program and `extra` appends a 34th entry: both make a cart whose directory differs.
+struct ResumeCart {
+    cart: PathBuf,
+    b: Marker,
+    x: Marker,
+    prog: Marker,
+}
+
+fn resume_cart(dir: &Path, p99: &str, extra: bool) -> ResumeCart {
+    let a = markers::cart(CartKind::K8, "CART A RAN");
+    let b = markers::cart(CartKind::K8, "CART B RAN");
+    let x = markers::cart(CartKind::Xbank8, "XBANK CART RAN");
+    let prog = markers::basic_prg("P99 PROG RAN");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let mut inputs = vec![
+        write(dir, "k cart a.crt", &a.bytes),
+        write(dir, "k cart b.crt", &b.bytes),
+        write(dir, "x cart.crt", &x.bytes),
+        write(dir, &format!("{p99}.prg"), &prog.bytes),
+    ];
+    inputs.extend((1..=29).map(|i| write(dir, &format!("p{i:02}.prg"), &hello)));
+    if extra {
+        inputs.push(write(dir, "p30.prg", &hello));
+    }
+    let cart = build(dir, "resume", &[], &inputs);
+    ResumeCart { cart, b, x, prog }
+}
+
+/// AC-147's first start: A-Z, programs only, text typed, two pages down to "p99 prog" (the 30th of
+/// 30 listed, so a fresh boot's first page can't show it), RETURN.
+fn start_p99() -> Vec<u8> {
+    let mut keys = vec![key::F1, key::F3];
+    keys.extend(typed("p"));
+    keys.extend([key::RIGHT, key::RIGHT, key::RETURN]);
+    keys
+}
+
+/// A-Z, cartridges only, text typed, down to "k cart b", RETURN.
+fn start_cart_b() -> Vec<u8> {
+    let mut keys = vec![key::F1, key::F3, key::F3];
+    keys.extend(typed("k"));
+    keys.extend([key::DOWN, key::RETURN]);
+    keys
+}
+
+/// Cartridges only, in cart order, down to "x cart", RETURN.
+fn start_xbank() -> Vec<u8> {
+    vec![key::F3, key::F3, key::DOWN, key::DOWN, key::RETURN]
+}
+
+/// The screen a boot without state shows on the resume cart.
+fn assert_fresh(s: &[u8], what: &str) {
+    assert_selected(s, "k cart a", what);
+    assert!(
+        row_shows(s, STATUS_ROW, "1 of 33   cart order   all kinds"),
+        "{what}: the menu did not start as it does without state"
+    );
+}
+
+/// `name` selected and in view, row 22 reading `status`, and no filter text.
+fn assert_resumed(s: &[u8], name: &str, status: &str, what: &str) {
+    assert_selected(s, name, what);
+    assert!(
+        row_shows(s, STATUS_ROW, status),
+        "{what}: row 22 does not read '{status}'"
+    );
+    assert!(
+        row(s, QUERY_ROW).iter().all(|b| b & 0x7f == 0x20),
+        "{what}: the filter text was kept"
+    );
+}
+
+/// Boot `cart`, stop at `entry` (the menu's first instruction, before it reads any state), write
+/// `bytes` into $DFF6-$DFFF from the monitor, and return the screen once the menu is idle.
+fn boot_with_state(dir: &Path, cart: &Path, bytes: &[u8]) -> Vec<u8> {
+    let hex: Vec<String> = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    boot_or_panic(
+        dir,
+        cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            Step::Break(Target::Label("entry")),
+            Step::Raw(format!("> ${:04x} {}", STATE.0, hex.join(" "))),
+            idle(),
+            screen(),
+        ],
+    )
+    .remove(0)
+}
+
+/// AC-147 (none): an entry started from the menu (a program and a cartridge by RETURN, an xbank
+/// cartridge, a program by SHIFT+RETURN) is selected and in view after a soft reset, with the order
+/// and kind filter it was started under and no filter text. Each start types text or moves to an
+/// entry a fresh boot doesn't select, and the order or the kind filter differs from a fresh boot's.
+#[test]
+fn ac_147_a_soft_reset_comes_back_to_the_entry_started() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-147: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac147");
+    let r = resume_cart(&dir, "p99 prog", false);
+    let mut shift = vec![key::F3];
+    shift.extend(typed("p2"));
+    shift.extend([key::DOWN, key::DOWN, key::DOWN, key::SHIFT_RETURN]);
+    for (keys, end, ran, name, status, what) in [
+        (
+            start_p99(),
+            r.prog.spin,
+            Some(&r.prog),
+            "p99 prog",
+            "30 of 30   a-z order   programs",
+            "a program by RETURN",
+        ),
+        (
+            start_cart_b(),
+            r.b.spin,
+            Some(&r.b),
+            "k cart b",
+            "2 of 3   a-z order   cartridges",
+            "a cartridge by RETURN",
+        ),
+        (
+            start_xbank(),
+            r.x.spin,
+            Some(&r.x),
+            "x cart",
+            "3 of 3   cart order   cartridges",
+            "an xbank cartridge by RETURN",
+        ),
+        (
+            shift,
+            KEY_WAIT,
+            None,
+            "p23",
+            "24 of 30   cart order   programs",
+            "a program by SHIFT+RETURN",
+        ),
+    ] {
+        let d = boot_or_panic(
+            &dir,
+            &r.cart,
+            &[
+                Step::Labels(vice::menu_labels()),
+                idle(),
+                Step::Keys(keys),
+                Step::Break(Target::Addr(end)),
+                screen(),
+                soft_reset(),
+                screen(),
+            ],
+        );
+        match ran {
+            Some(m) => assert_marker(&d[0], m),
+            None => assert!(shows(&d[0], "ready."), "{what}: no READY. prompt"),
+        }
+        assert_resumed(&d[1], name, status, what);
+    }
+}
+
+/// AC-148 (none): RUN/STOP, then a soft reset, brings back the entry that was selected, its order
+/// and its kind filter.
+#[test]
+fn ac_148_run_stop_then_a_soft_reset_comes_back_to_the_selection() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-148: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac148");
+    let r = resume_cart(&dir, "p99 prog", false);
+    let mut keys = vec![key::F1, key::F3];
+    keys.extend(typed("p1"));
+    keys.extend([key::DOWN, key::DOWN, key::DOWN, key::DOWN, key::STOP]);
+    let d = boot_or_panic(
+        &dir,
+        &r.cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Keys(keys),
+            Step::Break(Target::Addr(BASIC_MAIN)),
+            screen(),
+            soft_reset(),
+            screen(),
+        ],
+    );
+    assert!(shows(&d[0], "ready."), "RUN/STOP did not leave to BASIC");
+    assert_resumed(&d[1], "p14", "15 of 30   a-z order   programs", "RUN/STOP");
+}
+
+/// AC-149 (none): the menu boots as it does without state after a power cycle (the real `reset 1`),
+/// after any one of the ten bytes at $DFF6-$DFFF is changed, and on a cart the state wasn't written
+/// for.
+///
+/// Every refusal sits beside the same set-up restoring, so none can pass because nothing is
+/// restored at all:
+/// - power cycle: one run starts "p99 prog", soft-resets (restores), then power-cycles. The state
+///   bytes must change and the menu must start fresh.
+/// - one byte changed: one run starts "p99 prog", then for each of the ten bytes flips its low bit
+///   from the monitor and soft-resets (fresh), then writes it back and soft-resets (restores).
+/// - another cart: the ten bytes cart A wrote are written from the monitor into a boot at `entry`,
+///   before the menu reads them. In cart A's own boot they restore. In a cart with one more entry,
+///   or with the selected slot's name changed ("p99 prog" to "p98 prog", the same count), the menu
+///   starts fresh.
+#[test]
+fn ac_149_a_power_cycle_a_changed_byte_or_another_cart_starts_fresh() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-149: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac149");
+    let r = resume_cart(&dir, "p99 prog", false);
+    let resumed = "30 of 30   a-z order   programs";
+    let started = |more: Vec<Step>| {
+        let mut steps = vec![
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Keys(start_p99()),
+            Step::Break(Target::Addr(r.prog.spin)),
+            state(),
+        ];
+        steps.extend(more);
+        steps
+    };
+
+    let d = boot_or_panic(
+        &dir,
+        &r.cart,
+        &started(vec![
+            soft_reset(),
+            screen(),
+            hard_reset(),
+            screen(),
+            state(),
+        ]),
+    );
+    let written = d[0].clone();
+    assert_resumed(
+        &d[1],
+        "p99 prog",
+        resumed,
+        "the soft reset before the power cycle",
+    );
+    assert_ne!(
+        d[3], written,
+        "the power cycle left the state bytes as they were"
+    );
+    assert_fresh(&d[2], "after a power cycle");
+
+    let mut more = Vec::new();
+    for (i, &b) in written.iter().enumerate() {
+        let at = STATE.0 + i as u16;
+        more.push(Step::Raw(format!("> ${at:04x} {:02x}", b ^ 1)));
+        more.push(soft_reset());
+        more.push(screen());
+        more.push(Step::Raw(format!("> ${at:04x} {b:02x}")));
+        more.push(soft_reset());
+        more.push(screen());
+    }
+    let d = boot_or_panic(&dir, &r.cart, &started(more));
+    assert_eq!(
+        d[0], written,
+        "the state differs between two identical runs"
+    );
+    for i in 0..written.len() {
+        let at = STATE.0 + i as u16;
+        assert_fresh(&d[1 + i * 2], &format!("${at:04X} changed"));
+        assert_resumed(
+            &d[2 + i * 2],
+            "p99 prog",
+            resumed,
+            &format!("${at:04X} written back"),
+        );
+    }
+
+    assert_resumed(
+        &boot_with_state(&dir, &r.cart, &written),
+        "p99 prog",
+        resumed,
+        "cart A's state written into its own boot",
+    );
+    let count_dir = scratch("ac149-count");
+    let one_more = resume_cart(&count_dir, "p99 prog", true);
+    let s = boot_with_state(&count_dir, &one_more.cart, &written);
+    assert_selected(&s, "k cart a", "a cart with one more entry");
+    assert!(
+        row_shows(&s, STATUS_ROW, "1 of 34   cart order   all kinds"),
+        "a cart with one more entry: the menu did not start fresh"
+    );
+    let name_dir = scratch("ac149-name");
+    let renamed = resume_cart(&name_dir, "p98 prog", false);
+    assert_fresh(
+        &boot_with_state(&name_dir, &renamed.cart, &written),
+        "a cart with another name in the slot",
+    );
+}
+
+/// AC-150 (none): state whose kind filter would hide its entry selects the entry with the kind
+/// filter at all kinds, keeping the order. Cart A is [alpha.prg, beta.prg, gamma.crt], and beta is
+/// started under A-Z and programs only. Cart B is A rebuilt with beta a cartridge of the same name,
+/// so the entry count, the slot and its name all match. The bytes A wrote are written from the
+/// monitor into a boot at `entry`, before the menu reads them, as in AC-149.
+#[test]
+fn ac_150_a_kind_filter_that_hides_the_entry_falls_back_to_all() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-150: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac150");
+    let beta = markers::basic_prg("BETA RAN");
+    let gamma = markers::cart(CartKind::K8, "GAMMA");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let cart_a = build(
+        &dir,
+        "kinds a",
+        &[],
+        &[
+            write(&dir, "alpha.prg", &hello),
+            write(&dir, "beta.prg", &beta.bytes),
+            write(&dir, "gamma.crt", &gamma.bytes),
+        ],
+    );
+    let d = boot_or_panic(
+        &dir,
+        &cart_a,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Keys(vec![key::F1, key::F3, key::DOWN, key::RETURN]),
+            Step::Break(Target::Addr(beta.spin)),
+            screen(),
+            state(),
+        ],
+    );
+    assert_marker(&d[0], &beta);
+    let written = &d[1];
+    assert_resumed(
+        &boot_with_state(&dir, &cart_a, written),
+        "beta",
+        "2 of 2   a-z order   programs",
+        "cart A's own state",
+    );
+
+    let dir_b = scratch("ac150-b");
+    let beta_cart = markers::cart(CartKind::K8, "BETA CART");
+    let cart_b = build(
+        &dir_b,
+        "kinds b",
+        &[],
+        &[
+            write(&dir_b, "alpha.prg", &hello),
+            write(&dir_b, "beta.crt", &beta_cart.bytes),
+            write(&dir_b, "gamma.crt", &gamma.bytes),
+        ],
+    );
+    assert_resumed(
+        &boot_with_state(&dir_b, &cart_b, written),
+        "beta",
+        "2 of 3   a-z order   all kinds",
+        "beta now a cartridge",
+    );
+}
+
+/// AC-151 (none): the launch routines end by $DFF5 (the labels say so here, and `menu_builds.rs`
+/// shows assembly refusing one byte more), every way out leaves $DFF6-$DFFF as the menu wrote them,
+/// and AC-127/AC-128 hold through a boot that restores state (A-Z, so the sort runs at boot, and a
+/// program selected, so the pane maps its bank in).
+#[test]
+fn ac_151_the_launch_routines_leave_the_state_alone() {
+    let labels = std::fs::read_to_string(vice::menu_labels()).unwrap();
+    let ram_end = labels
+        .lines()
+        .find_map(|l| l.strip_suffix(" .ram_end")?.strip_prefix("al "))
+        .map(|a| u16::from_str_radix(a, 16).unwrap())
+        .expect("menu.lbl has no .ram_end");
+    assert!(
+        ram_end <= STATE.0,
+        "the launch routines run to ${:04X}, into the state at ${:04X}",
+        ram_end - 1,
+        STATE.0
+    );
+
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-151: skipping the boots — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac151");
+    let r = resume_cart(&dir, "p99 prog", false);
+    for (keys, handoff, end, what) in [
+        (start_p99(), "basic_go", r.prog.spin, "a program"),
+        (start_cart_b(), "cart_go", r.b.spin, "a cartridge"),
+        (start_xbank(), "cart_go", r.x.spin, "an xbank cartridge"),
+        (
+            vec![key::F3, key::DOWN, key::SHIFT_RETURN],
+            "basic_go",
+            KEY_WAIT,
+            "a program by SHIFT+RETURN",
+        ),
+        (vec![key::DOWN, key::STOP], "leave", BASIC_MAIN, "RUN/STOP"),
+    ] {
+        let d = boot_or_panic(
+            &dir,
+            &r.cart,
+            &[
+                Step::Labels(vice::menu_labels()),
+                idle(),
+                state(),
+                Step::Keys(keys),
+                Step::Break(Target::Label(handoff)),
+                state(),
+                Step::Break(Target::Addr(end)),
+                state(),
+            ],
+        );
+        assert_ne!(
+            d[1], d[0],
+            "{what}: the menu wrote no state before {handoff}"
+        );
+        assert_eq!(d[2], d[1], "{what}: the state changed after {handoff}");
+    }
+
+    // AC-127 through the restoring boot: the watch is set before the soft reset and logs every bank
+    // or mode write until the menu is idle again. AC-147's first case shows this boot restores.
+    let dir = scratch("ac151-watch");
+    let r = resume_cart(&dir, "p99 prog", false);
+    let mut steps = vec![
+        Step::Labels(vice::menu_labels()),
+        idle(),
+        Step::Keys(start_p99()),
+        Step::Break(Target::Addr(r.prog.spin)),
+        Step::Raw(
+            "logname \"monlog.txt\"\nlog on\nwatch store $de00\nwatch store $de02\nreset 0\n\
+             r\nm $d01a $d01a"
+                .into(),
+        ),
+    ];
+    steps.extend((0..40).map(|_| Step::Raw("g\nr\nm $d01a $d01a".into())));
+    // The run ends at the cycle limit once the writes stop; only the log is read.
+    let _ = vice::boot(&dir, &r.cart, &steps);
+    let log = String::from_utf8_lossy(&std::fs::read(dir.join("monlog.txt")).unwrap_or_default())
+        .into_owned();
+    let writes = bank_writes(&log);
+    assert!(
+        writes.len() >= 3,
+        "only {} bank or mode writes seen through the restoring boot",
+        writes.len()
+    );
+    for (i, (masked, live)) in writes.iter().enumerate() {
+        assert!(
+            *masked || !*live,
+            "restoring boot: write {i} to $DE00/$DE02 with the raster interrupt live and unmasked"
+        );
+    }
+
+    // AC-128 after a restore: RETURN starts the restored entry and leaves the stock interrupts.
+    let dir = scratch("ac151-exit");
+    let r = resume_cart(&dir, "p99 prog", false);
+    let d = boot_or_panic(
+        &dir,
+        &r.cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Keys(start_p99()),
+            Step::Break(Target::Addr(r.prog.spin)),
+            soft_reset(),
+            Step::Keys(vec![key::RETURN]),
+            Step::Break(Target::Addr(r.prog.spin)),
+            screen(),
+            Step::Dump(0x0314, 0x0315),
+            Step::Dump(0xd01a, 0xd01a),
+        ],
+    );
+    assert_marker(&d[0], &r.prog);
+    assert_eq!(d[1], [0x31, 0xea], "after a restore: the IRQ vector");
+    assert_eq!(d[2][0] & 0x0f, 0, "after a restore: a VIC interrupt");
+}
+
+/// AC-152 (none): the F7 help names the joystick in port 2 and what it does: move, page, fire.
+#[test]
+fn ac_152_the_help_names_the_joystick() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-152: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac152");
+    let cart = numbered_cart(&dir, 3);
+    let help = screens_after(&dir, &cart, &[vec![key::F7]]).remove(0);
+    let line = (LIST_ROWS.start..HELP_ROW)
+        .find(|&n| row_shows(&help, n, "joystick"))
+        .expect("the help does not name the joystick");
+    for word in ["port 2", "move", "page", "fire"] {
+        assert!(
+            row_shows(&help, line, word),
+            "the help's joystick line does not say '{word}'"
+        );
+    }
+}

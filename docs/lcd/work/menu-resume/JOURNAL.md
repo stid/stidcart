@@ -12,14 +12,14 @@
 
 - **Lane:** Standard
 - **Goal:** After a soft reset our C64 menu comes back with the entry, order and kind filter it was left with, kept in `$DFF6-$DFFF` behind a magic, a cart check and a checksum (D-053)
-- **Next action:** S3 — failing boot tests for AC-147..AC-152
+- **Next action:** S4 — implement in `menu.s`/`launch.s` (shrink launch.s first: it ends at `$DFF6` today)
 - **Branch:** feat/menu-resume · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.19.0 → 0.20.0 (first commit on the branch)
 - [x] S2 — triage, D-053, AC-147..AC-152 claimed, this JOURNAL
-- [ ] S3 — failing boot tests in `menu_boot.rs` (and a reset step in `support/vice.rs` if needed) for AC-147..AC-152
+- [x] S3 — failing boot tests in `menu_boot.rs` for AC-147..AC-152, and the assembly cap in `menu_builds.rs`
 - [ ] S4 — implement in `menu/src/menu.s` and `launch.s` (cap `$DFF5`), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
@@ -96,3 +96,13 @@ page, fire) beside the keys.
   whether the RESET/MENU button runs EF3's own menu first (which might use `$DF00`) is a
   hypothesis. The F7 help gains the joystick line menu-joystick left out (AC-152). AC-147..AC-152
   claimed, next free AC-153.
+- 2026-11-08 — S3. Recon slip in the triage: `.ram_end` is `$DFF7`, so `p_only` sits at `$DFF6` and
+  only 9 bytes are free; launch.s must shrink before the cap can drop (D-053 stands). Verified again
+  in VICE: soft reset keeps the page, hard reset refills `$DFF7-$DFFF` with the power-on pattern,
+  `break exec .entry` + `reset 0` stops before the menu reads anything. Tests: AC-147 (four starts
+  incl. xbank), AC-148, AC-149 (power cycle, each of 10 bytes flipped then restored in one run,
+  another cart by writing A's bytes at `entry` into B: one more entry / renamed slot, with A's own
+  boot as control), AC-150 (beta.prg → beta.crt rebuild), AC-151 (labels, hand-off vs end dumps on
+  five exits, AC-127 watch and AC-128 after a restoring boot; cap refusal in `menu_builds.rs`),
+  AC-152. Red run: all 7 fail for the right reason — not restored ('p99 prog' not selected,
+  'p14' not listed, 'beta' not selected), ram_end `$DFF7`, "help does not name the joystick".
