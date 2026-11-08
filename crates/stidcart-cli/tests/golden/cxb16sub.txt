@@ -4,9 +4,9 @@ cart: cxb16
 built by: ndefpack 1.0.1
 menu: EasyLoader
 
-    #  name              flags  type    bank  layout            size
-    0  hello2            -      PRG      $05  $0000          $000066
-    1  in_xb16           S      XB16     $01  L4@0,H4@0      $010000
+    #  name              flags  type    bank  layout              size
+    0  hello2            -      PRG      $05  $0000          102 bytes
+    1  in_xb16           S      XB16     $01  L4@0,H4@0          64 KB
 
-2 entries, $0ebf9a (966554) bytes free
+2 entries, 943.9 KB free
 -- stderr --

@@ -32,15 +32,45 @@ pub struct Row {
     /// `H` hidden, `A` 64 KB aligned, `S` subdirectory bit, in that order; `-` when none is set.
     pub flags: String,
     pub kind: &'static str,
+    /// The kind's family, grouping kinds as our C64 menu's badges do (D-045): `prg`, `8k`, `16k`,
+    /// `ult`, `xb`, or `other` for the kinds our menu doesn't start.
+    pub family: &'static str,
     pub bank: String,
     pub layout: String,
+    /// The size as the listing reads it ([`readable_size`]).
     pub size: String,
+    /// The exact size in bytes, for a renderer that offers it (`list --bytes`, the window's hover).
+    pub size_bytes: usize,
 }
 
 impl Listing {
-    /// The free figure as the listing displays it: hex, then decimal in parentheses.
+    /// The free figure as the listing displays it ([`readable_size`]).
     pub fn free_text(&self) -> String {
-        format!("${:06x} ({})", self.free, self.free)
+        readable_size(self.free)
+    }
+}
+
+/// A byte count as the listing reads it (D-044): bytes under 1 KB ("652 bytes", "1 byte"), then
+/// 1024-based KB with one decimal rounded half up ("1.1 KB", "10.0 KB"), whole for an exact
+/// multiple ("8 KB"), and MB the same way once it rounds to 1024 KB or more.
+pub fn readable_size(bytes: usize) -> String {
+    const KB: usize = 1024;
+    const MB: usize = 1024 * KB;
+    if bytes < KB {
+        return format!("{bytes} {}", if bytes == 1 { "byte" } else { "bytes" });
+    }
+    let unit = |size: usize, name: &str| {
+        if bytes.is_multiple_of(size) {
+            return format!("{} {name}", bytes / size);
+        }
+        let tenths = (bytes * 10 + size / 2) / size;
+        format!("{}.{} {name}", tenths / 10, tenths % 10)
+    };
+    let kb_tenths = (bytes * 10 + KB / 2) / KB;
+    if bytes >= MB || kb_tenths >= 10240 {
+        unit(MB, "MB")
+    } else {
+        unit(KB, "KB")
     }
 }
 
@@ -62,9 +92,11 @@ pub fn describe(bytes: &[u8]) -> Result<Listing, ReadError> {
             name: e.name.clone(),
             flags: flags(e),
             kind: kind_label(e.kind),
+            family: kind_family(e.kind),
             bank: format!("${:02x}", e.bank),
             layout: layout(e),
-            size: format!("${:06x}", e.size),
+            size: readable_size(e.size as usize),
+            size_bytes: e.size as usize,
         })
         .collect();
     // The cartridge name and every entry name arrive through the machine's own character mapping,
@@ -114,6 +146,18 @@ fn kind_label(kind: EntryType) -> &'static str {
         EntryType::XbankUltimax => "XBULT",
         // The walk never yields an end marker as an entry.
         EntryType::End => "END",
+    }
+}
+
+/// The family of a kind, as our menu groups kinds into its five badges (D-041, D-045).
+fn kind_family(kind: EntryType) -> &'static str {
+    match kind {
+        EntryType::Prg | EntryType::PrgRomL | EntryType::PrgRomH => "prg",
+        EntryType::K8 => "8k",
+        EntryType::K16 => "16k",
+        EntryType::Ultimax8 | EntryType::Ultimax16 => "ult",
+        EntryType::Xbank8 | EntryType::Xbank16 | EntryType::XbankUltimax => "xb",
+        EntryType::Ocean | EntryType::Ocean512 | EntryType::End => "other",
     }
 }
 

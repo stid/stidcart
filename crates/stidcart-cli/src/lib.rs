@@ -17,7 +17,7 @@ use stidcart_core::{CartBuilder, Entry, InputError};
 
 const USAGE: &str = "\
 usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT]... -o OUTPUT INPUT...
-       stidcart list CART.crt
+       stidcart list [--bytes] CART.crt
        stidcart edit CART.crt [-o OUTPUT] [OPERATION]...
 
   build           create a cartridge image from programs and cartridge images
@@ -29,7 +29,8 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   INPUT           a .prg, or a cartridge image (recognised by content: generic 8k/16k/Ultimax,
                   Ocean, EasyFlash xbank); the entry name is the file stem
 
-  list            show what a cartridge image contains
+  list            show what a cartridge image contains, sizes in bytes, KB or MB
+  --bytes         give every size and the free space as exact byte counts
   CART.crt        the image to read
 
   edit            change an existing image, writing over it unless -o is given
@@ -330,9 +331,11 @@ fn write_replacing(path: &str, bytes: &[u8]) -> Result<(), String> {
 /// hypothetical image rather than the file named on the command line.
 fn list(args: &[String]) -> Result<(), String> {
     let mut path: Option<&str> = None;
+    let mut exact = false;
     for arg in args {
         match arg.as_str() {
             "-h" | "--help" => return Err(USAGE.to_string()),
+            "--bytes" => exact = true,
             other if other.starts_with('-') => return Err(format!("unknown option '{other}'")),
             other if path.is_none() => path = Some(other),
             other => return Err(format!("list takes one image; also given '{other}'")),
@@ -342,14 +345,14 @@ fn list(args: &[String]) -> Result<(), String> {
 
     let bytes = std::fs::read(path).map_err(|e| format!("reading '{path}': {e}"))?;
     let listing = listing::describe(&bytes).map_err(|e| e.to_string())?;
-    print!("{}", render(&listing));
+    print!("{}", render(&listing, exact));
     Ok(())
 }
 
 /// The listing's layout. The values come from the core, shared with the GUI (D-032); this owns
 /// only the columns and the wording around them, kept apart from the printing so tests can assert
-/// on the string.
-fn render(l: &Listing) -> String {
+/// on the string. `exact` prints every size and the free figure as exact byte counts (D-044).
+fn render(l: &Listing, exact: bool) -> String {
     let mut out = String::new();
     out.push_str(&format!("cart: {}\n", l.cart));
     out.push_str(&format!("built by: {}\n", l.built_by));
@@ -359,26 +362,35 @@ fn render(l: &Listing) -> String {
         out.push_str("  (no entries)\n");
     } else {
         out.push_str(&format!(
-            "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>8}\n",
+            "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>10}\n",
             "#", "name", "flags", "type", "bank", "layout", "size"
         ));
         for r in &l.rows {
+            let size = if exact {
+                r.size_bytes.to_string()
+            } else {
+                r.size.clone()
+            };
             out.push_str(&format!(
-                "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>8}\n",
-                r.index, r.name, r.flags, r.kind, r.bank, r.layout, r.size,
+                "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>10}\n",
+                r.index, r.name, r.flags, r.kind, r.bank, r.layout, size,
             ));
         }
     }
 
+    let free = if exact {
+        format!("{} bytes", l.free)
+    } else {
+        l.free_text()
+    };
     out.push_str(&format!(
-        "\n{} {}, {} bytes free\n",
+        "\n{} {}, {free} free\n",
         l.rows.len(),
         if l.rows.len() == 1 {
             "entry"
         } else {
             "entries"
         },
-        l.free_text()
     ));
     out
 }

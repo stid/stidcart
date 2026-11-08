@@ -46,7 +46,7 @@ fn fixtures_with_goldens() -> Vec<(String, Vec<u8>, i32, String, String)> {
 /// One row as `list` lays it out — the column layout stays in the CLI, the values come from core.
 fn row_line(r: &Row) -> String {
     format!(
-        "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>8}",
+        "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>10}",
         r.index, r.name, r.flags, r.kind, r.bank, r.layout, r.size
     )
 }
@@ -88,11 +88,18 @@ fn ac_51_render_describe_yields_lists_values_for_every_fixture() {
 
         let last = lines.last().unwrap();
         assert!(
-            last.contains(&format!(", {} bytes free", l.free_text())),
+            last.contains(&format!(", {} free", l.free_text())),
             "{name}: free figure {:?} not in {last:?}",
             l.free_text()
         );
-        assert_eq!(l.free_text(), format!("${:06x} ({})", l.free, l.free));
+        assert_eq!(l.free_text(), listing::readable_size(l.free));
+        for r in &l.rows {
+            assert_eq!(
+                r.size,
+                listing::readable_size(r.size_bytes),
+                "{name}: size text"
+            );
+        }
     }
     assert!(listed > 10, "only {listed} listable fixtures found");
 }
@@ -122,4 +129,78 @@ fn ac_51_render_header_name_control_characters_become_dots() {
         .unwrap();
     let l = listing::describe(&bytes).unwrap();
     assert_eq!(l.built_by, "evil.[2Jname.");
+}
+
+/// The size text the listing gives, for `list` and the window alike (readable-sizes, D-044): bytes
+/// under 1 KB, then 1024-based KB with one decimal rounded half up, whole for an exact multiple,
+/// then MB the same way.
+#[test]
+fn sizes_read_as_bytes_kb_or_mb() {
+    for (bytes, want) in [
+        (0, "0 bytes"),
+        (1, "1 byte"),
+        (652, "652 bytes"),
+        (1023, "1023 bytes"),
+        (1024, "1 KB"),
+        (1075, "1.0 KB"),
+        (1076, "1.1 KB"),
+        (8192, "8 KB"),
+        (10195, "10.0 KB"),
+        (16384, "16 KB"),
+        (593458, "579.5 KB"),
+        (925696, "904 KB"),
+        (1048575, "1.0 MB"),
+        (1048576, "1 MB"),
+        (1572864, "1.5 MB"),
+    ] {
+        assert_eq!(listing::readable_size(bytes), want, "{bytes} bytes");
+    }
+}
+
+/// Each row carries the exact byte count its size text rounds.
+#[test]
+fn every_row_carries_its_exact_size() {
+    let bytes = std::fs::read(fixtures().join("cmixed.crt")).unwrap();
+    let l = listing::describe(&bytes).unwrap();
+    let info = stidcart_core::read::inspect(&bytes).unwrap();
+    let exact: Vec<usize> = info.entries.iter().map(|e| e.size as usize).collect();
+    let rows: Vec<usize> = l.rows.iter().map(|r| r.size_bytes).collect();
+    assert_eq!(rows, exact);
+}
+
+/// Each row's family follows its entry type, grouping kinds the way our menu's badges do (D-045).
+#[test]
+fn every_row_carries_its_kind_family() {
+    let family_of = |label: &str| match label {
+        "PRG" | "PRG-L" | "PRG-H" => "prg",
+        "8K" => "8k",
+        "16K" => "16k",
+        "ULT8" | "ULT16" => "ult",
+        "XB8" | "XB16" | "XBULT" => "xb",
+        _ => "other",
+    };
+    let mut kinds = std::collections::BTreeSet::new();
+    for (name, bytes, code, _, _) in fixtures_with_goldens() {
+        if code != 0 {
+            continue;
+        }
+        for r in listing::describe(&bytes).unwrap().rows {
+            assert_eq!(
+                r.family,
+                family_of(r.kind),
+                "{name}: {} '{}'",
+                r.kind,
+                r.name
+            );
+            kinds.insert(r.kind);
+        }
+    }
+    for label in [
+        "PRG", "8K", "16K", "ULT8", "ULT16", "XB8", "XB16", "XBULT", "OCEAN",
+    ] {
+        assert!(
+            kinds.contains(label),
+            "no fixture lists a {label} entry, so it is untested"
+        );
+    }
 }

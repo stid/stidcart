@@ -47,6 +47,19 @@
   --danger-soft: rgba(209, 52, 58, 0.08);
   --badge-bg: #f1f1f3;
   --badge-text: #46464f;
+  /* Type badges in our C64 menu's colours (D-045): light green, yellow, light red, purple,
+     light blue, darkened for contrast on white. 8K is a warmer yellow than the C64's own, which
+     leans green and read too close to PRG. */
+  --kind-prg-bg: rgba(88, 141, 67, 0.14);
+  --kind-prg-text: #3b6a2a;
+  --kind-8k-bg: rgba(214, 165, 20, 0.2);
+  --kind-8k-text: #7a5600;
+  --kind-16k-bg: rgba(154, 103, 89, 0.16);
+  --kind-16k-text: #8a4535;
+  --kind-ult-bg: rgba(111, 61, 134, 0.13);
+  --kind-ult-text: #6f3d86;
+  --kind-xb-bg: rgba(108, 94, 181, 0.14);
+  --kind-xb-text: #4d42a0;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
@@ -68,6 +81,16 @@
     --danger-soft: rgba(255, 107, 112, 0.1);
     --badge-bg: #2a2a31;
     --badge-text: #c9c9d1;
+    --kind-prg-bg: rgba(154, 210, 132, 0.14);
+    --kind-prg-text: #9ad284;
+    --kind-8k-bg: rgba(240, 190, 60, 0.18);
+    --kind-8k-text: #f2c84b;
+    --kind-16k-bg: rgba(154, 103, 89, 0.28);
+    --kind-16k-text: #d8988a;
+    --kind-ult-bg: rgba(111, 61, 134, 0.34);
+    --kind-ult-text: #c49ad8;
+    --kind-xb-bg: rgba(108, 94, 181, 0.3);
+    --kind-xb-text: #aaa1ec;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
 }

@@ -78,7 +78,8 @@ Building the write path first defers that decision instead of pre-empting it.
 ```bash
 cargo test --workspace
 cargo run -p stidcart-cli -- build -e "name" -o out.crt some.prg
-cargo run -p stidcart-cli -- list out.crt
+cargo run -p stidcart-cli -- list out.crt          # sizes as "652 bytes", "10.0 KB", "1 MB"
+cargo run -p stidcart-cli -- list --bytes out.crt  # every size and the free space as exact bytes
 cargo run -p stidcart-cli -- edit out.crt --rename 0 "new name" --add another.prg
 cargo run -p stidcart-cli -- build --menu stidcart -e "name" -o ours.crt some.prg
 menu/build.sh menu/      # reassemble the menu after changing menu/src (64tass)
@@ -92,7 +93,8 @@ tests skip, except under `STIDCART_REQUIRE_TOOLS=1`, which CI sets, where a miss
 
 Open a `.crt` with Open…, ⌘O or by dropping it on the window. It shows the cart name, the
 producing tool, every entry and the free space: the values `list` prints, from the same code
-(D-032). A file it can't describe shows the same reason `list` gives.
+(D-032). Sizes read in bytes, KB or MB; hover one to see its exact byte count (D-044). A file it
+can't describe shows the same reason `list` gives.
 
 The window edits what `edit` edits:
 - Drop programs or cartridge images on an open cart, or use Add… / Add Aligned….

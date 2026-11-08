@@ -7,26 +7,30 @@
     "builtBy": "ndefpack 1.0.1",
     "cart": "cxb16",
     "free": 966554,
-    "freeText": "$0ebf9a (966554)",
+    "freeText": "943.9 KB",
     "menu": "EasyLoader",
     "rows": [
       {
         "bank": "$05",
+        "family": "prg",
         "flags": "H",
         "index": 0,
         "kind": "PRG",
         "layout": "$0000",
         "name": "hello",
-        "size": "$000066"
+        "size": "102 bytes",
+        "sizeBytes": 102
       },
       {
         "bank": "$01",
+        "family": "xb",
         "flags": "-",
         "index": 1,
         "kind": "XB16",
         "layout": "L4@0,H4@0",
         "name": "in_xb16",
-        "size": "$010000"
+        "size": "64 KB",
+        "sizeBytes": 65536
       }
     ]
   },

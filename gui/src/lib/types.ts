@@ -10,7 +10,13 @@ export interface Row {
   kind: string;
   bank: string;
   layout: string;
+  /** The size as the listing reads it: "652 bytes", "10.0 KB", "1 MB" (D-044). */
   size: string;
+  /** The exact size in bytes, shown on hover. */
+  sizeBytes: number;
+  /** The kind's family, which picks the type badge's colour as our menu does (D-045): `prg`,
+   * `8k`, `16k`, `ult`, `xb`, or `other`. */
+  family: string;
 }
 
 export interface Listing {

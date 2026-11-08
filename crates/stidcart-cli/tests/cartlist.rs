@@ -14,8 +14,14 @@ fn fixtures() -> PathBuf {
 }
 
 fn list(name: &str) -> String {
+    list_with(name, &[])
+}
+
+/// `list [options] <fixture>`, which must succeed.
+fn list_with(name: &str, options: &[&str]) -> String {
     let out = stidcart()
         .arg("list")
+        .args(options)
         .arg(fixtures().join(name))
         .output()
         .unwrap();
@@ -110,9 +116,9 @@ fn ac_46_render_free_bytes_account_for_cartridge_occupied_banks() {
         ("cmixed.crt", cmixed),
         ("cocean512.crt", cocean512),
     ] {
-        let out = list(name);
+        let out = list_with(name, &["--bytes"]);
         assert!(
-            out.contains(&format!("${free:06x} ({free}) bytes free")),
+            out.contains(&format!(", {free} bytes free")),
             "{name}: expected {free:#x} free in:\n{out}"
         );
         assert!(

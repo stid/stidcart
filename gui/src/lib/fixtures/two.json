@@ -2,26 +2,30 @@
   "builtBy": "ndefpack 1.0.1",
   "cart": "two entries",
   "free": 1029088,
-  "freeText": "$0fb3e0 (1029088)",
+  "freeText": "1005.0 KB",
   "menu": "EasyLoader",
   "rows": [
     {
       "bank": "$01",
+      "family": "prg",
       "flags": "-",
       "index": 0,
       "kind": "PRG",
       "layout": "$0bba",
       "name": "hello",
-      "size": "$000066"
+      "size": "102 bytes",
+      "sizeBytes": 102
     },
     {
       "bank": "$01",
+      "family": "prg",
       "flags": "-",
       "index": 1,
       "kind": "PRG",
       "layout": "$0000",
       "name": "ramp",
-      "size": "$000bba"
+      "size": "2.9 KB",
+      "sizeBytes": 3002
     }
   ]
 }

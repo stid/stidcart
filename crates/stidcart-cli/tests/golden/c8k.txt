@@ -4,9 +4,9 @@ cart: c8k
 built by: ndefpack 1.0.1
 menu: EasyLoader
 
-    #  name              flags  type    bank  layout            size
-    0  hello             -      PRG      $01  $2000          $000066
-    1  in_8k             -      8K       $01  L1@0           $002000
+    #  name              flags  type    bank  layout              size
+    0  hello             -      PRG      $01  $2000          102 bytes
+    1  in_8k             -      8K       $01  L1@0                8 KB
 
-2 entries, $0f9f9a (1023898) bytes free
+2 entries, 999.9 KB free
 -- stderr --

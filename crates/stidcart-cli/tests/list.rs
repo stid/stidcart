@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use stidcart_core::directory::{self, DirEntry, EntryType};
-use stidcart_core::{crt, read, reserved, CartBuilder};
+use stidcart_core::{crt, listing, read, reserved, CartBuilder};
 
 fn stidcart() -> Command {
     Command::new(env!("CARGO_BIN_EXE_stidcart"))
@@ -61,7 +61,11 @@ fn ac_1_cli_list_prints_every_entry_with_its_position_and_size() {
         // (Both names in `two.crt` are single words, so splitting on whitespace lines up with the
         // columns. A name with a space in it would not, which is why the hidden-entry case below
         // checks its marker rather than reusing this.)
-        let cols: Vec<&str> = line.split_whitespace().collect();
+        // The size reads "102 bytes" or "2.9 KB" (D-044), so its words are joined back into one.
+        let words: Vec<&str> = line.split_whitespace().collect();
+        let size = words[6.min(words.len())..].join(" ");
+        let mut cols: Vec<&str> = words.iter().take(6).copied().collect();
+        cols.push(&size);
         let want = [
             ("index", i.to_string()),
             ("name", entry.name.clone()),
@@ -69,7 +73,7 @@ fn ac_1_cli_list_prints_every_entry_with_its_position_and_size() {
             ("type", "PRG".to_string()),
             ("bank", format!("${:02x}", entry.bank)),
             ("offset", format!("${:04x}", entry.offset)),
-            ("size", format!("${:06x}", entry.size)),
+            ("size", listing::readable_size(entry.size as usize)),
         ];
         assert_eq!(
             cols.len(),
@@ -115,7 +119,7 @@ fn ac_3_cli_list_reports_free_space_less_the_entries_present() {
         "spill.crt holds an entry, so free space must be below the empty capacity"
     );
     assert!(
-        stdout.contains(&free.to_string()) || stdout.contains(&format!("{free:x}")),
+        stdout.contains(&format!(", {} free", listing::readable_size(free))),
         "free space ({free}) should be stated, got:\n{stdout}"
     );
 }
@@ -297,5 +301,73 @@ fn ac_13_cli_list_refuses_an_old_format_cartridge() {
     assert!(
         String::from_utf8_lossy(&result.stdout).trim().is_empty(),
         "no entry decoded under the wrong format may be printed"
+    );
+}
+
+/// The row lines `list` printed, after the column header and up to the blank line.
+fn row_lines(stdout: &str) -> Vec<String> {
+    stdout
+        .lines()
+        .skip_while(|l| !l.trim_start().starts_with('#'))
+        .skip(1)
+        .take_while(|l| !l.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+// AC-115 (CLI): sizes and the free figure read as bytes, KB with one decimal, or MB
+#[test]
+fn ac_115_cli_list_shows_sizes_and_free_space_readably() {
+    let stdout = String::from_utf8_lossy(&list("cmixed.crt").stdout).into_owned();
+    let want = [
+        "8 KB",
+        "16 KB",
+        "16 KB",
+        "32 KB",
+        "102 bytes",
+        "2.9 KB",
+        "19.5 KB",
+    ];
+    let rows = row_lines(&stdout);
+    assert_eq!(rows.len(), want.len(), "rows in:\n{stdout}");
+    for (row, size) in rows.iter().zip(want) {
+        assert!(
+            row.ends_with(&format!("  {size}")),
+            "{row:?} does not end in {size:?}"
+        );
+        assert!(!row.contains("$00"), "{row:?} still shows a hex size");
+    }
+    assert!(
+        stdout.ends_with("7 entries, 904 KB free\n"),
+        "free figure in:\n{stdout}"
+    );
+}
+
+// AC-116 (CLI): `list --bytes` gives every size and the free figure as exact byte counts
+#[test]
+fn ac_116_cli_list_bytes_shows_exact_byte_counts() {
+    let out = stidcart()
+        .args(["list", "--bytes"])
+        .arg(fixtures().join("cmixed.crt"))
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    let want = ["8192", "16384", "16384", "32768", "102", "3002", "20002"];
+    let rows = row_lines(&stdout);
+    assert_eq!(rows.len(), want.len(), "rows in:\n{stdout}");
+    for (row, size) in rows.iter().zip(want) {
+        assert!(
+            row.ends_with(&format!("  {size}")),
+            "{row:?} does not end in {size:?}"
+        );
+    }
+    assert!(
+        stdout.ends_with("7 entries, 925696 bytes free\n"),
+        "free figure in:\n{stdout}"
     );
 }
