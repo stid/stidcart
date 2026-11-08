@@ -12,14 +12,14 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu reads the `STIDCART.META` entry once at boot and shows titles in the list, the full title, year, author and note in the pane, and groups as folders (D-057)
-- **Next action:** S3 — failing boot tests for AC-166..AC-169
+- **Next action:** S4 — implement in `menu/src/menu.s`, rebuild, pin the new build
 - **Branch:** feat/menu-folders · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.22.0 → 0.23.0 (first commit on the branch)
 - [x] S2 — triage, D-057, AC-166..AC-169 (from the approved menu-meta spec's M-8..M-11), this JOURNAL
-- [ ] S3 — failing boot tests in `menu_boot.rs` for AC-166..AC-169 (carts built with `edit --title/--group/...` or the core API)
+- [x] S3 — failing boot tests in `menu_boot.rs` for AC-166..AC-169 (carts built with `edit --title/--group/...` or the core API)
 - [ ] S4 — implement in `menu/src/menu.s` (and `launch.s` if the copy loop lives there), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, the F7 help (folder keys), gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
@@ -115,3 +115,10 @@ A record whose stored name doesn't match its slot is ignored.
     it, and a program the menu starts may overwrite it.
   - **ROM:** 2689 bytes free after menu-highmem.
   - **Ids:** AC-166..AC-169 claimed, next free AC-170.
+- 2026-11-08 — S3: four boot tests at the end of `menu_boot.rs`. AC-166/167/168 build carts with
+  `edit --title/--group/...`. AC-169 builds hand-made payloads as a hidden `stidcart.meta.prg`
+  input: a valid 16 KB one (records last, so the copy must cross a bank) and four that each differ
+  in one respect, compared screen for screen with the cart without metadata, plus a watch through
+  `reset 0` that wants every bank write masked and one from `$0100`. AC-127 gains a fifth scenario
+  on a grouped cart. Red run: all four fail on screen assertions (rows show names, not titles or
+  folders); AC-127 passes.
