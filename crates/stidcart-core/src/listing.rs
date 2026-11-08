@@ -15,8 +15,8 @@ pub struct Listing {
     pub cart: String,
     /// The container header name — the producing tool — with control characters replaced.
     pub built_by: String,
-    /// The C64-side menu the cart boots into: `EasyLoader`, `stidcart`, or `unrecognised` when the
-    /// loader slot holds neither (D-038).
+    /// The C64-side menu the cart boots into: `EasyLoader`, `stidcart`, `stidcart (older build)` for
+    /// an earlier build of ours (D-049), or `unrecognised` when the loader slot holds none (D-038).
     pub menu: String,
     /// One row per directory entry, in slot order.
     pub rows: Vec<Row>,

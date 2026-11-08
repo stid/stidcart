@@ -29,7 +29,7 @@
 use crate::cartridge::Cartridge;
 use crate::directory::{self, DirEntry, EntryType, Slot, ENTRY_LEN};
 use crate::image::{BANK_SIZE, N_BANKS};
-use crate::menu::Menu;
+use crate::menu::Recognised;
 use crate::place::Placer;
 use crate::reserved::Mode;
 use crate::{crt, reserved, CartBuilder, Program};
@@ -270,9 +270,10 @@ pub struct CartInfo {
     pub ef_name: String,
     /// The directory in slot order, which is the order the menu lists.
     pub entries: Vec<DirEntry>,
-    /// Which menu the loader slot holds, or `None` when it is neither this crate embeds. Reported,
-    /// never refused on: only `load` requires a known menu (D-011, D-038).
-    pub menu: Option<Menu>,
+    /// Which menu the loader slot holds, or `None` when it is neither this crate embeds nor an
+    /// earlier build of ours. Reported, never refused on: only `load` requires a known menu
+    /// (D-011, D-038, D-049).
+    pub menu: Option<Recognised>,
 }
 
 impl CartInfo {

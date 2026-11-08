@@ -266,3 +266,44 @@ fn ac_113_render_a_cart_our_menu_cannot_run_refuses_it_unchanged() {
     );
     assert_eq!(menu_of(&doc), "EasyLoader");
 }
+
+/// Two programs with our menu, then the 5b54e81 build in the loader slot (bank 0 ROML), as a cart
+/// made by stidcart 0.15 carries it.
+fn older(dir: &Path) -> PathBuf {
+    let built = std::fs::read(ours(dir)).unwrap();
+    let mut container = stidcart_core::crt::parse(&built).unwrap();
+    container
+        .image
+        .write_at(0, include_bytes!("../../../menu/past/5b54e81.bin"));
+    let cart = dir.join("older.crt");
+    std::fs::write(
+        &cart,
+        stidcart_core::crt::write(&container.image, &container.header_name),
+    )
+    .unwrap();
+    cart
+}
+
+// AC-130 (RENDER): an earlier build opens editable, and choosing stidcart writes the current build
+#[test]
+fn ac_130_render_an_older_build_opens_editable_and_upgrades_as_an_edit() {
+    let dir = scratch("ac130");
+    let mut doc = Document::open(&older(&dir)).unwrap();
+    assert_eq!(doc.dto().read_only, None, "an older build opened view-only");
+    assert_eq!(menu_of(&doc), "stidcart (older build)");
+
+    doc.apply(Edit::SetMenu {
+        menu: s("stidcart"),
+    })
+    .unwrap();
+    assert_eq!(menu_of(&doc), "stidcart");
+    let image = stidcart_core::crt::parse(doc.bytes()).unwrap().image;
+    assert_eq!(
+        &image.as_bytes()[..0x2000],
+        stidcart_core::menu::STIDCART_MENU
+    );
+    assert!(doc.dto().dirty && doc.dto().can_undo);
+
+    doc.undo();
+    assert_eq!(menu_of(&doc), "stidcart (older build)");
+}

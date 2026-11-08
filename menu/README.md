@@ -89,5 +89,11 @@ committed so building the Rust crates never needs the assembler. `stidcart-core`
 reassembles the source and fails if either file differs, or if the menu outgrows the slot. In CI,
 64tass is required, so that check always runs.
 
+Carts built before a change keep the build they were made with, and stidcart still edits them (D-049).
+Each earlier build is recognised by its fingerprint, listed in `crates/stidcart-core/src/menu.rs`, and
+saving such a cart writes the current build. When `menu.bin` changes, the `menu_builds` test fails
+until the replaced build's fingerprint is added to that list. `past/5b54e81.bin` is the build
+stidcart 0.15 wrote; the tests use it to make a cart that carries an earlier build.
+
 The evidence that the menu works is VICE, because the reference tool knows nothing of it:
 `crates/stidcart-cli/tests/menu_boot.rs` boots carts and reads the screen back (AC-87..AC-92).
