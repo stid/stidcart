@@ -20,7 +20,9 @@
   menu refuses). It's mapped from the entry type, never parsed from the label. The window tints the
   badge in that family's colour: light green, yellow, light red, purple and light blue as on the C64,
   and neutral for `other`. Each colour has a light-mode and a dark-mode pair, picked for contrast
-  rather than copied, since raw C64 yellow on white can't be read.
+  rather than copied, since raw C64 yellow on white can't be read. 8K uses a warmer amber-yellow
+  than the C64's own greenish yellow: in the dark theme the first one read too close to PRG's green
+  (user's live check).
 - **Alternatives rejected:** the raw C64 palette, unreadable in light mode. Deriving the family
   from the label in the window, which the types file rules out for decisions about a row. Colour in
   `list`, where a terminal's palette is the user's own.

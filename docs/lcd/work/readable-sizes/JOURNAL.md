@@ -112,4 +112,7 @@ comes from the entry type, with a light-mode and a dark-mode colour pair for eac
   working, go ahead with the PR").
 - 2026-11-08 — audit: PASS (test-presence). `AC-115 (CLI)` and `AC-116 (CLI)` are in `crates/stidcart-cli/tests/list.rs`, `AC-115 (RENDER)` and `AC-117 (RENDER)` in `gui/src-tauri/tests/sizes.rs`, `AC-117 (RENDER)` and `AC-118 (RENDER)` in `Listing.test.ts`, `AC-118 (RENDER)` in `gui/src-tauri/tests/kinds.rs`, green at 5f6e2a0 (root 230/0, GUI 37/0 cargo + 45/0 vitest). Closeout line appended.
 - 2026-11-08 — reconciled: folded AC-115..AC-118 into SPEC.md, rewriting in place the listing row (CLI: readable sizes, `--bytes`) and the app row (RENDER: hover, badge colours). D-044 and D-045 record the refinements of D-032.
+- 2026-11-08 — Review on the PR, from the user's live check: in the dark theme the 8K badge read
+  too close to PRG's green. The C64's yellow leans green, so 8K moved to a warmer amber-yellow in
+  both themes (`#f2c84b` dark, `#7a5600` light). The other families are unchanged. D-045 notes it.
 
