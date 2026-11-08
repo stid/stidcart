@@ -8,7 +8,35 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-052 -->
+<!-- Next id: D-053 -->
+
+---
+
+## D-052 · 2026-11-08 · The menu takes a joystick in port 2, as presses of the keys it already handles
+
+- **Context:** menu-joystick, the second menu improvement the user asked for. Ours reads input only
+  through GETIN (D-038), because that was the only input VICE could inject for the boot tests.
+  Recon found that VICE 3.10's "Joyport I/O simulation" device (`-controlport2device 37`) and the
+  monitor's `jpdb` command drive CIA1 port A through the same path a real stick does, so a
+  joystick can be proven in the boot tests after all.
+- **Decision:**
+  - Port 2 only. Port 1 shares CIA1 lines with the keyboard matrix and would read key presses as
+    stick moves.
+  - The stick does what keys already do: up and down move one entry, left and right a page (as
+    CRSR ← / →), fire starts the selection (as RETURN). On the help screen any move or fire
+    returns, as any key does.
+  - A move acts on the press, then repeats while held, after a first delay of about 0.4 s and then
+    about ten a second, timed by the jiffy clock. Fire acts once per press and never repeats.
+  - Fire held when the menu starts is ignored until released, so a stick resting on fire doesn't
+    start the first entry.
+  - The stick is read in the menu's own loop, not in the raster interrupt, masked to its five
+    bits (the emulated device reads bits 5-7 as 0).
+- **Alternatives rejected:** port 1 as well (keyboard crosstalk); reading the stick inside the
+  raster interrupt (more code running where D-048 keeps banks still); proving the stick by writing
+  from the monitor the value a read would see (weaker evidence than the device, which goes through
+  CIA1).
+- **Scope:** `menu/src/menu.s`, the boot tests and `support/vice.rs` (extra emulator arguments)
+- **Status:** active
 
 ---
 
