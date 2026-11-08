@@ -8,11 +8,52 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-046 -->
+<!-- Next id: D-048 -->
+
+---
+
+## D-047 · 2026-11-08 · The window's fonts ship inside the app, copied from Fontsource
+
+- **Context:** raster-brand. D-046 sets text in Geist and Geist Mono, and the app must work
+  offline, so the faces can't come from Google Fonts at runtime.
+- **Decision:** the Latin and Latin Extended variable woff2 files of `@fontsource-variable/geist`
+  and `@fontsource-variable/geist-mono` 5.3.0 are copied into `gui/src/fonts/` with their OFL-1.1
+  licence. A local `fonts.css` declares them under the family names Fontsource uses. Vite bundles
+  them into `gui/dist`, which Tauri embeds. The folder is OFL-1.1, a third licence next to `firmware/`
+  (zlib) and the GPL code, and MAP's licence invariant names it.
+- **Alternatives rejected:** the two npm packages as dependencies. They'd be a new dependency
+  for four static files and would pull in Cyrillic and Vietnamese subsets the app never draws.
+  Keeping system fonts, which the user declined.
+- **Scope:** `gui/src/fonts/`, `gui/src/styles/`
+- **Status:** active · serves D-046
+
+---
+
+## D-046 · 2026-11-08 · The window wears the stid design system, with a raster band as its mark
+
+- **Context:** raster-brand. The app had no identity: system fonts, a generic blue accent, a
+  stock icon. The user asked to align it with their stid design system and give it a logo in
+  1980s colour bands on a dark ground. Four directions were drawn on a canvas, and the user picked
+  "raster".
+- **Decision:** the theme tokens take the stid system's Catppuccin values: Mocha in dark, Latte in
+  light, the peach accent, and stid's radii (3/5/8 px). Light mode stays, still following the OS.
+  The mark is a cartridge seen head-on whose label is five horizontal bands: Catppuccin red, peach,
+  yellow, green and blue. The same five bands run as a 10 px strip under the title bar in every
+  state. The mark is also the app icon, in the title bar and on the empty state. The type badges
+  keep their VIC-II colours (D-045) because they describe data, not the brand. Text on the accent is
+  dark in both themes, because Latte's peach with white text fails 4.5:1.
+- **Alternatives rejected:** "loading border" (VIC-II raster bars round the stid prompt). It would
+  share the badge palette, but the colours are muted and the icon has no cartridge. "Sunset stripes"
+  (four saturated diagonals) would bring hexes from outside the stid system. "Prompt cursor" (the
+  stid mark with a striped cursor) says nothing about cartridges. Keeping the blue accent, which the
+  user declined.
+- **Scope:** `gui/src/styles/tokens.css`, the title bar, the empty state, `gui/src-tauri/icons/`
+- **Status:** active · keeps D-045
 
 ---
 
 ## D-045 · 2026-11-08 · The window colours each type badge like our menu's badge for that kind
+
 - **Context:** readable-sizes. With sizes readable, the user asked for the type column to carry
   the colours our C64 menu gives each kind (D-041), so the app and the cart read the same way.
 - **Decision:** the core's listing gives each row a family next to its label: `prg` (PRG, PRG-L,
@@ -32,6 +73,7 @@
 ---
 
 ## D-044 · 2026-11-08 · Sizes read as KB in the listing; exact bytes stay one hover or flag away
+
 - **Context:** the user uses the app day to day and found the hex sizes (`$0027d3`) hard to read.
   Bank and layout are addresses, where hex is the convention, and stay as they are.
 - **Decision:** (user's choices) the core's listing gives each size, and the free figure, as text:
@@ -50,8 +92,8 @@
 ---
 
 ## D-043 · 2026-11-08 · The Claude review skips a pull request whose whole diff is Markdown
-- **Context:** the user asked where CI spends budget. About a third of merged PRs (12 of the last
-  38) changed only Markdown, and the review of a one-line docs PR measured about $0.48 of
+
+- **Context:** the user asked where CI spends budget. About a third of merged PRs (12 of the last 38) changed only Markdown, and the review of a one-line docs PR measured about $0.48 of
   subscription usage (D-012), plus a billed Actions minute.
 - **Decision:** (user's choices) `claude-review` diffs the PR head against its base. When every
   changed path ends in `.md`, it skips the review step and the gate passes with a notice. Anything
@@ -73,6 +115,7 @@
 ---
 
 ## D-042 · 2026-11-07 · The window switches the menu as an edit, through the same refusals as `edit --menu`
+
 - **Context:** menu-picker. D-037 had the window recognise, show and keep the menu but not choose
   it; switching stayed `edit --menu`. With our menu usable on the user's real collection, they
   asked to choose it in the window, where the menu box already looked like a control.
@@ -93,6 +136,7 @@
 ---
 
 ## D-041 · 2026-11-07 · The menu is layout C: block logo, type badges, a details pane and a scroll bar, from a RAM character set
+
 - **Context:** menu-details. After D-040 the user asked for type icons drawn as pixel graphics, a
   scroll bar for long lists, and an end to the flicker. Three layouts were mocked up pixel for
   pixel (artifact "Stidcart Menu Layouts"). The user chose C, the logo-and-details layout, with
