@@ -18,6 +18,8 @@ use crate::read::ReadError;
 pub struct Cartridge {
     pub name: String,
     pub hidden: bool,
+    /// Title, year, author, note and group, carried as `hidden` is (D-054).
+    pub meta: crate::meta::Meta,
     /// Always one of [`EntryType::CARTRIDGES`]; [`Cartridge::from_crt`] is the only constructor.
     pub kind: EntryType,
     /// Ask the placer for a 64 KB boundary. Meaningful for the xbank kinds only.
@@ -110,6 +112,7 @@ impl Cartridge {
         Ok(Cartridge {
             name,
             hidden: false,
+            meta: Default::default(),
             kind,
             align_64k: false,
             subdir: false,
@@ -204,6 +207,7 @@ impl Cartridge {
         Cartridge {
             name: entry.name.clone(),
             hidden: entry.hidden,
+            meta: Default::default(),
             kind: entry.kind,
             align_64k: entry.align_64k,
             subdir: entry.subdir,

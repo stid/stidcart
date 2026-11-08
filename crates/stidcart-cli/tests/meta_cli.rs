@@ -144,7 +144,10 @@ fn ac_156_cli_an_invalid_value_is_refused_naming_the_field() {
         ("--author", "Zoë".into(), "author"),
     ];
     for (flag, value, name) in cases {
-        let err = refused(&edit(&c, &[flag, "0", value.as_str(), "--rename", "0", "x"]));
+        let err = refused(&edit(
+            &c,
+            &[flag, "0", value.as_str(), "--rename", "0", "x"],
+        ));
         assert!(err.contains(name), "{flag} {value}: {err}");
         assert_eq!(
             std::fs::read(&c).unwrap(),
@@ -316,7 +319,12 @@ fn ac_158_a_cart_without_metadata_lists_as_before() {
             Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("tests/golden/{name}.txt")),
         )
         .unwrap();
-        assert_eq!(out, golden, "{name}");
+        // A golden holds the exit code, stdout and stderr (list_golden.rs).
+        assert_eq!(
+            format!("exit: 0\n-- stdout --\n{out}-- stderr --\n"),
+            golden,
+            "{name}"
+        );
         assert!(!out.contains("metadata"), "{name}");
     }
 }

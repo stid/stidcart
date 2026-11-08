@@ -6,6 +6,7 @@
 
 use crate::directory::{DirEntry, EntryType};
 use crate::image::Half;
+use crate::meta::Field;
 use crate::read::{self, ReadError};
 
 /// A described cartridge: its names, its directory and the space left for one more program.
@@ -22,6 +23,10 @@ pub struct Listing {
     pub rows: Vec<Row>,
     /// The bytes free: what a re-placement of the entries plus one more program accepts (D-027).
     pub free: usize,
+    /// Metadata records dropped because their entry no longer matches them (AC-154).
+    pub meta_dropped: usize,
+    /// Why the cart's metadata is kept as stored and not shown, when it is (D-055).
+    pub meta_kept: Option<String>,
 }
 
 /// One directory entry, each field as the listing displays it.
@@ -41,6 +46,12 @@ pub struct Row {
     pub size: String,
     /// The exact size in bytes, for a renderer that offers it (`list --bytes`, the window's hover).
     pub size_bytes: usize,
+    /// The entry's metadata, each field empty when not set (D-054).
+    pub title: String,
+    pub year: String,
+    pub author: String,
+    pub note: String,
+    pub group: String,
 }
 
 impl Listing {
@@ -97,6 +108,11 @@ pub fn describe(bytes: &[u8]) -> Result<Listing, ReadError> {
             layout: layout(e),
             size: readable_size(e.size as usize),
             size_bytes: e.size as usize,
+            title: info.metas[index].get(Field::Title).to_string(),
+            year: info.metas[index].get(Field::Year).to_string(),
+            author: info.metas[index].get(Field::Author).to_string(),
+            note: info.metas[index].get(Field::Note).to_string(),
+            group: info.metas[index].get(Field::Group).to_string(),
         })
         .collect();
     // The cartridge name and every entry name arrive through the machine's own character mapping,
@@ -109,6 +125,11 @@ pub fn describe(bytes: &[u8]) -> Result<Listing, ReadError> {
         menu: info.menu.map_or("unrecognised", |m| m.name()).to_string(),
         rows,
         free,
+        meta_dropped: info.meta_dropped,
+        meta_kept: info
+            .meta_kept
+            .as_ref()
+            .map(|k| format!("{}; kept as stored", k.reason)),
     })
 }
 

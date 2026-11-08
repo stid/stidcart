@@ -237,12 +237,19 @@ pub fn decode(raw: &[u8; ENTRY_LEN]) -> Slot {
     Slot::Cartridge(entry)
 }
 
+/// The 16 name bytes a slot stores for `name`: PETSCII, truncated, NUL-padded.
+pub fn name_bytes(name: &str) -> [u8; NAME_LEN] {
+    let mut out = [0u8; NAME_LEN];
+    let mut bytes = petscii::ascii_to_petscii(name);
+    bytes.truncate(NAME_LEN);
+    out[..bytes.len()].copy_from_slice(&bytes);
+    out
+}
+
 pub fn encode(entry: &DirEntry) -> [u8; ENTRY_LEN] {
     let mut p = [0u8; ENTRY_LEN];
 
-    let mut name = petscii::ascii_to_petscii(&entry.name);
-    name.truncate(NAME_LEN);
-    p[..name.len()].copy_from_slice(&name);
+    p[..NAME_LEN].copy_from_slice(&name_bytes(&entry.name));
 
     p[16] = (entry.kind as u8) | RESERVED_FLAG_BITS | if entry.hidden { HIDDEN_FLAG } else { 0 };
     p[17..19].copy_from_slice(&entry.bank.to_le_bytes());

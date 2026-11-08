@@ -27,9 +27,10 @@
 //!   width, so there is no accurate description to give.
 
 use crate::cartridge::Cartridge;
-use crate::directory::{self, DirEntry, EntryType, Slot, ENTRY_LEN};
+use crate::directory::{self, DirEntry, EntryType, Slot, ENTRY_LEN, NAME_LEN};
 use crate::image::{BANK_SIZE, N_BANKS};
 use crate::menu::{Menu, Recognised};
+use crate::meta::{self, Decoded, KeptMeta, Meta};
 use crate::place::Placer;
 use crate::reserved::Mode;
 use crate::{crt, reserved, CartBuilder, Program};
@@ -268,12 +269,21 @@ pub struct CartInfo {
     pub header_name: String,
     /// The cartridge name the menu shows.
     pub ef_name: String,
-    /// The directory in slot order, which is the order the menu lists.
+    /// The directory in slot order, which is the order the menu lists. The metadata entry is not
+    /// one of them (D-054): it is [`CartInfo::meta_entry`].
     pub entries: Vec<DirEntry>,
     /// Which menu the loader slot holds, or `None` when it is neither this crate embeds nor an
     /// earlier build of ours. Reported, never refused on: only `load` requires a known menu
     /// (D-011, D-038, D-049).
     pub menu: Option<Recognised>,
+    /// Each entry's metadata, one per entry: empty where no record attached.
+    pub metas: Vec<Meta>,
+    /// The metadata entry as stored, if the cart has one. Its space is occupied like any entry's.
+    pub meta_entry: Option<DirEntry>,
+    /// Records whose entry no longer matches them, dropped (AC-154).
+    pub meta_dropped: usize,
+    /// A metadata entry in a layout this build can't read, carried as stored (D-055).
+    pub meta_kept: Option<KeptMeta>,
 }
 
 impl CartInfo {
@@ -291,6 +301,9 @@ impl CartInfo {
     pub fn free_space(&self) -> usize {
         let mut placer = Placer::new(self.mode());
         for e in &self.entries {
+            placer.occupy(e);
+        }
+        if let Some(e) = &self.meta_entry {
             placer.occupy(e);
         }
         placer.free_space()
@@ -317,6 +330,8 @@ impl CartInfo {
 /// described, and [`load`] applies the narrower rebuild rules on top.
 fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
     let mut entries = Vec::new();
+    // Each slot's 16 name bytes as stored, which a metadata record is matched against (D-055).
+    let mut raw_names: Vec<[u8; NAME_LEN]> = Vec::new();
     // Whether any slot has already established the directory as EasyFS2. Only that direction needs
     // remembering: an EasyFS1 slot returns immediately, so the walk never continues under it.
     let mut seen_easyfs2 = false;
@@ -347,33 +362,94 @@ fn read_directory(container: &crt::Container) -> Result<CartInfo, ReadError> {
         }
 
         match decoded {
-            Slot::End => {
-                let mut info = CartInfo {
-                    header_name: container.header_name.clone(),
-                    ef_name: reserved::read_ef_name(&container.image),
-                    entries,
-                    menu: None,
-                };
-                info.menu = reserved::detect_menu(&container.image, info.mode());
-                return Ok(info);
-            }
+            Slot::End => return Ok(finish(container, entries, raw_names)),
             Slot::Subdirectory => return Err(Unsupported::Subdirectory { slot }.into()),
             Slot::MisplacedSubdirBit => return Err(ReadError::SubdirectoryBitMisplaced { slot }),
             Slot::Unknown { type_value } => return Err(ReadError::BadEntry { slot, type_value }),
             Slot::Program(entry) => {
                 check_extent(entry.kind, entry.bank, entry.offset, entry.size)?;
                 entries.push(entry);
+                raw_names.push(raw[..NAME_LEN].try_into().expect("sixteen bytes"));
             }
             Slot::Cartridge(entry) => {
                 if !check_cart_geometry(&entry) {
                     return Err(ReadError::BadGeometry { slot });
                 }
                 entries.push(entry);
+                raw_names.push(raw[..NAME_LEN].try_into().expect("sixteen bytes"));
             }
         }
     }
 
     Err(ReadError::DirectoryUnterminated)
+}
+
+/// The walk's last step, once the end marker is found: lift the metadata entry out of the entries,
+/// attach its records, and name the menu.
+///
+/// The metadata entry is the *last* hidden program slot named `STIDCART.META` whose data starts
+/// with the magic; a slot with the name but not the magic is an ordinary entry. This reads one
+/// entry's data, which every slot's extent check has already bounded (D-055).
+fn finish(
+    container: &crt::Container,
+    mut entries: Vec<DirEntry>,
+    mut raw_names: Vec<[u8; NAME_LEN]>,
+) -> CartInfo {
+    let meta_name = directory::name_bytes(meta::META_NAME);
+    let mut meta_entry = None;
+    let mut decoded = None;
+    for i in (0..entries.len()).rev() {
+        let e = &entries[i];
+        if !(e.kind.is_program() && e.hidden && raw_names[i] == meta_name) {
+            continue;
+        }
+        let (bank, offset, size) = (e.bank as usize, e.offset as usize, e.size as usize);
+        let data = if e.kind == EntryType::Prg {
+            container.image.read_program(bank, offset, size)
+        } else {
+            container.image.read_confined(bank, offset, size)
+        };
+        match meta::decode(&data) {
+            Decoded::NotMeta => continue,
+            d => {
+                decoded = Some(d);
+                meta_entry = Some(entries.remove(i));
+                raw_names.remove(i);
+                break;
+            }
+        }
+    }
+
+    let mut metas = vec![Meta::default(); entries.len()];
+    let (mut meta_dropped, mut meta_kept) = (0, None);
+    match decoded {
+        Some(Decoded::Records(records)) => {
+            let mut matched = vec![false; entries.len()];
+            for (index, name, m) in records {
+                if index < entries.len() && !matched[index] && raw_names[index] == name {
+                    matched[index] = true;
+                    metas[index] = m;
+                } else {
+                    meta_dropped += 1;
+                }
+            }
+        }
+        Some(Decoded::Kept(k)) => meta_kept = Some(k),
+        Some(Decoded::NotMeta) | None => {}
+    }
+
+    let mut info = CartInfo {
+        header_name: container.header_name.clone(),
+        ef_name: reserved::read_ef_name(&container.image),
+        entries,
+        menu: None,
+        metas,
+        meta_entry,
+        meta_dropped,
+        meta_kept,
+    };
+    info.menu = reserved::detect_menu(&container.image, info.mode());
+    info
 }
 
 /// Read a `.crt` image's directory without recovering the program data it points at.
@@ -419,7 +495,7 @@ fn load_inner(bytes: &[u8], replacing: Option<Menu>) -> Result<CartBuilder, Read
         .with_ef_name(&info.ef_name)
         .with_menu(menu);
 
-    for entry in &info.entries {
+    for (entry, meta) in info.entries.iter().zip(info.metas) {
         let (bank, offset, size) = (
             entry.bank as usize,
             entry.offset as usize,
@@ -436,8 +512,14 @@ fn load_inner(bytes: &[u8], replacing: Option<Menu>) -> Result<CartBuilder, Read
             }
             _ => builder.push(Cartridge::read_from(&container.image, entry)),
         }
+        // Carried as the hidden flag is (AC-29): the records attached in the walk.
+        let last = builder.entries().len() - 1;
+        *builder.entry_meta_mut(last) = meta;
     }
 
+    if let Some(kept) = info.meta_kept {
+        builder.keep_meta(kept);
+    }
     Ok(builder)
 }
 
