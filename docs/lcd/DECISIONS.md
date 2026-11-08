@@ -199,7 +199,7 @@
   icons, which can't cover 16 rows without multiplexing. The ROM's own PETSCII graphics for icons,
   which can't draw a disk or a cartridge. Dropping the match count, which nobody asked for.
 - **Scope:** `menu/src/menu.s`, `menu/README.md`, boot tests
-- **Status:** active · supersedes D-040 in part (font, layout) · refines D-039 (status line)
+- **Status:** superseded in part by D-048 (logo colours, row-4 rule) · supersedes D-040 in part (font, layout) · refines D-039 (status line)
 
 ---
 
@@ -232,7 +232,7 @@
   amber palettes. Rewriting the status line to match the preview, which moves four tests and SPEC
   for no gain.
 - **Scope:** `menu/src/menu.s`, `menu/README.md`, boot tests
-- **Status:** superseded in part by D-041 (font and layout) · refines D-037
+- **Status:** superseded in part by D-041 (font and layout) and D-048 (cyan bar) · refines D-037
 
 ---
 

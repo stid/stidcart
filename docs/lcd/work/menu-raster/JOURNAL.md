@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu wears the raster brand (D-048): white logo beside the multicolour cartridge mark, a five-scanline raster strip under the cart name, an orange selection bar, the raster interrupt safe on every path
-- **Next action:** S5, the user's live run of the built menu in VICE, then S6
+- **Next action:** done; the PR awaits CI and the user's merge (resolve the version line against #45 if it merges first)
 - **Branch:** feat/menu-raster · **Updated:** 2026-11-08
 
 ## STEPS
@@ -21,8 +21,8 @@
 - [x] S2 — triage, D-048, AC-123..AC-128 claimed, this JOURNAL
 - [x] S3 — failing tests: the look (AC-123, updating AC-105..AC-107's frame), the strip and the mark from screenshots (AC-124, AC-125), frames (AC-126), bank switches (AC-127), exits (AC-128)
 - [x] S4 — port the prototype into `menu/src/menu.s` (irq_off on every start, the late-entry guard), rebuild `menu.bin` and `menu.lbl`
-- [ ] S5 — README, one NTSC run, VICE live run for the user  ← next
-- [ ] S6 — gates with STIDCART_REQUIRE_TOOLS=1, audit, reconcile, PR
+- [x] S5 — README, one NTSC run, VICE live run for the user
+- [x] S6 — gates with STIDCART_REQUIRE_TOOLS=1, audit, reconcile, PR
 
 ## DECISIONS (this work-item)
 
@@ -99,3 +99,6 @@ menu left them.
   on PAL. A capture taken at the first idle showed a pane mixing two entries: VICE's picture of the
   frame in progress still holds the previous frame below the beam. So AC-124 and AC-125 now wait two
   interrupts before their screenshot. README describes the brand and the interrupt. Gate 237/0.
+- 2026-11-08 — the user ran the committed menu (`final.crt`, built by the CLI) in VICE: "ok for now".
+- 2026-11-08 — audit: PASS (test-presence). All six ACs are surface `none`, so there is no token row. Their tests are `ac_123`..`ac_128` in `menu_boot.rs`, plus the `bank_writes` parser's unit test, green at d12a16d with STIDCART_REQUIRE_TOOLS=1 (root 237/0, GUI gate passing with 54/0 vitest). Closeout line appended.
+- 2026-11-08 — reconciled: folded AC-123..AC-128 → SPEC.md/none (the menu-look row rewritten in place); D-040 and D-041 marked superseded in part by D-048.
