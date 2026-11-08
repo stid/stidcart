@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** After a soft reset our C64 menu comes back with the entry, order and kind filter it was left with, kept in `$DFF6-$DFFF` behind a magic, a cart check and a checksum (D-053)
-- **Next action:** S4 — implement in `menu.s`/`launch.s` (shrink launch.s first: it ends at `$DFF6` today)
+- **Next action:** S5 — `menu/README.md`
 - **Branch:** feat/menu-resume · **Updated:** 2026-11-08
 
 ## STEPS
@@ -20,7 +20,7 @@
 - [x] S1 — version 0.19.0 → 0.20.0 (first commit on the branch)
 - [x] S2 — triage, D-053, AC-147..AC-152 claimed, this JOURNAL
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-147..AC-152, and the assembly cap in `menu_builds.rs`
-- [ ] S4 — implement in `menu/src/menu.s` and `launch.s` (cap `$DFF5`), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
+- [x] S4 — implement in `menu/src/menu.s` and `launch.s` (cap `$DFF5`), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
 
@@ -106,3 +106,12 @@ page, fire) beside the keys.
   five exits, AC-127 watch and AC-128 after a restoring boot; cap refusal in `menu_builds.rs`),
   AC-152. Red run: all 7 fail for the right reason — not restored ('p99 prog' not selected,
   'p14' not listed, 'beta' not selected), ram_end `$DFF7`, "help does not name the joystick".
+- 2026-11-08 — S4. `leave` now branches into `cart_go`'s tail (`ldy #MODE_OFF`), 4 bytes less:
+  routines `$DF02-$DFF2`, cap `.cerror ram_end > STATE`. Layout: `$DFF6-$DFF9` magic "STID" (four
+  bytes, so all ten are checked), slot, order, kinds, count (the end marker's slot number, hidden
+  entries included), name sum, checksum ($A5 + the nine). Saved in `_cart` and `start_prg` before
+  `irq_off` and on RUN/STOP; with nothing listed RUN/STOP spoils the magic. Restore after `scan`,
+  slot looked up in `visible` before its name is read. ROM `$8000-$93B0` → `$8000-$94D3` (2860
+  free). AC-148's expected position was my slip (p14 is the 14th of 30, not the 15th), fixed.
+  Gates: root 267 passed 0 failed with STIDCART_REQUIRE_TOOLS=1, gui-gate exit 0. Fingerprint of
+  9f4ca36's build joins the earlier list.

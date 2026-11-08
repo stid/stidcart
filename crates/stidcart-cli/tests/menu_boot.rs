@@ -3087,7 +3087,7 @@ fn ac_148_run_stop_then_a_soft_reset_comes_back_to_the_selection() {
         ],
     );
     assert!(shows(&d[0], "ready."), "RUN/STOP did not leave to BASIC");
-    assert_resumed(&d[1], "p14", "15 of 30   a-z order   programs", "RUN/STOP");
+    assert_resumed(&d[1], "p14", "14 of 30   a-z order   programs", "RUN/STOP");
 }
 
 /// AC-149 (none): the menu boots as it does without state after a power cycle (the real `reset 1`),

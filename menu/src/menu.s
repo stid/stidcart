@@ -61,6 +61,18 @@ MODE_8K  = $06
 MODE_16K = $07
 
 DIR     = $a000                 ; EasyFS2 directory, 24-byte slots
+
+; What the menu leaves for the next boot (D-053), in cartridge RAM after the launch routines. A soft
+; reset keeps the page and a power cycle doesn't. A program can write it, so the menu restores only
+; what checks: the magic, the checksum, and this cart's entry count and the slot's name.
+STATE    = $dff6
+ST_MAGIC = STATE                ; four bytes, "STID"
+ST_SLOT  = STATE + 4            ; the selected entry's directory slot
+ST_ORDER = STATE + 5
+ST_KINDS = STATE + 6
+ST_COUNT = STATE + 7            ; the directory's entries, the end marker's slot number
+ST_NAME  = STATE + 8            ; the 8-bit sum of the selected entry's name
+ST_SUM   = STATE + 9            ; $A5 plus the nine bytes above, 8-bit
 EFNAME  = $bb08                 ; cart name, 16 bytes PETSCII, NUL padded
 SLOT    = 24
 ROWS    = 16                    ; entries shown at once, on screen rows 5-20
@@ -131,6 +143,7 @@ joy_last = $c12b                ; the stick's lines at the last sample, a bit se
 joy_jiffy = $c12c               ; the jiffy of that sample
 joy_due = $c12d                 ; the jiffy a held direction repeats at
 joy_dead = $c12e                ; non-zero: a held direction does nothing until released
+nslots  = $c12f                 ; the directory's entries, hidden ones too
 srow    = $c150                 ; the screen row a list row goes to
 kind    = $c151                 ; the entry's kind: 0 program, 1 8K, 2 16K, 3 Ultimax, 4 multi-bank
 ipen    = $c152                 ; the icon's colour
@@ -185,7 +198,11 @@ back_from_init:
         sta joy_dead
         jsr scan
         jsr draw_frame
-        jmp refresh
+        jsr restore
+        bcs +
+        jmp refresh             ; no state: the first entry, in cart order, all kinds
++       jsr vsync
+        jmp redraw
 
 loop:
         jsr GETIN
@@ -516,6 +533,7 @@ stick_keys:
 
 ; RUN/STOP: the interrupts as the KERNAL left them, then BASIC.
 stop:
+        jsr save_state
         jsr irq_off
         jmp leave
 
@@ -568,6 +586,7 @@ start:
         jmp loop                ; nothing else is startable by this menu
 _cart:
         stx cur                 ; the mode
+        jsr save_state
         jsr irq_off             ; before any bank is mapped in, and as the stock menu left it
         lda #$7f                ; quiet the machine as a power-on leaves it
         sta $dc0d
@@ -589,6 +608,7 @@ _cart:
         jmp cart_go
 
 start_prg:
+        jsr save_state
         jsr irq_off             ; read_load maps the program's bank in
         jsr prg_params
         jsr read_load
@@ -771,6 +791,138 @@ pow_lo:
 pow_hi:
         .byte >10000, >1000, >100, >10, >1
 
+; --- the state a reset comes back to (D-053) ---------------------------------------------------
+
+; Leave the selection, the order and the kind filter for the next boot. With nothing listed there
+; is no selection, so the magic is spoiled and the next boot starts fresh. Moves ptr to the
+; selection's slot; keeps cur.
+save_state:
+        lda nshown
+        bne +
+        sta ST_MAGIC
+        rts
++       ldx sel
+        lda shown,x
+        sta ST_SLOT
+        jsr name_sum
+        sta ST_NAME
+        lda order
+        sta ST_ORDER
+        lda kinds
+        sta ST_KINDS
+        lda nslots
+        sta ST_COUNT
+        ldx #3
+-       lda magic,x
+        sta ST_MAGIC,x
+        dex
+        bpl -
+        jsr state_sum
+        sta ST_SUM
+        rts
+
+; Come back where the last start or RUN/STOP left the menu: its order, its kind filter and its
+; selection, in view. Only if the state checks and was written for this cart; if the kind filter
+; would hide the entry, all kinds. C set if restored, with sel and top set; C clear and nothing
+; changed if not.
+restore:
+        jsr state_sum
+        cmp ST_SUM
+        bne _no
+        ldx #3
+-       lda ST_MAGIC,x
+        cmp magic,x
+        bne _no
+        dex
+        bpl -
+        lda ST_COUNT
+        cmp nslots
+        bne _no
+        lda ST_ORDER
+        cmp #2
+        bcs _no
+        lda ST_KINDS
+        cmp #3
+        bcs _no
+        ldx #0                  ; the slot must be a visible entry
+-       cpx count
+        beq _no
+        lda visible,x
+        cmp ST_SLOT
+        beq +
+        inx
+        bne -
++       jsr name_sum
+        cmp ST_NAME
+        bne _no
+        lda ST_ORDER
+        sta order
+        beq +
+        jsr sort_az
++       lda ST_KINDS
+        sta kinds
+        jsr refilter
+        jsr _find
+        bcs _found
+        lda #0                  ; the kind filter would hide it: all kinds
+        sta kinds
+        jsr refilter
+        jsr _find
+_found:
+        stx sel
+        txa
+        sec
+        sbc #ROWS - 1           ; below the first page it goes on the last row
+        bcs +
+        lda #0
++       sta top
+        sec
+        rts
+_no:
+        clc
+        rts
+
+; X = where the state's slot is among those listed, with C set; C clear if it isn't listed.
+_find:
+        ldx #0
+-       cpx nshown
+        beq _miss
+        lda shown,x
+        cmp ST_SLOT
+        beq _hit
+        inx
+        bne -
+_miss:
+        clc
+        rts
+_hit:
+        sec
+        rts
+
+; A = the 8-bit sum of the name in slot A. Moves ptr to the slot.
+name_sum:
+        jsr slot_ptr
+        ldy #15
+        lda #0
+-       clc
+        adc (ptr),y
+        dey
+        bpl -
+        rts
+
+; A = the checksum of the state's first nine bytes, seeded so all $00 or all $FF doesn't check.
+state_sum:
+        lda #$a5
+        ldx #8
+-       clc
+        adc STATE,x
+        dex
+        bpl -
+        rts
+
+magic:
+        .text "STID"
+
 ; --- the listing ------------------------------------------------------------------------------
 
 ; Collect the visible entries' slot numbers, stopping at the end marker.
@@ -808,6 +960,7 @@ _skip:
 +       inx
         bne _next
 _done:
+        stx nslots
         rts
 
 ; ptr = the directory slot numbered A, from the addresses scan recorded. Clobbers X.
@@ -2263,6 +2416,7 @@ help_lines:
         .text "f5", 0, "pick one at random", 0
         .text "f7", 0, "this help", 0
         .text "run/stop", 0, "leave to basic", 0
+        .text "joystick port 2", 0, "move, page, fire: go", 0
         .byte 0
 no_entries:
         .null "no entries"
