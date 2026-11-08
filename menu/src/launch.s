@@ -5,7 +5,8 @@
 ; The sequences follow EasyLoader's technique (ndefpack src/fw/easyloader.asm:1789, 2091-2260),
 ; written fresh: a partial reset with the cartridge off, and a program copied only after BASIC's
 ; cold start has run, from a trap on its first CHRIN, so nothing the init touches can overwrite the
-; program (D-038). $DF00/$DF01 stay free: they carry an xbank entry's first bank.
+; program (D-038). $DF00/$DF01 stay free: they carry an xbank entry's first bank. So does
+; $DFF6-$DFFF, where the menu leaves its state for the next boot (D-053).
 
 ram_rom:
         .logical $df02
@@ -26,18 +27,18 @@ kernal_init:
         sta CONTROL
         jmp back_from_init
 
-; RUN/STOP: switch the cartridge off and reset into BASIC.
-leave:
-        lda #MODE_OFF
-        sta CONTROL
-        jmp ($fffc)
-
 ; Start a cartridge entry: X its first bank, Y its mode. The menu has already quieted the machine
 ; and left the bank in $DF00/$DF01 for an xbank cart.
 cart_go:
         stx BANK
+reset_in:
         sty CONTROL
         jmp ($fffc)
+
+; RUN/STOP: switch the cartridge off and reset into BASIC.
+leave:
+        ldy #MODE_OFF
+        bne reset_in
 
 ; Hand the machine to BASIC, whose first CHRIN the menu has routed to the trap.
 basic_go:
@@ -160,4 +161,4 @@ p_only:   .byte 0               ; non-zero: load the program but type nothing (S
 ram_end:
         .here
 
-        .cerror ram_end - ram_start > $fe, "the RAM routines outgrow $DF02-$DFFF"
+        .cerror ram_end > STATE, "the RAM routines outgrow $DF02-$DFF5 and reach the menu's state"

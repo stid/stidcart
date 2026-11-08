@@ -8,7 +8,44 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-053 -->
+<!-- Next id: D-054 -->
+
+---
+
+## D-053 · 2026-11-08 · After a reset the menu comes back where it was left, from ten bytes of cart RAM
+
+- **Context:** menu-resume, the third menu improvement the user asked for. Today every boot starts
+  at the first entry, so after a game and a reset the user scrolls back to where they were.
+  EasyFlash's 256 bytes of RAM at `$DF00` are always visible (EasyFlash ProgRef §2.3-2.5). Recon in
+  VICE 3.10 found the page kept across a soft reset and replaced by a power-on pattern on a hard
+  one, and found that anything running with the cart off can write it. The launch routines fill
+  `$DF02-$DFF5`, which leaves `$DFF6-$DFFF`.
+- **Decision:**
+  - The menu keeps its state in `$DFF6-$DFFF`: a magic word, the selected entry's directory slot,
+    the order, the kind filter, the number of directory entries, an 8-bit sum of the selected
+    entry's name, and a checksum over all of them. The filter text doesn't fit and isn't kept.
+  - It writes the state when it starts an entry (RETURN, SHIFT+RETURN, fire) and when it leaves on
+    RUN/STOP.
+  - At boot it restores order, kind filter and selection only when the magic and checksum hold,
+    the entry count and name sum match this cart, and the slot is a visible entry. If the kind
+    filter would hide the entry, the filter goes back to all kinds. Otherwise it starts as today.
+  - The launch routines' assembly cap drops so they can never grow into the state. They already
+    reached `$DFF6` (`p_only`, D-051), so `leave` now shares the tail of `cart_go` to free it: the
+    routines end at `$DFF2`, `$DFF3-$DFF5` are free.
+  - As built: `$DFF6-$DFF9` the magic `STID` (four bytes, so all ten are checked), `$DFFA` slot,
+    `$DFFB` order, `$DFFC` kind filter, `$DFFD` the end marker's slot (so hidden entries count),
+    `$DFFE` the name sum, `$DFFF` a checksum (`$A5` plus the other nine). RUN/STOP with nothing
+    listed spoils the magic. A restored entry below the first page is shown on the last row.
+    A rename that keeps both the slot count and the 8-bit name sum would still restore that slot.
+  - The state is a convenience, not a promise: a game that uses EAPI (`$DF80-$DFFF`) or an xbank
+    game that uses the page overwrites it, and the next boot starts at the top.
+- **Alternatives rejected:** keeping the filter text (16 bytes; it doesn't fit); saving to flash
+  through EAPI (wears the chip, slow, and a crash mid-write could damage the cart); storing the
+  position in the list rather than the directory slot (a different order or filter would point at
+  a different entry).
+- **Scope:** `menu/src/menu.s`, `menu/src/launch.s`, the boot tests. The F7 help also gains a
+  line for the joystick, which menu-joystick left out
+- **Status:** active
 
 ---
 

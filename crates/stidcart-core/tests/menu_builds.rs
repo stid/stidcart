@@ -5,10 +5,10 @@ use stidcart_core::{crt, listing, read, CartBuilder, Program};
 
 /// The build `menu/menu.bin` holds now. Changing the menu fails this until the replaced build's
 /// fingerprint joins `EARLIER_STIDCART_BUILDS`, so no cart built with it is ever stranded.
-const CURRENT: u64 = 0xebee_59a8_625e_4c8c;
+const CURRENT: u64 = 0x4088_1607_7fb5_9726;
 
 /// The earlier builds, oldest first, by the commit that last changed `menu/menu.bin`.
-const EARLIER: [(&str, u64); 9] = [
+const EARLIER: [(&str, u64); 10] = [
     ("0d3dfba", 0x85f5_5429_73af_46a6),
     ("2fbc818", 0x7537_fc2c_cf55_210c),
     ("ee3ec0f", 0x18ca_90a5_e0c1_5d17),
@@ -18,6 +18,7 @@ const EARLIER: [(&str, u64); 9] = [
     ("5b54e81", 0x9548_f328_dfac_82fb),
     ("e8eb154", 0xeac9_353f_0e59_ab86),
     ("63ba913", 0xa4cb_0aba_6e81_53e0),
+    ("9f4ca36", 0xebee_59a8_625e_4c8c),
 ];
 
 /// The build at 5b54e81, the one carts made by stidcart 0.15 carry.
@@ -95,5 +96,78 @@ fn rebuilding_an_earlier_build_changes_only_the_loader_slot() {
         &b[0x2000..],
         &a[0x2000..],
         "something outside the loader slot moved"
+    );
+}
+
+/// Whether `name` is on PATH. Absent, the test skips, unless `STIDCART_REQUIRE_TOOLS=1` (as CI
+/// sets it), where an absent tool is a failure. A local copy of the helper in `tests/menu.rs`.
+fn require_tool(name: &str) -> bool {
+    let present = std::process::Command::new("sh")
+        .args(["-c", &format!("command -v {name} >/dev/null 2>&1")])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !present && std::env::var("STIDCART_REQUIRE_TOOLS").as_deref() == Ok("1") {
+        panic!("{name} is required (STIDCART_REQUIRE_TOOLS=1) but is not on PATH");
+    }
+    present
+}
+
+/// AC-151 (none): assembly refuses launch routines that reach $DFF6, where the menu keeps its state
+/// (D-053). A copy of the source is padded before `ram_end` so the routines end exactly at $DFF5,
+/// which assembles, then one byte further, which must not.
+#[test]
+fn ac_151_assembly_refuses_launch_routines_past_dff5() {
+    if !require_tool("64tass") {
+        eprintln!("AC-151: skipping — 64tass is not installed");
+        return;
+    }
+    let menu = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../menu");
+    let labels = std::fs::read_to_string(menu.join("menu.lbl")).unwrap();
+    let ram_end = labels
+        .lines()
+        .find_map(|l| l.strip_suffix(" .ram_end")?.strip_prefix("al "))
+        .map(|a| i64::from_str_radix(a, 16).unwrap())
+        .expect("menu.lbl has no .ram_end");
+    let room = 0xdff6 - ram_end;
+    assert!(
+        room >= 0,
+        "the launch routines already run to ${:04X}, past $DFF5",
+        ram_end - 1
+    );
+
+    let tree = std::env::temp_dir().join("stidcart-menu-ac151");
+    let assemble = |pad: i64| {
+        let _ = std::fs::remove_dir_all(&tree);
+        std::fs::create_dir_all(tree.join("src")).unwrap();
+        std::fs::copy(menu.join("build.sh"), tree.join("build.sh")).unwrap();
+        for entry in std::fs::read_dir(menu.join("src")).unwrap() {
+            let path = entry.unwrap().path();
+            std::fs::copy(&path, tree.join("src").join(path.file_name().unwrap())).unwrap();
+        }
+        let launch = tree.join("src/launch.s");
+        let text = std::fs::read_to_string(&launch).unwrap().replacen(
+            "\nram_end:",
+            &format!("\n        .fill {pad}, 0\nram_end:"),
+            1,
+        );
+        std::fs::write(&launch, text).unwrap();
+        std::process::Command::new("sh")
+            .arg(tree.join("build.sh"))
+            .arg(tree.join("out"))
+            .current_dir(&tree)
+            .output()
+            .unwrap()
+    };
+    let fits = assemble(room);
+    assert!(
+        fits.status.success(),
+        "routines ending at $DFF5 did not assemble: {}",
+        String::from_utf8_lossy(&fits.stderr)
+    );
+    let over = assemble(room + 1);
+    assert!(
+        !over.status.success(),
+        "routines running into $DFF6 assembled without error"
     );
 }
