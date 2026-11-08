@@ -12,16 +12,16 @@
 
 - **Lane:** Standard
 - **Goal:** An explicit menu switch replaces a loader slot that holds no known menu, through `edit --menu` and the window's picker on a view-only cart (D-050)
-- **Next action:** S3, failing tests
+- **Next action:** done; the PR awaits CI and the user's merge. The window's picker on a view-only cart is left to the user's live check
 - **Branch:** feat/replace-loader · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.16.1 → 0.17.0 (first commit on the branch)
 - [x] S2 — triage, D-050, AC-132..AC-135 claimed, this JOURNAL
-- [ ] S3 — failing tests: `edit --menu` on an unknown loader (AC-132, AC-133), the window's document (AC-134, AC-135), the picker and the viewer  ← next
-- [ ] S4 — `read::load_with_menu`; `edit` takes it with `--menu`; read-only per history step and `menuReplaceable` in the document; the picker on a view-only cart
-- [ ] S5 — contract golden, gates, live check, audit, reconcile, PR
+- [x] S3 — failing tests: `edit --menu` on an unknown loader (AC-132, AC-133), the window's document (AC-134, AC-135), the picker and the viewer
+- [x] S4 — `read::load_with_menu`; `edit` takes it with `--menu`; read-only per history step and `menuReplaceable` in the document; the picker on a view-only cart
+- [x] S5 — contract golden, gates, live check (left to the user), audit, reconcile, PR
 
 ## DECISIONS (this work-item)
 
@@ -83,3 +83,16 @@ the window offers no menu picker and refuses a menu switch.
   #47 (0.16.1); this item replaces a loader the tool doesn't recognise. Triage: Standard, 3 signals
   (files, two surfaces on one path, the wire contract). D-050. AC-132..AC-135 claimed, next free
   AC-136.
+- 2026-11-08 — red as expected: three of four `replace_loader` CLI cases (the refusal without
+  `--menu` already held), the document tests (no `menu_replaceable`), the picker and the viewer.
+  Green after S4: root 249/0 with STIDCART_REQUIRE_TOOLS=1, GUI 41/0 cargo + 59/0 vitest. The
+  contract golden gained `menuReplaceable` and nothing else.
+- 2026-11-08 — review found one state no test reached: switch, save, undo leaves the window at the
+  cart as opened, unsaved and view-only, where Save in the unsaved-changes prompt did nothing
+  silently (no loop: the prompt returns, and Don't Save works). Save now explains in a notice; a
+  viewer test pins it. README, menu README and `edit --menu`'s help now say the switch replaces
+  whatever loader the cart carries. 60/0 vitest.
+- 2026-11-08 — no live check in the app was run: the picker on a view-only cart and the banner's
+  hint are covered by `Listing.test.ts` and the document tests only, and are left to the user.
+- 2026-11-08 — audit: PASS (test-presence). `AC-132 (CLI)` and `AC-133 (CLI)` in `crates/stidcart-cli/tests/replace_loader.rs`, `AC-134 (RENDER)` and `AC-135 (RENDER)` in `gui/src-tauri/tests/menu.rs`, `Listing.test.ts` and `viewer.test.ts`, green at 37dcc08. Closeout line appended.
+- 2026-11-08 — reconciled: folded AC-132..AC-135 → SPEC.md/CLI (the `edit` and `edit` refusal rows), RENDER (the window's menu row) and none (the `inspect`/`load` row), each rewritten in place.
