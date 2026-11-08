@@ -8,7 +8,42 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-053 -->
+<!-- Next id: D-055 (D-053 is menu-resume's, on its branch) -->
+
+---
+
+## D-054 · 2026-11-08 · Entry metadata lives in one hidden directory entry, carried per entry by the model
+
+- **Context:** menu-meta. The user asked for a full title, year, author, note and group per entry,
+  shown by our menu with groups as folders, and edited three ways: `edit` flags, an import file
+  and the window (2026-11-08, spec approved the same day). EasyFS2 has no field for any of it. A
+  200-entry cart needs about 8-12 KB, and the loader slot has about 3 KB to spare once the
+  planned menu keys are in.
+- **Decision:**
+  - The metadata is one hidden program entry, `STIDCART.META`, placed by the normal placement
+    path, written only when at least one entry carries metadata. A cart without metadata is
+    byte-identical to today's. EasyLoader skips hidden entries (`easyloader.asm:900`, `:935-941`),
+    so the cart works under either menu and keeps its metadata through a menu switch.
+  - `load` lifts that entry out of the entry list and attaches each record to its entry, as the
+    hidden flag is carried (AC-29), so remove, re-order and rename carry it and a save writes it
+    again. Each record holds its entry's index and stored name; a record whose name no longer
+    matches is dropped and counted, which catches another tool's re-order.
+  - The layout carries a version. One the tool doesn't know is kept verbatim and described, and an
+    edit that would have to rewrite it is refused.
+  - The format doc gains its section first (D-018), marked as a stidcart extension, not an
+    ndefpack fact. Its evidence is round-trip tests and VICE boots, not reference citations.
+  - Its load address avoids `$D000-$DFFF`, so the D-038 rule never refuses it.
+  - The work splits in two: `menu-meta` (store, round-trip, CLI, import, listing, window) and
+    `menu-folders` (our menu reads it at boot and shows titles, the pane fields and folders), so
+    the first can run while other menu work holds the menu source.
+- **Alternatives rejected:** spare space in the loader slot (too small, changes the menu
+  fingerprint, lost on a switch to EasyLoader); free regions of bank 0 (the boot region is checked
+  byte-for-byte, so `load` would refuse the cart); a fixed high bank (nothing in the directory
+  points at it, so the placer and other tools treat it as free space); a sidecar file beside the
+  `.crt` (the C64 can't read it).
+- **Scope:** `docs/format/`, the core's entry model and read/write paths, `edit`, `list`, the
+  window, and later `menu/`
+- **Status:** active
 
 ---
 
