@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** The window wears the stid design system (Catppuccin Mocha/Latte, peach, Geist bundled) with the "raster" cartridge as its mark, its icon and a five-band strip under the title bar (D-046, D-047)
-- **Next action:** S7, the user's live check of the running app (dark and light, Dock icon), then audit
+- **Next action:** done; the PR awaits CI and the user's merge, then deploy the app locally
 - **Branch:** feat/raster-brand · **Updated:** 2026-11-08
 
 ## STEPS
@@ -23,7 +23,7 @@
 - [x] S4 — `tokens.css` to stid values, `fonts.css` and the four woff2 files with OFL; MAP licence invariant names `gui/src/fonts/`
 - [x] S5 — `Mark.svelte`; the strip in `App.svelte`; the mark in the title bar and the empty state
 - [x] S6 — app icon: `icon-source.svg` on the macOS grid, regenerate the six bundled files with `tauri icon`
-- [ ] S7 — both gates, the user's live check, audit, reconcile, PR; deploy locally after merge  ← next
+- [x] S7 — both gates, the user's live check, audit, reconcile, PR; deploy locally after merge
 
 ## DECISIONS (this work-item)
 
@@ -96,3 +96,10 @@ draws the same cartridge at every bundled size.
 - 2026-11-08 — S6: `icon-source.svg` draws the mark on the macOS grid (824 px tile on 1024).
   `tauri icon` regenerated the set; only the six files `tauri.conf.json` lists were kept. Looked at
   the 256 and 32 px PNGs: the label reads as bands at 256 and as a colour block at 32, as expected.
+- 2026-11-08 — live check (dev app, dark appearance, cmixed.crt copy): the empty state and the
+  listing render in Mocha with Geist and Geist Mono, the five-band strip under the title bar, the mark
+  in the title bar and heading the empty state, the peach Open… button, badges in their D-045 colours.
+  Light mode and the Dock icon are left for the user: switching the system appearance is theirs.
+- 2026-11-08 — the user checked light mode and the Dock icon: "this is good".
+- 2026-11-08 — audit: PASS (test-presence). `AC-119 (RENDER)` and `AC-120 (RENDER)` are in `gui/src/styles/tokens.test.ts`, `AC-121 (RENDER)` in `App.test.ts` and `tokens.test.ts`, `AC-122 (RENDER)` in `Toolbar.test.ts` and `EmptyState.test.ts`, green at ec3577c (root 230/0, GUI 37/0 cargo + 54/0 vitest). Closeout line appended.
+- 2026-11-08 — reconciled: folded AC-119..AC-122 → SPEC.md/RENDER (two new rows).
