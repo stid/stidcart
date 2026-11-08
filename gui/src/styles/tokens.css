@@ -1,9 +1,10 @@
 /* Design tokens. Every colour, size and radius the viewer uses is named here, once, with a light
-   and a dark set; components read only these variables. */
+   and a dark set; components read only these variables. The values are the stid design system's
+   (D-046): Catppuccin Latte in light, Mocha in dark, the peach accent, Geist and Geist Mono. */
 
 :root {
-  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  --font-ui: 'Geist Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
 
   --text-xs: 11px;
   --text-sm: 12px;
@@ -19,37 +20,48 @@
   --space-6: 32px;
   --space-8: 48px;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  /* Square-ish, as stid draws them: badges and inputs, buttons, cards and menus. */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
 
   --titlebar-height: 44px;
   /* Room for the macOS traffic lights under the overlay title bar. */
   --titlebar-inset: 92px;
+  /* The raster strip under the title bar: five bands of 2 px (D-046). */
+  --band-height: 2px;
 
-  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --duration: 140ms;
 
-  /* Light */
-  --bg: #ffffff;
-  --bg-subtle: #f7f7f8;
+  /* Light: Catppuccin Latte */
+  --bg: #eff1f5;
+  --bg-subtle: #e6e9ef;
   --bg-elevated: #ffffff;
-  --bg-hover: #f1f1f3;
-  --border: #e6e6e9;
-  --border-strong: #d4d4d8;
-  --text: #18181b;
-  --text-muted: #63636e;
-  --text-faint: #9a9aa3;
-  --accent: #3b6ff5;
-  --accent-text: #ffffff;
-  --accent-soft: rgba(59, 111, 245, 0.1);
-  --danger: #d1343a;
-  --danger-soft: rgba(209, 52, 58, 0.08);
-  --badge-bg: #f1f1f3;
-  --badge-text: #46464f;
+  --bg-hover: rgba(124, 127, 147, 0.14);
+  --border: #d7dae3;
+  --border-strong: #bcc0cc;
+  --text: #4c4f69;
+  --text-muted: #5c5f77;
+  --text-faint: #6c6f85;
+  --accent: #fe640b;
+  /* Dark on the accent in both themes: white on Latte's peach fails 4.5:1. */
+  --accent-text: #11111b;
+  --accent-soft: rgba(254, 100, 11, 0.1);
+  --danger: #d20f39;
+  --danger-soft: rgba(210, 15, 57, 0.1);
+  --badge-bg: #ccd0da;
+  --badge-text: #4c4f69;
+  /* The raster bands: Latte red, peach, yellow, green and blue. */
+  --band-red: #d20f39;
+  --band-peach: #fe640b;
+  --band-yellow: #df8e1d;
+  --band-green: #40a02b;
+  --band-blue: #1e66f5;
   /* Type badges in our C64 menu's colours (D-045): light green, yellow, light red, purple,
      light blue, darkened for contrast on white. 8K is a warmer yellow than the C64's own, which
-     leans green and read too close to PRG. */
+     leans green and read too close to PRG. They describe data, so they stay apart from the
+     brand's bands (D-046). */
   --kind-prg-bg: rgba(88, 141, 67, 0.14);
   --kind-prg-text: #3b6a2a;
   --kind-8k-bg: rgba(214, 165, 20, 0.2);
@@ -60,27 +72,33 @@
   --kind-ult-text: #6f3d86;
   --kind-xb-bg: rgba(108, 94, 181, 0.14);
   --kind-xb-text: #4d42a0;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow: 0 2px 10px rgba(76, 79, 105, 0.12), 0 10px 30px rgba(76, 79, 105, 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
+  /* Dark: Catppuccin Mocha */
   :root {
-    --bg: #17171a;
-    --bg-subtle: #1c1c20;
-    --bg-elevated: #212126;
-    --bg-hover: #26262c;
-    --border: #2c2c33;
-    --border-strong: #3a3a42;
-    --text: #ececef;
-    --text-muted: #a1a1aa;
-    --text-faint: #6c6c76;
-    --accent: #6e95ff;
-    --accent-text: #0d1430;
-    --accent-soft: rgba(110, 149, 255, 0.14);
-    --danger: #ff6b70;
-    --danger-soft: rgba(255, 107, 112, 0.1);
-    --badge-bg: #2a2a31;
-    --badge-text: #c9c9d1;
+    --bg: #1e1e2e;
+    --bg-subtle: #181825;
+    --bg-elevated: #313244;
+    --bg-hover: rgba(147, 153, 178, 0.14);
+    --border: #2a2a3c;
+    --border-strong: #45475a;
+    --text: #cdd6f4;
+    --text-muted: #a6adc8;
+    --text-faint: #9399b2;
+    --accent: #fab387;
+    --accent-text: #11111b;
+    --accent-soft: rgba(250, 179, 135, 0.14);
+    --danger: #f38ba8;
+    --danger-soft: rgba(243, 139, 168, 0.14);
+    --badge-bg: #313244;
+    --badge-text: #bac2de;
+    --band-red: #f38ba8;
+    --band-peach: #fab387;
+    --band-yellow: #f9e2af;
+    --band-green: #a6e3a1;
+    --band-blue: #89b4fa;
     --kind-prg-bg: rgba(154, 210, 132, 0.14);
     --kind-prg-text: #9ad284;
     --kind-8k-bg: rgba(240, 190, 60, 0.18);
@@ -91,7 +109,7 @@
     --kind-ult-text: #c49ad8;
     --kind-xb-bg: rgba(108, 94, 181, 0.3);
     --kind-xb-text: #aaa1ec;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow: 0 2px 8px rgba(17, 17, 27, 0.35), 0 8px 28px rgba(17, 17, 27, 0.45);
   }
 }
 
@@ -111,7 +129,6 @@ body {
   font-size: var(--text-md);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: 'cv11', 'ss01';
   /* A desktop app, not a page: no text selection on chrome, no rubber-band scroll. */
   overscroll-behavior: none;
   user-select: none;

@@ -13,5 +13,7 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/**/*.test.ts'],
+    // The theme tests read the stylesheets as text (`?raw`), which Vitest blanks unless it processes them.
+    css: { include: [/\/src\/styles\/[^/]+\.css/] },
   },
 }));

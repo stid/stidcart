@@ -131,3 +131,4 @@ distribution.
 
 GPL-2.0-or-later (`COPYING`), because the core was written from ndefpack's GPL C sources and is a
 derivative work. `firmware/` is zlib and stays that way — that boundary is load-bearing.
+The Geist fonts bundled in `gui/src/fonts/` are under the SIL Open Font License 1.1 (`OFL.txt` there).

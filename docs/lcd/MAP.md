@@ -62,6 +62,7 @@ on the string) and the GUI (`gui/src/lib/Listing.svelte` and its sibling compone
 - **The oracle decays.** Parity applies only where stidcart reproduces `ndeft`. Anything ndefpack
   cannot do needs its own evidence — a boot in VICE, or a hardware test.
 - **`firmware/` is zlib, everything else is GPL-2.0-or-later.** That includes `menu/`, our own menu. No code crosses that line.
+  The one other exception is the bundled fonts in `gui/src/fonts/`, which are OFL-1.1 font files, not code (D-047).
 - **The core holds no global mutable state and no I/O policy.** This is the specific defect that
   made ndefpack's core unreusable; it is not being reproduced.
 - **The crate version is written into every cart** as the default CRT header name, so a version
