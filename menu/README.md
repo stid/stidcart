@@ -23,7 +23,7 @@ code.
 | F1              | switch between the cart's own order and A-Z                              |
 | F3              | list all entries, then only programs, then only cartridges               |
 | F5              | select a random entry among those listed, never the one already selected |
-| F7              | show every key; the next key press goes back to the menu                 |
+| F7              | show every key and the stick; the next key press goes back to the menu   |
 | RUN/STOP        | leave to BASIC with the cartridge switched off                           |
 
 A joystick in port 2 does what the cursor keys and RETURN do (D-052):
@@ -52,9 +52,9 @@ and how it starts. Below the list are the position ("17 of 40"), the order in us
 listed, then the filter text in yellow with the number listed out of the visible entries, then a
 grey bar naming the keys, `return go  f1 sort  f7 help  run/stop`. Hidden entries are not listed.
 The filter and A-Z both ignore case. The filter takes up to 16 characters, any printable one except
-`"`. Every boot starts in the cart's own order, which is the order they were built in (D-039), with
-all kinds listed. The kind filter (F3) combines with the text, and changing either lists again from
-the first match.
+`"`. A boot starts in the cart's own order, which is the order they were built in (D-039), with all
+kinds listed, unless it comes back from a reset (below). The kind filter (F3) combines with the
+text, and changing either lists again from the first match.
 
 A move that leaves the view (CRSR, a page, HOME/CLR, F5) scrolls only as far as it takes to show the
 selection, so one page down from the top puts it on the last row. F5 mixes the CIA timer, the raster
@@ -67,6 +67,14 @@ address. SHIFT+RETURN copies a program the same way and sets BASIC's pointers, b
 `LIST`, `RUN` or a `SYS` work from `READY.`. Either way the program finds the C64's own colours and
 upper-case character set, as after a reset. The tool refuses to put this menu on a cart with an
 Ocean entry, or with a program that would load into `$D000-$DFFF` (D-038).
+
+After a soft reset the menu comes back where it was left: the entry last started, or the one
+selected at RUN/STOP, is selected and in view, in the same order and kind filter. The filter text
+isn't kept. If the kind filter would hide that entry, all kinds are listed. A power cycle starts at
+the top, and so does a reset after a program that wrote the menu's state (an EAPI or xbank game
+may). The state is checked before it is used, so state that was damaged or written for another cart
+starts at the top too (D-053). This is proven in VICE; whether an EasyFlash 3's own RESET button
+keeps the state on real hardware is untested.
 
 ## How it starts
 
@@ -110,7 +118,15 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
     bank and returns to the menu ROM, which sets BASIC's pointers and types `RUN` or `SYS`, or
     nothing when `p_only` is set (SHIFT+RETURN).
 
-  `$DF00-$DFFF` belongs to the menu once it is entered.
+  `$DF00-$DFFF` belongs to the menu once it is entered. The routines end by `$DFF5`, and assembly
+  fails if they grow further.
+
+- `$DFF6-$DFFF` holds the state a reset comes back to (D-053). The menu writes it when it starts an
+  entry and on RUN/STOP: the magic "STID", the selected entry's directory slot, the order, the kind
+  filter, the cart's number of directory entries, the 8-bit sum of the entry's name, and a checksum
+  of the other nine bytes. At boot it restores them only when the magic and the checksum hold and
+  the count, the slot and the name match this cart. A soft reset keeps the page; a power cycle
+  fills it with a pattern that fails the check. RUN/STOP with nothing listed spoils the magic.
 
 ## Rebuilding
 
@@ -132,4 +148,5 @@ stidcart 0.15 wrote; the tests use it to make a cart that carries an earlier bui
 
 The evidence that the menu works is VICE, because the reference tool knows nothing of it:
 `crates/stidcart-cli/tests/menu_boot.rs` boots carts and reads the screen back (AC-87..AC-92,
-AC-136..AC-141 for the keys of D-051, and AC-142..AC-146 for the stick).
+AC-136..AC-141 for the keys of D-051, AC-142..AC-146 for the stick, and AC-147..AC-152 for coming
+back after a reset, which the tests do with the monitor's `reset 0` and `reset 1`).
