@@ -12,14 +12,14 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu gains SHIFT+RETURN load-without-run, page keys, HOME/CLR to the ends, an F3 kind filter, an F5 random pick and an F7 help screen (D-051)
-- **Next action:** S3 — failing boot tests for AC-136..AC-141
+- **Next action:** S4 — implement the keys in `menu/src/menu.s` and `launch.s`, rebuild, register the replaced build
 - **Branch:** feat/menu-keys · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.17.0 → 0.18.0 (first commit on the branch)
 - [x] S2 — triage, D-051, AC-136..AC-141 claimed, this JOURNAL
-- [ ] S3 — failing boot tests in `menu_boot.rs` for AC-136..AC-141
+- [x] S3 — failing boot tests in `menu_boot.rs` for AC-136..AC-141
 - [ ] S4 — implement in `menu/src/menu.s` (and `launch.s` for AC-136), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md` key table and help bar, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
@@ -95,3 +95,9 @@ help bar names F7. The raster strip and mark need not show on the help screen, a
   for every menu improvement from the brainstorm, orchestrated with agents; this is the first item.
   Spec approval for it is delegated to me, so the keys are decided in D-051. AC-136..AC-141
   claimed, next free AC-142.
+- 2026-11-08 — S3: boot tests `ac_136`..`ac_141` in `menu_boot.rs`, plus a SHIFT+RETURN case in
+  AC-128 and a help/page/kind/random/load scenario in AC-127. Red run (8 failed, 0 passed):
+  AC-136 and AC-128 never reach the KERNAL key wait at `$E5CD` ($8D is ignored); AC-137 `e17` not
+  listed; AC-138 `e40` not listed; AC-139 row 22 lacks the kind; AC-140 position `1 of 25`, no kind
+  filter; AC-141 `banana` listed (F3 ignored); AC-127 no bank write seen. Page keys scroll only as
+  far as it takes to show the selection, so one page down from the top leaves it on the last row.
