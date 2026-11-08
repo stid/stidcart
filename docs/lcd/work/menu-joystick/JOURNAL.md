@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu takes a joystick in port 2: moves, paging and fire act as the keys do, with repeat while held (D-052)
-- **Next action:** S5 — `menu/README.md`, gates
+- **Next action:** S6 — audit, reconcile into SPEC, closeout, PR
 - **Branch:** feat/menu-joystick · **Updated:** 2026-11-08
 
 ## STEPS
@@ -21,7 +21,7 @@
 - [x] S2 — triage, D-052, AC-142..AC-146 claimed, this JOURNAL
 - [x] S3 — `support/vice.rs` takes extra emulator arguments; failing boot tests in `menu_boot.rs` for AC-142..AC-146
 - [x] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
-- [ ] S5 — `menu/README.md`, gates with `STIDCART_REQUIRE_TOOLS=1`
+- [x] S5 — `menu/README.md`, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
 
 ## DECISIONS (this work-item)
@@ -109,3 +109,6 @@ interrupts unmasked.
   moves in 60 frames, as predicted. AC-145's colour compare masked to 4 bits: colour RAM's high
   nibble is open bus. ROM 4906 → 5041 bytes (ends `$93B1`). 63ba913's build joins
   `EARLIER_STIDCART_BUILDS`. Gate 260/0, GUI gate green.
+- 2026-11-08 — S5. README: a stick table under the keys, the timing and the held-at-start rule, and
+  how the stick is read and tested. The on-screen F7 help still names keys only. Adding the stick
+  there would change `menu.bin` again, and no AC asks for it.
