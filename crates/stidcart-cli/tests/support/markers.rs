@@ -77,6 +77,21 @@ pub fn high_prg(text: &str) -> Marker {
     }
 }
 
+/// A program loading at `load` and ending one byte before `end` (at most `$10000`), started by
+/// `SYS load`: the routine at `load`, then `fill(addr)` in every byte after it, so where each byte
+/// landed can be checked.
+pub fn filled_prg(load: u16, end: u32, text: &str, fill: fn(u32) -> u8) -> Marker {
+    let mut bytes = load.to_le_bytes().to_vec();
+    let (code, spin) = routine(load, text);
+    bytes.extend(&code);
+    bytes.extend((load as u32 + code.len() as u32..end).map(fill));
+    Marker {
+        bytes,
+        spin,
+        text: text.to_string(),
+    }
+}
+
 /// The seven cartridge kinds the menu starts in this slice — every kind but Ocean.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CartKind {

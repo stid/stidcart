@@ -25,7 +25,13 @@ pub const EARLIER_STIDCART_BUILDS: &[u64] = &[
     0xeac9_353f_0e59_ab86, // e8eb154
     0xa4cb_0aba_6e81_53e0, // 63ba913
     0xebee_59a8_625e_4c8c, // 9f4ca36
+    0x4088_1607_7fb5_9726, // 5bbe7bc
 ];
+
+/// One past the last byte of the routine our menu runs at `$0100` to copy a program's bytes from
+/// `$D000` on (D-056): a program reaching `$D000` that loads below it would overwrite the routine.
+/// It is the label `high_copy_end` in `menu/menu.lbl`, and the `menu_builds` test holds them equal.
+pub const HIGH_COPY_END: u16 = 0x0150;
 
 /// FNV-1a 64 over `bytes`: how an earlier build of our menu is recognised in a loader slot.
 pub fn fingerprint(bytes: &[u8]) -> u64 {

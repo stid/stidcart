@@ -65,8 +65,19 @@ does nothing else (D-051).
 A program that loads at or below `$0801` is started with `RUN`, and any other with `SYS` to its load
 address. SHIFT+RETURN copies a program the same way and sets BASIC's pointers, but types nothing, so
 `LIST`, `RUN` or a `SYS` work from `READY.`. Either way the program finds the C64's own colours and
-upper-case character set, as after a reset. The tool refuses to put this menu on a cart with an
-Ocean entry, or with a program that would load into `$D000-$DFFF` (D-038).
+upper-case character set, as after a reset.
+
+A program can run from below `$D000` up to `$FFFF`. Its bytes from `$D000` on go into the RAM
+under I/O and the KERNAL, not into the VIC, SID, CIAs or colour RAM as a KERNAL `LOAD` would put
+them (D-056). The tool refuses to put this menu on a cart with an Ocean entry (D-038), or with a
+program that the menu can't start (D-056):
+
+- a program that loads at `$D000` or above, since the menu would start it inside I/O or the KERNAL
+- a program that runs past `$FFFF`
+- a program that reaches `$D000` and loads below `$0150`, over the routine that copies that part
+
+EasyLoader itself won't start programs that reach `$D000` (ndefpack's `easyloader.asm:957-985`).
+The tool doesn't check EasyLoader carts for any of this.
 
 After a soft reset the menu comes back where it was left: the entry last started, or the one
 selected at RUN/STOP, is selected and in view, in the same order and kind filter. The filter text
@@ -115,11 +126,22 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
   - starting a cartridge: bank and mode, the entry's first bank left in `$DF00/$DF01` for xbank
     carts, then reset
   - starting a program: a BASIC cold start with CHRIN trapped. The trap copies the program bank by
-    bank and returns to the menu ROM, which sets BASIC's pointers and types `RUN` or `SYS`, or
-    nothing when `p_only` is set (SHIFT+RETURN).
+    bank, up to `$D000`, and returns to the menu ROM. That copies the rest, if any (below), sets
+    BASIC's pointers and types `RUN` or `SYS`, or nothing when `p_only` is set (SHIFT+RETURN).
 
   `$DF00-$DFFF` belongs to the menu once it is entered. The routines end by `$DFF5`, and assembly
   fails if they grow further.
+
+- A program's bytes from `$D000` on (`p_tail` of them) are copied by `high_copy`, which the menu
+  ROM puts at `$0100-$014F`, the bottom of the stack page, and calls (D-056). It can't run from
+  `$DF00`: that page is I/O, and it is gone while the character ROM is mapped in. For each byte it
+  calls `get_byte` with `$01=$37`, so the bank register and the source are there, then writes it
+  with `$01=$33`. With the character ROM at `$D000` and the KERNAL at `$E000`, a write lands in the
+  RAM under them. Interrupts are masked meanwhile, and the NMI vector points at an `RTI` in the
+  routine: the KERNAL's handlers would read CIAs that aren't mapped in and write into that RAM. It
+  puts back `$01`, the NMI vector, the bank and the interrupt flag before returning. VICE shows this
+  works (AC-160..AC-162, AC-165): writes with `$01=$33` leave the chips, the bank register and the
+  cart RAM alone. Real hardware hasn't been tried.
 
 - `$DFF6-$DFFF` holds the state a reset comes back to (D-053). The menu writes it when it starts an
   entry and on RUN/STOP: the magic "STID", the selected entry's directory slot, the order, the kind
@@ -148,5 +170,7 @@ stidcart 0.15 wrote; the tests use it to make a cart that carries an earlier bui
 
 The evidence that the menu works is VICE, because the reference tool knows nothing of it:
 `crates/stidcart-cli/tests/menu_boot.rs` boots carts and reads the screen back (AC-87..AC-92,
-AC-136..AC-141 for the keys of D-051, AC-142..AC-146 for the stick, and AC-147..AC-152 for coming
-back after a reset, which the tests do with the monitor's `reset 0` and `reset 1`).
+AC-136..AC-141 for the keys of D-051, AC-142..AC-146 for the stick, AC-147..AC-152 for coming
+back after a reset, which the tests do with the monitor's `reset 0` and `reset 1`, and
+AC-160..AC-162 and AC-165 for programs reaching `$D000-$FFFF`, read back as RAM with the monitor's
+`bank ram`).

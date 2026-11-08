@@ -224,9 +224,14 @@ pub enum BuildError {
     AlignNotXbank { name: String },
     /// Our menu has no Ocean-mode build (D-037), and this entry is an Ocean cartridge.
     MenuNeedsNormalMode { name: String },
-    /// Our menu copies programs from `$DF00`, with I/O mapped in, so it cannot start one that
-    /// loads anywhere in `$D000-$DFFF` (D-038).
-    ProgramInIoArea { name: String },
+    /// Our menu starts a program by `SYS` or `RUN` at its load address, which in `$D000-$FFFF` is
+    /// I/O or the KERNAL ROM (D-056).
+    ProgramLoadsHigh { name: String, load: u16 },
+    /// The program's bytes run past `$FFFF`, where memory ends; our menu would wrap them to `$0000`.
+    ProgramPastTop { name: String },
+    /// The program reaches `$D000` and loads below [`menu::HIGH_COPY_END`], over the routine our
+    /// menu copies its bytes from `$D000` on with (D-056).
+    ProgramOverHighCopy { name: String },
     /// The metadata payload would not fit the 16 KB a C64 copies it into at `$4000` (D-055).
     MetadataTooLarge { size: usize, max: usize },
     /// The cart's metadata is kept as stored in a layout this build can't read, and the entries
@@ -280,9 +285,18 @@ impl std::fmt::Display for BuildError {
                 f,
                 "'{name}' is an Ocean cartridge, and the stidcart menu cannot run on an Ocean cart"
             ),
-            BuildError::ProgramInIoArea { name } => write!(
+            BuildError::ProgramLoadsHigh { name, load } => write!(
                 f,
-                "'{name}' loads into $D000-$DFFF, which the stidcart menu cannot start a program over"
+                "'{name}' loads at ${load:04X}, and the stidcart menu starts only programs that load below $D000"
+            ),
+            BuildError::ProgramPastTop { name } => write!(
+                f,
+                "'{name}' runs past $FFFF, the end of the C64's memory, so the stidcart menu cannot start it"
+            ),
+            BuildError::ProgramOverHighCopy { name } => write!(
+                f,
+                "'{name}' reaches $D000 and loads below ${:04X}, over the routine at $0100 the stidcart menu copies that part with",
+                menu::HIGH_COPY_END
             ),
         }
     }
@@ -593,15 +607,13 @@ impl CartBuilder {
                     name: c.name.clone(),
                 });
             }
-            if let Some(p) = self
+            if let Some(e) = self
                 .entries
                 .iter()
                 .filter_map(Entry::as_program)
-                .find(|p| touches_io_area(&p.data))
+                .find_map(|p| beyond_our_menu(&p.name, &p.data))
             {
-                return Err(BuildError::ProgramInIoArea {
-                    name: p.name.clone(),
-                });
+                return Err(e);
             }
         }
 
@@ -666,15 +678,26 @@ impl CartBuilder {
     }
 }
 
-/// Whether a `.prg` (load address, then payload) would occupy any of `$D000-$DFFF` once loaded.
-fn touches_io_area(prg: &[u8]) -> bool {
+/// Why our menu cannot start the `.prg` (load address, then payload) named `name`, if it cannot
+/// (D-056). It copies the bytes below `$D000` from cart RAM at `$DF00` and the rest from a routine
+/// at `$0100`, into the RAM under I/O and the KERNAL, then starts the program at its load address.
+fn beyond_our_menu(name: &str, prg: &[u8]) -> Option<BuildError> {
     if prg.len() < 2 {
-        return false;
+        return None;
     }
-    let start = u16::from_le_bytes([prg[0], prg[1]]) as usize;
-    let end = start + (prg.len() - 2);
-    // `end` is one past the last byte; a program with no payload occupies nothing.
-    end > start && start <= 0xdfff && end > 0xd000
+    let name = name.to_string();
+    let load = u16::from_le_bytes([prg[0], prg[1]]);
+    // One past the last byte.
+    let end = load as usize + (prg.len() - 2);
+    if load >= 0xd000 {
+        Some(BuildError::ProgramLoadsHigh { name, load })
+    } else if end > 0x10000 {
+        Some(BuildError::ProgramPastTop { name })
+    } else if end > 0xd000 && load < menu::HIGH_COPY_END {
+        Some(BuildError::ProgramOverHighCopy { name })
+    } else {
+        None
+    }
 }
 
 /// The mode an entry set implies: Ocean if any entry is an Ocean cartridge.

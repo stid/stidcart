@@ -29,9 +29,10 @@ the request never mentioned can move.
 
 A cart boots into EasyLoader, the embedded third-party menu, unless `build` or `edit` is given
 `--menu stidcart`. That puts our own menu (`menu/`, GPL) in the same slot (D-037). It lists the
-visible entries, scrolls, and starts programs and every cartridge kind except Ocean. It is refused
-on carts it cannot run: one with an Ocean entry, or with a program loading into `$D000-$DFFF`
-(D-038). `list` and the desktop app say which menu a cart carries, and edits keep it. A cart
+visible entries, scrolls, and starts programs and every cartridge kind except Ocean, including
+programs whose bytes run into `$D000-$FFFF`, which EasyLoader refuses (D-056). It is refused on
+carts it cannot run: one with an Ocean entry, or with a program that loads at `$D000` or above,
+ends past `$FFFF`, or reaches `$D000` from below `$0150` (D-038, D-056). `list` and the desktop app say which menu a cart carries, and edits keep it. A cart
 carrying an earlier build of our menu shows as "stidcart (older build)" and is saved with the
 current one (D-049). A loader slot holding no menu the tool knows is replaced only when a menu is
 chosen, with `edit --menu` or the app's picker (D-050). The reference tool knows nothing of this menu, so its evidence is VICE: boot tests start carts and read the
@@ -129,7 +130,7 @@ The window edits what `edit` edits:
 - Click an entry to show its title, year, author, note and group below the list, and click a
   field to change it. Each change is one undoable edit, refused in `edit`'s words when invalid.
 - Choose the menu the cart boots into, EasyLoader or stidcart, from the menu picker under the
-  names. A cart with an Ocean entry, or a program that loads into `$D000-$DFFF`, refuses stidcart
+  names. A cart our menu can't run (an Ocean entry, or one of the programs above) refuses stidcart
   and names the entry, as `edit --menu` does (D-042).
 - New (⌘N) starts an empty cart.
 

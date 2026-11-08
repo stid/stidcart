@@ -5,10 +5,10 @@ use stidcart_core::{crt, listing, read, CartBuilder, Program};
 
 /// The build `menu/menu.bin` holds now. Changing the menu fails this until the replaced build's
 /// fingerprint joins `EARLIER_STIDCART_BUILDS`, so no cart built with it is ever stranded.
-const CURRENT: u64 = 0x4088_1607_7fb5_9726;
+const CURRENT: u64 = 0xbe42_a63d_5738_a710;
 
 /// The earlier builds, oldest first, by the commit that last changed `menu/menu.bin`.
-const EARLIER: [(&str, u64); 10] = [
+const EARLIER: [(&str, u64); 11] = [
     ("0d3dfba", 0x85f5_5429_73af_46a6),
     ("2fbc818", 0x7537_fc2c_cf55_210c),
     ("ee3ec0f", 0x18ca_90a5_e0c1_5d17),
@@ -19,6 +19,7 @@ const EARLIER: [(&str, u64); 10] = [
     ("e8eb154", 0xeac9_353f_0e59_ab86),
     ("63ba913", 0xa4cb_0aba_6e81_53e0),
     ("9f4ca36", 0xebee_59a8_625e_4c8c),
+    ("5bbe7bc", 0x4088_1607_7fb5_9726),
 ];
 
 /// The build at 5b54e81, the one carts made by stidcart 0.15 carry.
@@ -170,4 +171,20 @@ fn ac_151_assembly_refuses_launch_routines_past_dff5() {
         !over.status.success(),
         "routines running into $DFF6 assembled without error"
     );
+}
+
+/// The refusal's copy of where the menu's `$0100` routine ends is the committed build's label, so
+/// AC-163's boundary moves with the routine (D-056).
+#[test]
+fn the_refusal_knows_where_the_high_copy_routine_ends() {
+    let labels = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../menu/menu.lbl"),
+    )
+    .unwrap();
+    let end = labels
+        .lines()
+        .find_map(|l| l.strip_suffix(" .high_copy_end")?.strip_prefix("al "))
+        .map(|a| u16::from_str_radix(a, 16).unwrap())
+        .expect("menu.lbl has no .high_copy_end");
+    assert_eq!(stidcart_core::menu::HIGH_COPY_END, end);
 }

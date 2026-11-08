@@ -3398,3 +3398,254 @@ fn ac_152_the_help_names_the_joystick() {
         );
     }
 }
+
+// --- menu-highmem: programs reaching into $D000-$FFFF (AC-160..AC-162, AC-165, D-056) -------------
+//
+// The monitor's `bank ram` makes a dump read the RAM under I/O and the ROMs; `bank cpu` puts the
+// view back to what the CPU sees, I/O included, before anything else reads memory.
+
+/// The byte the high-memory programs hold at `addr`. At the VIC registers the handoff sets it
+/// differs from their values, and across colour RAM it isn't one colour, so a copy into I/O instead
+/// of RAM would show in either.
+fn fill(addr: u32) -> u8 {
+    ((addr >> 8) as u8) ^ (addr as u8) ^ 0xa5
+}
+
+/// Dump `start..=end` as RAM, under I/O and the ROMs.
+fn ram(start: u16, end: u16) -> Vec<Step> {
+    vec![
+        Step::Raw("bank ram".into()),
+        Step::Dump(start, end),
+        Step::Raw("bank cpu".into()),
+    ]
+}
+
+/// Start the selection with `keys` and stop at `end`, dumping: the state when the menu hands over
+/// (0), then at `end` the screen (1), the VIC (2), colour RAM (3), the state (4) and `load..=last`
+/// read as RAM (5).
+fn high_boot(
+    dir: &Path,
+    cart: &Path,
+    keys: Vec<u8>,
+    end: u16,
+    load: u16,
+    last: u16,
+) -> Vec<Vec<u8>> {
+    let mut steps = vec![
+        Step::Labels(vice::menu_labels()),
+        idle(),
+        Step::Keys(keys),
+        Step::Break(Target::Label("basic_go")),
+        state(),
+        Step::Break(Target::Addr(end)),
+        screen(),
+        Step::Dump(VIC.0, VIC.1),
+        Step::Dump(COLOUR_RAM.0, COLOUR_RAM.1),
+        state(),
+    ];
+    steps.extend(ram(load, last));
+    boot_or_panic(dir, cart, &steps)
+}
+
+/// What [`high_boot`] dumped holds `m` in RAM from its load address, and the copy wrote no I/O: the
+/// VIC as the handoff sets it, colour RAM one colour, and the menu's state in cart RAM as it left it.
+fn assert_copied_to_ram(d: &[Vec<u8>], m: &Marker, what: &str) {
+    assert_eq!(
+        d[5].len(),
+        m.bytes.len() - 2,
+        "{what}: the RAM dump's length"
+    );
+    if let Some(i) = d[5].iter().zip(&m.bytes[2..]).position(|(a, b)| a != b) {
+        panic!(
+            "{what}: RAM differs from the program at offset ${i:04X} (got ${:02X}, want ${:02X})",
+            d[5][i],
+            m.bytes[2 + i]
+        );
+    }
+    assert_eq!(
+        (d[2][8] & 0x0f, d[2][9] & 0x0f, d[2][0] | 1),
+        (colour::LIGHT_BLUE, colour::BLUE, UPPER_CASE),
+        "{what}: (border, background, $D018) are not the handoff's: the copy wrote the VIC"
+    );
+    assert!(
+        d[3].iter().all(|c| c & 0x0f == colour::LIGHT_BLUE),
+        "{what}: colour RAM is not all light blue: the copy wrote it"
+    );
+    assert_eq!(d[4], d[0], "{what}: the menu's state in cart RAM changed");
+}
+
+/// AC-160 (none): a program loading at `$C000` with `$4000` bytes, each a function of its address,
+/// started by our menu, is in RAM at every address, `$D000-$FFFF` included, read with I/O and ROM
+/// banked out; the copy writes no I/O, the program's own output shows on the screen, and it is
+/// started by `SYS 49152`.
+#[test]
+fn ac_160_a_program_reaching_into_d000_ffff_lands_in_ram() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-160: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac160");
+    let m = markers::filled_prg(0xc000, 0x10000, "HIGH PROGRAM RAN", fill);
+    let cart = build(&dir, "high", &[], &[write(&dir, "high.prg", &m.bytes)]);
+    let d = high_boot(&dir, &cart, vec![key::RETURN], m.spin, 0xc000, 0xffff);
+    assert_marker(&d[1], &m);
+    assert_copied_to_ram(&d, &m, "$C000-$FFFF by RETURN");
+}
+
+/// AC-161 (none): AC-160 holds when the program's bank boundary falls inside `$D000-$DFFF`, and when
+/// the program is started with SHIFT+RETURN, which stops at `READY.` with the bytes in place.
+#[test]
+fn ac_161_a_bank_boundary_in_d000_dfff_and_shift_return() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-161: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac161");
+    let m = markers::filled_prg(0xc000, 0x10000, "WRAPPED PROGRAM RAN", fill);
+    // The heavier entry is placed first, so a first entry of $6800 bytes moves the program's first
+    // byte $2800 into a bank's 16 KiB and the bank runs out inside $D000-$DFFF; the precondition
+    // below checks where it really falls.
+    let mut filler = 0x0801u16.to_le_bytes().to_vec();
+    filler.resize(0x6800, 0);
+    let cart = build(
+        &dir,
+        "wrap",
+        &[],
+        &[
+            write(&dir, "a filler.prg", &filler),
+            write(&dir, "b wrapped.prg", &m.bytes),
+        ],
+    );
+    let info = stidcart_core::read::inspect(&std::fs::read(&cart).unwrap()).unwrap();
+    let e = &info.entries[1];
+    assert_eq!(e.kind, stidcart_core::directory::EntryType::Prg, "{e:?}");
+    let wrap = 0xc000 + (0x4000 - (e.offset as u32 & 0x3fff)) - 2;
+    assert!(
+        (0xd000..0xe000).contains(&wrap),
+        "precondition: the bank runs out at ${wrap:04X}, not inside $D000-$DFFF"
+    );
+
+    let d = high_boot(
+        &dir,
+        &cart,
+        vec![key::DOWN, key::RETURN],
+        m.spin,
+        0xc000,
+        0xffff,
+    );
+    assert_marker(&d[1], &m);
+    assert_copied_to_ram(&d, &m, "a bank boundary at $D000-$DFFF");
+
+    let d = high_boot(
+        &dir,
+        &cart,
+        vec![key::DOWN, key::SHIFT_RETURN],
+        KEY_WAIT,
+        0xc000,
+        0xffff,
+    );
+    assert!(shows(&d[1], "ready."), "SHIFT+RETURN: no READY. prompt");
+    assert!(!shows(&d[1], &m.text), "SHIFT+RETURN: the program ran");
+    assert_copied_to_ram(&d, &m, "SHIFT+RETURN");
+}
+
+/// AC-162 (none): a BASIC program loading at `$0801` whose bytes run past `$D000` (the largest the
+/// format holds, to `$E7FE`) runs by `RUN`, with BASIC's pointers set from its end.
+#[test]
+fn ac_162_a_basic_program_past_d000_runs() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-162: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac162");
+    // basic_prg's line and routine from $0801, then fill to $E7FE.
+    let mut m = markers::basic_prg("LONG BASIC RAN");
+    let mut bytes = 0x0801u16.to_le_bytes().to_vec();
+    bytes.extend(&m.bytes[2 + (0x0801 - 0x07f0)..]);
+    let end = 0x0801 + bytes.len() as u32 - 2;
+    bytes.extend((end..0xe7ff).map(fill));
+    m.bytes = bytes;
+    let cart = build(
+        &dir,
+        "long basic",
+        &[],
+        &[write(&dir, "long.prg", &m.bytes)],
+    );
+
+    let mut steps = press_then_wait(&[key::RETURN], m.spin);
+    steps.push(screen());
+    steps.push(Step::Dump(0x002b, 0x002e));
+    steps.extend(ram(0x0801, 0xe7fe));
+    let d = boot_or_panic(&dir, &cart, &steps);
+    assert_marker(&d[0], &m);
+    assert_eq!(
+        d[1],
+        [0x01, 0x08, 0xff, 0xe7],
+        "BASIC's start and end pointers"
+    );
+    assert!(
+        d[2] == m.bytes[2..],
+        "the program is not in RAM at $0801-$E7FE"
+    );
+}
+
+/// AC-165 (none): starting a program through the second copy, AC-127 and AC-128 hold: no bank or
+/// mode write with the raster interrupt live and unmasked (the second copy's own writes among those
+/// seen), and the IRQ vector at `$EA31` with the raster interrupt off when the program starts. The
+/// NMI vector and `$01` are back to the KERNAL's values.
+#[test]
+fn ac_165_the_second_copy_keeps_the_interrupt_rules() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-165: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac165-watch");
+    let m = markers::filled_prg(0xc000, 0x10000, "IRQ HIGH RAN", fill);
+    let cart = build(&dir, "irq high", &[], &[write(&dir, "high.prg", &m.bytes)]);
+    let mut steps = vec![
+        Step::Labels(vice::menu_labels()),
+        idle(),
+        Step::Keys(vec![key::RETURN]),
+        Step::Raw("logname \"monlog.txt\"\nlog on\nwatch store $de00\nwatch store $de02".into()),
+    ];
+    steps.extend((0..80).map(|_| Step::Raw("g\nr\nm $d01a $d01a".into())));
+    // The run ends at the cycle limit once the writes stop; only the log is read.
+    let _ = vice::boot(&dir, &cart, &steps);
+    let log = String::from_utf8_lossy(&std::fs::read(dir.join("monlog.txt")).unwrap_or_default())
+        .into_owned();
+    let writes = bank_writes(&log);
+    assert!(!writes.is_empty(), "no bank or mode write was seen");
+    for (i, (masked, live)) in writes.iter().enumerate() {
+        assert!(
+            *masked || !*live,
+            "write {i} to $DE00/$DE02 with the raster interrupt live and unmasked"
+        );
+    }
+    assert!(
+        log.lines().any(|l| l.trim_start().starts_with(".;01")),
+        "no bank write was seen from the routine at $0100"
+    );
+
+    let dir = scratch("ac165-exit");
+    let cart = build(&dir, "irq high", &[], &[write(&dir, "high.prg", &m.bytes)]);
+    let mut steps = press_then_wait(&[key::RETURN], m.spin);
+    steps.push(screen());
+    steps.push(Step::Dump(0x0314, 0x0315));
+    steps.push(Step::Dump(0xd01a, 0xd01a));
+    steps.push(Step::Dump(0x0318, 0x0319));
+    steps.push(Step::Dump(0x0001, 0x0001));
+    let d = boot_or_panic(&dir, &cart, &steps);
+    assert_marker(&d[0], &m);
+    assert_eq!(d[1], [0x31, 0xea], "the IRQ vector is not $EA31");
+    assert_eq!(d[2][0] & 0x0f, 0, "a VIC interrupt is still enabled");
+    assert_eq!(
+        d[3],
+        [0x47, 0xfe],
+        "the NMI vector is not the KERNAL's $FE47"
+    );
+    assert_eq!(
+        d[4][0] & 0x07,
+        0x07,
+        "$01 does not map BASIC, KERNAL and I/O in"
+    );
+}

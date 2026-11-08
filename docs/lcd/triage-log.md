@@ -50,3 +50,5 @@
 2026-11-08 · menu-resume · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
 2026-11-08 · menu-meta · 5 signals · Deep · hard:yes · risk:yes
 2026-11-08 · menu-meta · closeout · Deep · audit: PASS (first run) · re-routes: 0 · interventions: 1 (selection fix by orchestrator)
+2026-11-08 · menu-highmem · 3 signals · Standard · hard:no · risk:no
+2026-11-08 · menu-highmem · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
