@@ -120,6 +120,11 @@ npm run tauri dev          # run the app
 ../docs/lcd/ci/gui-gate.sh # its gate: type-check, vitest, build, then clippy and tests
 ```
 
+To use it day to day on your own Mac, `scripts/install.sh` builds `stidcart.app` into
+`/Applications` and installs the `stidcart` command into `~/.cargo/bin`. Run it again after pulling
+new work to update both; it asks you to quit the app first. Nothing is published or signed for
+distribution.
+
 ## Licensing
 
 GPL-2.0-or-later (`COPYING`), because the core was written from ndefpack's GPL C sources and is a
