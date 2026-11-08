@@ -155,6 +155,7 @@ p_size:   .byte 0, 0, 0         ; bytes still to copy
 p_cbank:  .byte 0
 p_load:   .word 0
 p_chrin:  .word 0
+p_only:   .byte 0               ; non-zero: load the program but type nothing (SHIFT+RETURN)
 
 ram_end:
         .here

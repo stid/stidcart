@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu gains SHIFT+RETURN load-without-run, page keys, HOME/CLR to the ends, an F3 kind filter, an F5 random pick and an F7 help screen (D-051)
-- **Next action:** S4 — implement the keys in `menu/src/menu.s` and `launch.s`, rebuild, register the replaced build
+- **Next action:** S5 — `menu/README.md` key table, help bar and behaviour text
 - **Branch:** feat/menu-keys · **Updated:** 2026-11-08
 
 ## STEPS
@@ -20,7 +20,7 @@
 - [x] S1 — version 0.17.0 → 0.18.0 (first commit on the branch)
 - [x] S2 — triage, D-051, AC-136..AC-141 claimed, this JOURNAL
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-136..AC-141
-- [ ] S4 — implement in `menu/src/menu.s` (and `launch.s` for AC-136), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
+- [x] S4 — implement in `menu/src/menu.s` (and `launch.s` for AC-136), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md` key table and help bar, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
 
@@ -101,3 +101,10 @@ help bar names F7. The raster strip and mark need not show on the help screen, a
   listed; AC-138 `e40` not listed; AC-139 row 22 lacks the kind; AC-140 position `1 of 25`, no kind
   filter; AC-141 `banana` listed (F3 ignored); AC-127 no bank write seen. Page keys scroll only as
   far as it takes to show the selection, so one page down from the top leaves it on the last row.
+- 2026-11-08 — S4: keys in `menu.s`, `p_only` in `launch.s` (SHIFT+RETURN skips `make_keys`).
+  The 8 red tests pass; full root gate and `gui-gate.sh` green with `STIDCART_REQUIRE_TOOLS=1`.
+  ROM slot 4054 → 4906 of 8192 bytes; `$DF02` routines end at `$DFF6` (limit `$DFFF`). `sbuf`
+  moved to `$C160`: row 22 with the kind is 36 characters, past its old 32. Build e8eb154
+  (`0xeac9_353f_0e59_ab86`) joins `EARLIER_STIDCART_BUILDS`; current is `0xa4cb_0aba_6e81_53e0`.
+  F5 never picks the entry already selected, so every press moves. Help bar is now
+  "return go  f1 sort  f7 help  run/stop" (37 cells): "return start" with F7 added doesn't fit.
