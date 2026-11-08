@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu reads the `STIDCART.META` entry once at boot and shows titles in the list, the full title, year, author and note in the pane, and groups as folders (D-057)
-- **Next action:** S5 — `menu/README.md`, then the gates
+- **Next action:** S6 — audit, reconcile (D-057 refinements to the orchestrator), closeout, PR
 - **Branch:** feat/menu-folders · **Updated:** 2026-11-08
 
 ## STEPS
@@ -21,7 +21,7 @@
 - [x] S2 — triage, D-057, AC-166..AC-169 (from the approved menu-meta spec's M-8..M-11), this JOURNAL
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-166..AC-169 (carts built with `edit --title/--group/...` or the core API)
 - [x] S4 — implement in `menu/src/menu.s` (and `launch.s` if the copy loop lives there), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
-- [ ] S5 — `menu/README.md`, the F7 help (folder keys), gates with `STIDCART_REQUIRE_TOOLS=1`
+- [x] S5 — `menu/README.md`, the F7 help (folder keys), gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
 
 ## DECISIONS (this work-item)
@@ -146,3 +146,8 @@ A record whose stored name doesn't match its slot is ignored.
     - Resume derives the folder from the entry's group, so `$DFF5` stays free.
   - AC-155's boot of our menu now opens the folder to find alpha.
   - Gates: root 305 passed; GUI 46 cargo + 67 vitest.
+- 2026-11-08 — S5: `menu/README.md`. The key table covers folders and title search, and a new
+  "Titles and folders" section covers what shows, the folder keys and when metadata is ignored.
+  "How it starts" covers the boot copy and its tables, and the state section covers the folder.
+  The F7 help went in with S4. Not measured: the boot copy of a full 16 KB, estimated at ~80
+  cycles a byte, about 1.3 s of blank screen on a PAL C64.
