@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Sizes and the free figure read as KB in `list` and the window, exact bytes on hover and through `list --bytes` (D-044); type badges coloured like our menu's (D-045)
-- **Next action:** S7, the user's live check of the badge colours, audit, reconcile, PR; deploy locally after merge
+- **Next action:** done; the PR awaits CI and the user's merge, then deploy the app locally
 - **Branch:** feat/readable-sizes · **Updated:** 2026-11-08
 
 ## STEPS
@@ -23,7 +23,7 @@
 - [x] S4 — core `readable_size`, `Row.size_bytes`, `free_text`; `list --bytes`; DTO `sizeBytes`; hover titles
 - [x] S5 — regenerate `list` goldens and the GUI fixtures, reviewing the diff; AC-46 reads `--bytes`
 - [x] S6 — type badge colours (AC-118): `family` in the core row and the DTO, tokens for both themes
-- [ ] S7 — both gates, the user's live check, audit, reconcile, PR; deploy locally after merge
+- [x] S7 — both gates, the user's live check, audit, reconcile, PR; deploy locally after merge
 
 ## DECISIONS (this work-item)
 
@@ -108,4 +108,8 @@ comes from the entry type, with a light-mode and a dark-mode colour pair for eac
   check moved to a Rust test that reads `tokens.css` and `Listing.svelte`. `family` is typed
   `string`, like `kind`, because JSON fixtures can't satisfy a literal union. Root 230/0, GUI
   37/0 cargo + 45/0 vitest; `list`'s goldens are unchanged.
+- 2026-11-08 — Live check: the user saw readable sizes and coloured badges in the dev app ("it's
+  working, go ahead with the PR").
+- 2026-11-08 — audit: PASS (test-presence). `AC-115 (CLI)` and `AC-116 (CLI)` are in `crates/stidcart-cli/tests/list.rs`, `AC-115 (RENDER)` and `AC-117 (RENDER)` in `gui/src-tauri/tests/sizes.rs`, `AC-117 (RENDER)` and `AC-118 (RENDER)` in `Listing.test.ts`, `AC-118 (RENDER)` in `gui/src-tauri/tests/kinds.rs`, green at 5f6e2a0 (root 230/0, GUI 37/0 cargo + 45/0 vitest). Closeout line appended.
+- 2026-11-08 — reconciled: folded AC-115..AC-118 into SPEC.md, rewriting in place the listing row (CLI: readable sizes, `--bytes`) and the app row (RENDER: hover, badge colours). D-044 and D-045 record the refinements of D-032.
 
