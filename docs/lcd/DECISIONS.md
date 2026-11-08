@@ -29,8 +29,14 @@
   - At boot it restores order, kind filter and selection only when the magic and checksum hold,
     the entry count and name sum match this cart, and the slot is a visible entry. If the kind
     filter would hide the entry, the filter goes back to all kinds. Otherwise it starts as today.
-  - The launch routines' assembly cap drops from `$DFFF` to `$DFF5`, so they can never grow into
-    the state.
+  - The launch routines' assembly cap drops so they can never grow into the state. They already
+    reached `$DFF6` (`p_only`, D-051), so `leave` now shares the tail of `cart_go` to free it: the
+    routines end at `$DFF2`, `$DFF3-$DFF5` are free.
+  - As built: `$DFF6-$DFF9` the magic `STID` (four bytes, so all ten are checked), `$DFFA` slot,
+    `$DFFB` order, `$DFFC` kind filter, `$DFFD` the end marker's slot (so hidden entries count),
+    `$DFFE` the name sum, `$DFFF` a checksum (`$A5` plus the other nine). RUN/STOP with nothing
+    listed spoils the magic. A restored entry below the first page is shown on the last row.
+    A rename that keeps both the slot count and the 8-bit name sum would still restore that slot.
   - The state is a convenience, not a promise: a game that uses EAPI (`$DF80-$DFFF`) or an xbank
     game that uses the page overwrites it, and the next boot starts at the top.
 - **Alternatives rejected:** keeping the filter text (16 bytes; it doesn't fit); saving to flash

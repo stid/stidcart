@@ -47,3 +47,4 @@
 2026-11-08 · menu-joystick · 2 signals · Standard · hard:no · risk:no
 2026-11-08 · menu-joystick · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
 2026-11-08 · menu-resume · 2 signals · Standard · hard:no · risk:no
+2026-11-08 · menu-resume · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0

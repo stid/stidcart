@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** After a soft reset our C64 menu comes back with the entry, order and kind filter it was left with, kept in `$DFF6-$DFFF` behind a magic, a cart check and a checksum (D-053)
-- **Next action:** S6 — audit, reconcile into SPEC, closeout, PR (orchestrator)
+- **Next action:** done; PR open, merge when gate, gui and claude-review are green (user authorised)
 - **Branch:** feat/menu-resume · **Updated:** 2026-11-08
 
 ## STEPS
@@ -22,7 +22,7 @@
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-147..AC-152, and the assembly cap in `menu_builds.rs`
 - [x] S4 — implement in `menu/src/menu.s` and `launch.s` (cap `$DFF5`), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [x] S5 — `menu/README.md`, gates with `STIDCART_REQUIRE_TOOLS=1`
-- [ ] S6 — audit, reconcile, closeout, PR
+- [x] S6 — audit, reconcile, closeout, PR
 
 ## DECISIONS (this work-item)
 
@@ -118,3 +118,9 @@ page, fire) beside the keys.
 - 2026-11-08 — S5. README: the resume behaviour, the `$DFF6-$DFFF` layout, the `$DFF5` cap, the
   stick on the F7 row, AC-147..AC-152 in the evidence line. Real-EF3 RESET keeping the page stays
   untested and says so.
+- 2026-11-08 — audit: PASS (test-presence). `AC-147 (none)`..`AC-152 (none)` are in
+  `crates/stidcart-cli/tests/menu_boot.rs` (and AC-151's assembly check in
+  `crates/stidcart-core/tests/menu_builds.rs`), green at cd85d4b with `STIDCART_REQUIRE_TOOLS=1`
+  (root 267/0, cargo 1.97.1). Closeout line appended. The as-built layout and refinements in this
+  LOG are folded into D-053.
+- 2026-11-08 — reconciled: folded AC-147..AC-152 → SPEC.md/none (one new row).
