@@ -26,6 +26,20 @@ code.
 | F7              | show every key; the next key press goes back to the menu                 |
 | RUN/STOP        | leave to BASIC with the cartridge switched off                           |
 
+A joystick in port 2 does what the cursor keys and RETURN do (D-052):
+
+| Stick        | Does                                  |
+| ------------ | ------------------------------------- |
+| up / down    | as CRSR ↑ / CRSR ↓, one entry         |
+| left / right | as CRSR ← / CRSR →, a page            |
+| fire         | as RETURN, start the selected entry   |
+| any, on help | go back to the menu, and nothing else |
+
+A direction acts when it is pushed, and if it is held it repeats after 0.4 s, then ten times a
+second. Fire acts once per press. Anything held when the menu starts does nothing until it is let
+go, so a stick resting on fire doesn't start the first entry. The same goes for a direction that
+closed the help screen. Port 1 isn't read, because its lines are shared with the keyboard.
+
 The screen is black (D-041) and wears the stidcart brand (D-048): the cartridge mark, its label in
 five colour bands, sits left of a white block-letter logo, and a strip of the same five bands runs
 under the cart name. The cart name sits above 16 list rows. Each
@@ -81,9 +95,13 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
   KERNAL's interrupt: raster interrupt off, `$0314` at `$EA31`, the CIA timer on. The boot tests
   watch every write to `$DE00` and `$DE02` for a live interrupt (AC-127), and read VICE
   screenshots for what screen RAM can't show (AC-124..AC-126).
-- Keys come only from GETIN, the KERNAL keyboard buffer, because that is the only place VICE can
-  inject keys for the boot tests. `menu_idle` is the point where the menu waits with an empty
-  buffer, and the tests break there.
+- Keys come from GETIN, the KERNAL keyboard buffer, which is where VICE injects keys for the boot
+  tests. The stick is read in the menu's own loop, once a jiffy, never in the raster interrupt. Port
+  A is read with every keyboard column high, so a key held in the matrix can't pull a stick line
+  low, and a stick move goes through the same code as the key it stands for. `menu_idle` is the
+  point where the menu waits with an empty buffer and the stick at rest, and the tests break there.
+  The stick tests plug VICE's "Joyport I/O simulation" device into port 2
+  (`-controlport2device 37`) and set its lines from the monitor with `jpdb`.
 - `src/launch.s` holds what has to run while the cartridge or its bank is switched away:
   - leaving
   - starting a cartridge: bank and mode, the entry's first bank left in `$DF00/$DF01` for xbank
@@ -113,5 +131,5 @@ until the replaced build's fingerprint is added to that list. `past/5b54e81.bin`
 stidcart 0.15 wrote; the tests use it to make a cart that carries an earlier build.
 
 The evidence that the menu works is VICE, because the reference tool knows nothing of it:
-`crates/stidcart-cli/tests/menu_boot.rs` boots carts and reads the screen back (AC-87..AC-92, and
-AC-136..AC-141 for the keys of D-051).
+`crates/stidcart-cli/tests/menu_boot.rs` boots carts and reads the screen back (AC-87..AC-92,
+AC-136..AC-141 for the keys of D-051, and AC-142..AC-146 for the stick).

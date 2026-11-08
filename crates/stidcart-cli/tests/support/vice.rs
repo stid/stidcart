@@ -40,6 +40,21 @@ pub mod key {
     pub const F7: u8 = 0x88;
 }
 
+/// What a joystick in control port 2 shows CIA1 port A, active low, through VICE's "Joyport I/O
+/// simulation" device ([`STICK_DEVICE`]), set with [`Step::Stick`].
+pub mod stick {
+    pub const REST: u8 = 0x1f;
+    pub const UP: u8 = 0x1e;
+    pub const DOWN: u8 = 0x1d;
+    pub const LEFT: u8 = 0x1b;
+    pub const RIGHT: u8 = 0x17;
+    pub const FIRE: u8 = 0x0f;
+}
+
+/// The emulator arguments that plug the I/O simulation device into control port 2. It starts with
+/// every line pressed, so a run that adds it sets the lines with a [`Step::Stick`] first.
+pub const STICK_DEVICE: [&str; 2] = ["-controlport2device", "37"];
+
 /// Where a breakpoint goes.
 pub enum Target {
     /// A label from a file loaded with [`Step::Labels`].
@@ -56,6 +71,9 @@ pub enum Step {
     Keys(Vec<u8>),
     /// Save memory from `start` to `end` inclusive; it becomes the next element of the result.
     Dump(u16, u16),
+    /// Set the lines of the joystick in port 2 ([`stick`]); needs [`STICK_DEVICE`]. They stay as
+    /// set, however many frames run, until the next `Stick`.
+    Stick(u8),
     /// Monitor lines passed through unchanged, for a recipe the steps above don't express.
     Raw(String),
     /// Save VICE's picture of the screen as a BMP; it becomes the next element of the result, read
@@ -116,6 +134,7 @@ fn script(steps: &[Step]) -> (String, Vec<String>) {
                     keys.len()
                 ));
             }
+            Step::Stick(lines) => mon.push_str(&format!("jpdb 1 {lines:02x}\n")),
             Step::Dump(start, end) => {
                 let name = format!("dump{}.bin", dumps.len());
                 mon.push_str(&format!("bsave \"{name}\" 0 ${start:04x} ${end:04x}\n"));
@@ -141,6 +160,11 @@ fn script(steps: &[Step]) -> (String, Vec<String>) {
 /// Boot `cart` and run `steps`, working in `dir`. Returns every dump in step order, or `None` if
 /// the machine never got far enough to write all of them.
 pub fn boot(dir: &Path, cart: &Path, steps: &[Step]) -> Option<Vec<Vec<u8>>> {
+    boot_with(dir, cart, &[], steps)
+}
+
+/// [`boot`] with `extra` emulator arguments, such as [`STICK_DEVICE`].
+pub fn boot_with(dir: &Path, cart: &Path, extra: &[&str], steps: &[Step]) -> Option<Vec<Vec<u8>>> {
     let (mon, dumps) = script(steps);
     for d in &dumps {
         let _ = std::fs::remove_file(dir.join(d));
@@ -174,6 +198,7 @@ pub fn boot(dir: &Path, cart: &Path, steps: &[Step]) -> Option<Vec<Vec<u8>>> {
             args.push(option.to_string());
         }
     }
+    args.extend(extra.iter().map(|a| a.to_string()));
     args.extend([
         "-cartcrt".to_string(),
         cart.display().to_string(),
@@ -366,11 +391,12 @@ mod unit {
             Step::Keys(vec![key::DOWN, key::RETURN]),
             Step::Break(Target::Addr(0xc00d)),
             Step::Dump(0x0400, 0x07e7),
+            Step::Stick(stick::FIRE),
         ]);
         assert_eq!(
             mon,
             "break exec .menu_idle\ng\ndel\n> $0277 11 0d\n> $00c6 02\nbreak exec $c00d\ng\ndel\n\
-             bsave \"dump0.bin\" 0 $0400 $07e7\nquit\n"
+             bsave \"dump0.bin\" 0 $0400 $07e7\njpdb 1 0f\nquit\n"
         );
         assert_eq!(dumps, ["dump0.bin"]);
     }
