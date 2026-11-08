@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu gains SHIFT+RETURN load-without-run, page keys, HOME/CLR to the ends, an F3 kind filter, an F5 random pick and an F7 help screen (D-051)
-- **Next action:** S6 — audit, reconcile SPEC, closeout, PR (orchestrator)
+- **Next action:** done; PR open, merge when gate, gui and claude-review are green (user authorised)
 - **Branch:** feat/menu-keys · **Updated:** 2026-11-08
 
 ## STEPS
@@ -22,7 +22,7 @@
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-136..AC-141
 - [x] S4 — implement in `menu/src/menu.s` (and `launch.s` for AC-136), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [x] S5 — `menu/README.md` key table and help bar, gates with `STIDCART_REQUIRE_TOOLS=1`
-- [ ] S6 — audit, reconcile, closeout, PR
+- [x] S6 — audit, reconcile, closeout, PR
 
 ## DECISIONS (this work-item)
 
@@ -110,3 +110,7 @@ help bar names F7. The raster strip and mark need not show on the help screen, a
   "return go  f1 sort  f7 help  run/stop" (37 cells): "return start" with F7 added doesn't fit.
 - 2026-11-08 — S5: `menu/README.md` key table, help bar text, paging/random/help behaviour and the
   `p_only` launch note. Gates green as at S4 (README only).
+- 2026-11-08 — audit: PASS (test-presence). `AC-136 (none)`..`AC-141 (none)` are in
+  `crates/stidcart-cli/tests/menu_boot.rs`, green at 5f9a004 with `STIDCART_REQUIRE_TOOLS=1`
+  (root 255/0, cargo 1.97.1). Closeout line appended.
+- 2026-11-08 — reconciled: folded AC-136..AC-141 → SPEC.md/none (search-sort row rewritten in place for HOME/CLR ends and the kind filter; one new row for the other keys).

@@ -27,7 +27,10 @@
     first entry and CLR to the last, so both keep their meaning and gain one.
   - F3 cycles a kind filter: all, programs, cartridges. It combines with the text filter, row 22
     names it beside the order, and changing it lists again from the first match, as the text does.
-  - F5 moves the selection to a random entry among those listed. It never starts anything.
+  - F5 moves the selection to a random entry among those listed, never the one already selected,
+    so every press visibly moves. It never starts anything.
+  - A move that leaves the view scrolls only as far as it takes to show the selection. The help
+    bar reads `return go  f1 sort  f7 help  run/stop` to fit F7 in its 38 cells.
   - F7 shows a full-screen help naming every key; any key returns to the menu as it was.
 - **Alternatives rejected:** F-keys for first/last (F2/F4, F6/F8): shifted F-keys are hard to
   remember, and HOME/CLR already mean "home". Making F5 start the random pick: one key press
