@@ -124,7 +124,9 @@ fn ac_155_easyloader_does_not_list_the_metadata_entry() {
     );
 }
 
-// AC-155: our menu skips the metadata entry, and counts only the entries
+// AC-155: our menu skips the metadata entry, and counts only the entries. Since menu-folders
+// (D-057) alpha is inside the "Games" folder, shown by its title: the top level lists the folder and
+// bravo, the folder lists alpha alone.
 #[test]
 fn ac_155_our_menu_does_not_list_the_metadata_entry() {
     if !vice::require_tool("x64sc") {
@@ -137,15 +139,31 @@ fn ac_155_our_menu_does_not_list_the_metadata_entry() {
         Step::Labels(vice::menu_labels()),
         Step::Break(Target::Label("menu_idle")),
         Step::Dump(0x0400, 0x07e7),
+        Step::Keys(vec![vice::key::RETURN]),
+        Step::Break(Target::Label("menu_idle")),
+        Step::Dump(0x0400, 0x07e7),
     ];
-    let screen = vice::boot(&dir, &cart, &steps)
-        .unwrap_or_else(|| panic!("x64sc never reached the menu; scratch at {}", dir.display()))
-        .remove(0);
-    let shows = |t: &str| vice::find(&screen, &vice::screen_text(t)).is_some();
+    let screens = vice::boot(&dir, &cart, &steps)
+        .unwrap_or_else(|| panic!("x64sc never reached the menu; scratch at {}", dir.display()));
+    let shows = |s: &[u8], t: &str| vice::find(s, &vice::screen_text(t)).is_some();
+    let (top, folder) = (&screens[0], &screens[1]);
     assert!(
-        shows("alpha") && shows("bravo"),
-        "our menu did not list the entries"
+        shows(top, "Games") && shows(top, "bravo"),
+        "our menu did not list the folder and the entry"
     );
-    assert!(!shows("stidcart.meta"), "our menu lists the metadata entry");
-    assert!(shows("1 of 2"), "our menu counts the metadata entry");
+    assert!(
+        shows(folder, "Alpha Game"),
+        "the folder does not list alpha"
+    );
+    for s in [top, folder] {
+        assert!(
+            !shows(s, "stidcart.meta"),
+            "our menu lists the metadata entry"
+        );
+    }
+    assert!(shows(top, "1 of 2"), "our menu counts the metadata entry");
+    assert!(
+        shows(folder, "1 of 1"),
+        "the folder counts the metadata entry"
+    );
 }

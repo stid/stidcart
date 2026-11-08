@@ -8,7 +8,57 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-057 -->
+<!-- Next id: D-058 -->
+
+---
+
+## D-057 · 2026-11-08 · Our menu reads the metadata entry once at boot and shows titles, the pane fields and folders
+
+- **Context:** menu-folders, the C64 half of the metadata the user asked for (D-054, D-055, spec
+  `docs/lcd/work/menu-meta/spec.md`, approved 2026-11-08: M-8..M-11 → AC-166..AC-169). menu-meta
+  stores it in a hidden `STIDCART.META` program entry (layout v1, load address `$4000`, at most
+  16 KB), which our menu skips today.
+- **Decision:**
+  - At boot, before the raster interrupt is on (interrupts still masked from `entry`), the menu
+    finds the last hidden program slot named `STIDCART.META` whose payload starts `STIDMETA` with
+    version 1, and copies its payload to `$4000-$7FFF` with a RAM-resident loop, following the
+    entry's bank layout (interleaved or confined to one half). Anything else (missing, another
+    version, too big, a bad length) and the menu runs as a cart without metadata.
+  - A record is used only when its 16 name bytes equal its slot's; records are stepped by their
+    length byte.
+  - The list row shows the title, cut to the row's width, when the entry has one; A-Z sorts by
+    what the row shows. The details pane adds the title in full (wrapped), the year, the author and
+    the note, under the existing lines.
+  - Folders: with any grouped entry, the top level lists one folder row per group with a visible
+    entry (a folder badge, the name, the count), then the ungrouped entries. RETURN or fire on a
+    folder opens it; inside, DEL with no filter text or RUN/STOP goes back to the top level with
+    that folder selected. RUN/STOP at the top level leaves to BASIC as today. The kind filter,
+    A-Z, paging, F5 and HOME/CLR act on the folder's entries.
+  - Filter text typed at the top level searches every visible entry in every folder and lists the
+    matches flat. The text matches the name or the title, ignoring case.
+  - Resume (D-053) restores an entry inside its folder: the menu opens that folder and selects it.
+- **Alternatives rejected:** reading records from flash per row (bank switches with the raster
+  interrupt live, against D-048); a group filter key instead of folders (the user chose folders);
+  the `←` key for going back (it is printable and the filter takes it; CRSR ← is page-up, D-051).
+- **Scope:** `menu/src/menu.s`, `menu/src/launch.s` if the copy loop lives there, the boot tests
+- **As built:**
+  - The copy runs through D-056's routine at `$0100` before `irq_on` and takes about 1.3 s of blank
+    screen for a full 16 KB (PAL, VICE). Tables sit at `$C600-$C9FF`, variables at `$C130-$C140`,
+    zero page `$26-$29`.
+  - The menu is stricter than the core's decoder: it also wants load address `$4000` and a payload
+    of at least 13 bytes. Anything else is a cart without metadata, which the tool never writes
+    anyway.
+  - An entry with any field set puts its facts on pane rows 6-10, a blank row 11, then the title,
+    year, author and note from row 12, hard-wrapped at 16. Group-only entries keep AC-108's
+    layout.
+  - Folder rows count visible entries, ignore F3, keep group order under F1, cut long names to fit
+    the count, and wear a white badge.
+  - Inside a folder, row 23 counts matches out of the folder's entries. RUN/STOP inside a folder
+    also clears the text. RUN/STOP at the top with a folder row selected spoils the resume state.
+  - Resume opens the folder of any grouped entry, including one started from a flat search.
+  - Tested: META confined to either half (types `0x02`/`0x03`) and the last of two candidates.
+    About 1.7 KB of ROM is left.
+- **Status:** active
 
 ---
 

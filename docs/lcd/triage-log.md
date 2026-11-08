@@ -52,3 +52,5 @@
 2026-11-08 · menu-meta · closeout · Deep · audit: PASS (first run) · re-routes: 0 · interventions: 1 (selection fix by orchestrator)
 2026-11-08 · menu-highmem · 3 signals · Standard · hard:no · risk:no
 2026-11-08 · menu-highmem · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
+2026-11-08 · menu-folders · 3 signals · Standard · hard:no · risk:no
+2026-11-08 · menu-folders · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 1 (two test gaps sent back)

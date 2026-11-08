@@ -1927,7 +1927,7 @@ fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
     }
     const STOPS: usize = 60;
     let k8 = markers::cart(CartKind::K8, "BANK WATCH CART");
-    for (name, keys) in [
+    for (name, keys, grouped) in [
         (
             // F1 puts the cart first (A-Z), so DOWN lands on a program: RETURN starts it.
             "browse-then-program",
@@ -1940,9 +1940,10 @@ fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
                 key::DOWN,
                 key::RETURN,
             ],
+            false,
         ),
-        ("cart", vec![key::RETURN]),
-        ("stop", vec![key::DOWN, key::STOP]),
+        ("cart", vec![key::RETURN], false),
+        ("stop", vec![key::DOWN, key::STOP], false),
         // menu-keys (D-051): help and back, a page each way, programs only, a random pick, then
         // load it without running.
         (
@@ -1956,6 +1957,21 @@ fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
                 key::F5,
                 key::SHIFT_RETURN,
             ],
+            false,
+        ),
+        // menu-folders (D-057): a cart carrying metadata, "prog 1" and "prog 2" in a folder, which
+        // is the first row. Open it, move, back out and in again, start "prog 2".
+        (
+            "folder-then-program",
+            vec![
+                key::RETURN,
+                key::DOWN,
+                key::DEL,
+                key::RETURN,
+                key::DOWN,
+                key::RETURN,
+            ],
+            true,
         ),
     ] {
         let dir = scratch(&format!("ac127-{name}"));
@@ -1963,6 +1979,14 @@ fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
         let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
         inputs.extend((0..3).map(|i| write(&dir, &format!("prog {i}.prg"), &hello)));
         let cart = build(&dir, "watch", &[], &inputs);
+        if grouped {
+            edit(
+                &cart,
+                &[
+                    "--group", "2", "pair", "--group", "3", "pair", "--title", "3", "Two",
+                ],
+            );
+        }
         let mut steps = vec![Step::Labels(vice::menu_labels()), idle(), Step::Keys(keys)];
         // The monitor's own log: a headless VICE splits what it prints to the terminal into one
         // "Monitor:" line per fragment, while this file reads the same in every build.
@@ -3648,4 +3672,857 @@ fn ac_165_the_second_copy_keeps_the_interrupt_rules() {
         0x07,
         "$01 does not map BASIC, KERNAL and I/O in"
     );
+}
+
+// --- menu-folders: the metadata entry read at boot, titles, the pane's fields, folders and a flat
+// search (AC-166..AC-169, D-057) ----------------------------------------------------------------------
+
+/// `stidcart edit <cart> args…`, which must succeed.
+fn edit(cart: &Path, args: &[&str]) {
+    let out = Command::new(env!("CARGO_BIN_EXE_stidcart"))
+        .arg("edit")
+        .arg(cart)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "edit {args:?} failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+/// The pane's sixteen columns, 23-38, of row `n`, without reverse.
+fn pane_row(screen: &[u8], n: usize) -> Vec<u8> {
+    screen[n * COLS + PANE_COL..n * COLS + PANE_COL + 16]
+        .iter()
+        .map(|b| b & 0x7f)
+        .collect()
+}
+
+/// `text` cut into the pane's rows of sixteen cells, the last padded with spaces.
+fn wrapped(text: &str) -> Vec<Vec<u8>> {
+    vice::screen_text(text)
+        .chunks(16)
+        .map(|c| {
+            let mut v = c.to_vec();
+            v.resize(16, 0x20);
+            v
+        })
+        .collect()
+}
+
+/// Assert `text` is in the pane, wrapped, starting at row `from` or below, and return the row after
+/// its last.
+fn assert_wrapped(screen: &[u8], from: usize, text: &str, what: &str) -> usize {
+    let rows = wrapped(text);
+    let start = (from..LIST_ROWS.end)
+        .find(|&n| pane_row(screen, n) == rows[0])
+        .unwrap_or_else(|| panic!("{what}: no pane row from {from} on starts '{text}'"));
+    for (k, r) in rows.iter().enumerate() {
+        assert!(
+            start + k < LIST_ROWS.end && &pane_row(screen, start + k) == r,
+            "{what}: '{text}' is not wrapped whole across pane rows {start}.."
+        );
+    }
+    start + rows.len()
+}
+
+/// The pane row at or below `from` whose label is `label`.
+fn pane_label(screen: &[u8], from: usize, label: &str, what: &str) -> usize {
+    (from..LIST_ROWS.end)
+        .find(|&n| pane_row(screen, n).starts_with(&vice::screen_text(label)))
+        .unwrap_or_else(|| panic!("{what}: no pane row from {from} on is labelled '{label}'"))
+}
+
+/// What a folder row shows in columns 4-19, trailing spaces dropped as `row_name` drops them: the
+/// group's name, cut to leave a space before the count, and the count ending at column 19.
+fn folder_row(name: &str, count: usize) -> Vec<u8> {
+    let count = count.to_string();
+    let room = 16 - count.len() - 1;
+    let cut = &name[..name.len().min(room)];
+    vice::screen_text(&format!("{cut:<w$}{count}", w = 16 - count.len()))
+}
+
+/// The two badge cells of list row `n`, without reverse.
+fn badge(screen: &[u8], n: usize) -> [u8; 2] {
+    [screen[n * COLS + 1] & 0x7f, screen[n * COLS + 2] & 0x7f]
+}
+
+/// AC-166 (none): an entry with a title shows it in its list row, cut to the row's 16 columns, and
+/// the pane shows the title in full, wrapped to the pane's width, then the year, the author and the
+/// note, below the lines every entry has. Every field is as long as it may be, so all of it must
+/// fit. An entry without metadata looks exactly as on the same cart without any (its row and the
+/// whole pane, characters and colours), also right after the pane showed an entry with metadata.
+/// A-Z sorts by what each row shows.
+#[test]
+fn ac_166_titles_in_the_list_and_every_field_in_the_pane() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-166: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac166");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "bravo", "charlie"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "titles", &[], &inputs);
+    let plain = dir.join("plain.crt");
+    std::fs::copy(&cart, &plain).unwrap();
+    let title = "Zeta Quest: the Long Road Home, Deluxe Edition 2";
+    let author = "Somebody With A Long Nam";
+    let note = "Needs a joystick in port 2 and a lot of patience";
+    assert_eq!(
+        (title.len(), author.len(), note.len()),
+        (48, 24, 48),
+        "the fields are not at their longest"
+    );
+    edit(
+        &cart,
+        &[
+            "--title", "0", title, "--year", "0", "1987", "--author", "0", author, "--note", "0",
+            note, "--title", "2", "Able One",
+        ],
+    );
+
+    let looks = looks_after(&dir, &cart, &[vec![], vec![key::DOWN], vec![key::F1]]);
+    let s = &looks[0].screen;
+    let cut = vice::screen_text(title[..16].trim_end());
+    assert_eq!(
+        row_name(s, 5),
+        cut,
+        "alpha's row does not show its title cut to 16"
+    );
+    assert_eq!(row_name(s, 6), vice::screen_text("bravo"), "bravo's row");
+    assert_eq!(
+        row_name(s, 7),
+        vice::screen_text("Able One"),
+        "charlie's row does not show its title"
+    );
+    assert_not_listed(s, &["alpha", "charlie"], "titled entries");
+    assert!(
+        looks[0]
+            .colours_of(6, PANE_COL, "alpha")
+            .is_some_and(|c| c.iter().all(|&c| c == colour::WHITE)),
+        "the pane does not name alpha in white"
+    );
+    let mut at = 7;
+    for label in ["type", "size", "load", "start"] {
+        at = pane_label(s, at, label, "alpha") + 1;
+    }
+    for field in [title, "1987", author, note] {
+        at = assert_wrapped(s, at, field, "alpha");
+    }
+
+    let after = &looks[1];
+    let plain_look = looks_after(&dir, &plain, &[vec![key::DOWN]]).remove(0);
+    let same = |cells: std::ops::Range<usize>| {
+        after.screen[cells.clone()] == plain_look.screen[cells.clone()]
+            && after.colour[cells.clone()] == plain_look.colour[cells]
+    };
+    assert!(
+        same(6 * COLS..7 * COLS),
+        "bravo's row differs from the same cart without metadata"
+    );
+    for n in LIST_ROWS {
+        assert!(
+            same(n * COLS + PANE_COL - 1..(n + 1) * COLS),
+            "pane row {n} for bravo, after alpha's, differs from the same cart without metadata"
+        );
+    }
+
+    let az = &looks[2].screen;
+    for (n, text) in [(5, "Able One"), (6, "bravo")] {
+        assert_eq!(row_name(az, n), vice::screen_text(text), "A-Z row {n}");
+    }
+    assert_eq!(row_name(az, 7), cut, "A-Z: the title is not last");
+}
+
+/// The cart AC-167 uses, in this directory order: "zulu" (games), "demo a" (a program, in "demos and
+/// things", a 16-character group), "p3" (a marker program, games), "k8" (a marker cartridge, demos
+/// and things), "top one", "secret" (hidden, the only entry of "tools"), "top two".
+struct FolderCart {
+    cart: PathBuf,
+    p3: Marker,
+}
+
+const DEMOS: &str = "demos and things";
+
+fn folder_cart(dir: &Path) -> FolderCart {
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let p3 = markers::basic_prg("P3 FOLDER RAN");
+    let k8 = markers::cart(CartKind::K8, "K8 FOLDER RAN");
+    let secret = write(dir, "secret.prg", &hello);
+    let inputs = [
+        write(dir, "zulu.prg", &hello),
+        write(dir, "demo a.prg", &hello),
+        write(dir, "p3.prg", &p3.bytes),
+        write(dir, "k8.crt", &k8.bytes),
+        write(dir, "top one.prg", &hello),
+        secret.clone(),
+        write(dir, "top two.prg", &hello),
+    ];
+    let cart = build(
+        dir,
+        "folders",
+        &["--hide", secret.to_str().unwrap()],
+        &inputs,
+    );
+    edit(
+        &cart,
+        &[
+            "--group", "0", "games", "--group", "1", DEMOS, "--group", "2", "games", "--group",
+            "3", DEMOS, "--group", "5", "tools",
+        ],
+    );
+    FolderCart { cart, p3 }
+}
+
+/// AC-167 (none): with grouped entries the top level lists a folder row per group that has a visible
+/// entry (a badge, the name, the count), then the ungrouped entries. RETURN or fire opens a folder;
+/// inside, the kind filter, A-Z, paging, F5, HOME/CLR and the filter text act on its entries; DEL
+/// with no text, or RUN/STOP, goes back with that folder selected; RUN/STOP at the top level leaves.
+/// After a soft reset, an entry started from a folder comes back inside it. The help names the
+/// folder keys.
+#[test]
+fn ac_167_groups_show_as_folders() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-167: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac167");
+    let f = folder_cart(&dir);
+    let top = &screens_after(&dir, &f.cart, &[vec![]]).remove(0);
+    assert_eq!(
+        row_name(top, 5),
+        folder_row("games", 2),
+        "the games folder row"
+    );
+    assert_eq!(
+        row_name(top, 6),
+        folder_row(DEMOS, 2),
+        "the 16-character folder row"
+    );
+    assert_eq!(row_name(top, 7), vice::screen_text("top one"));
+    assert_eq!(row_name(top, 8), vice::screen_text("top two"));
+    assert!(row_name(top, 9).is_empty(), "a fifth row is listed");
+    assert_not_listed(
+        top,
+        &["zulu", "demo a", "p3", "k8", "secret", "tools"],
+        "the top level",
+    );
+    assert_eq!(
+        selected_rows(top),
+        vec![5],
+        "the first folder is not selected"
+    );
+    assert!(row_shows(
+        top,
+        STATUS_ROW,
+        "1 of 4   cart order   all kinds"
+    ));
+    assert_eq!(badge(top, 5), badge(top, 6), "the folder badges differ");
+    assert_ne!(
+        badge(top, 5),
+        badge(top, 7),
+        "a folder wears a program's badge"
+    );
+    assert_ne!(badge(top, 5), [0x20, 0x20], "a folder row has no badge");
+
+    let s = screens_after(
+        &dir,
+        &f.cart,
+        &[
+            vec![],                                  // 0: the top level
+            vec![key::DOWN, key::RETURN],            // 1: into demos
+            vec![key::F3],                           // 2: programs only
+            vec![key::F3, key::F3, key::DEL],        // 3: all kinds, back out
+            vec![key::UP, key::RETURN, key::F1],     // 4: into games, A-Z
+            vec![key::RIGHT],                        // 5: a page down
+            vec![key::HOME],                         // 6: the first
+            vec![key::F5],                           // 7: a random other one
+            typed("zu"),                             // 8: text
+            vec![key::DEL, key::DEL],                // 9: text gone, still inside
+            vec![key::DEL],                          // 10: back out
+            vec![key::DOWN, key::RETURN, key::STOP], // 11: in and out by RUN/STOP
+            vec![key::RETURN, b'K', key::STOP],      // 12: text typed, then RUN/STOP
+            vec![key::UP],                           // 13: games
+            vec![key::SHIFT_RETURN],                 // 14: nothing on a folder
+            vec![key::F7],                           // 15: help
+        ],
+    );
+    assert_eq!(&s[0], top, "the same boot drew another top level");
+    let inside = |n: usize, names: &[&str], status: &str, what: &str| {
+        assert_listed_in_order(&s[n], names, what);
+        assert_not_listed(&s[n], &["games", "demos", "top one", "top two"], what);
+        assert!(
+            row_shows(&s[n], STATUS_ROW, status),
+            "{what}: row 22 does not read '{status}'"
+        );
+    };
+    inside(
+        1,
+        &["demo a", "k8"],
+        "1 of 2   cart order   all kinds",
+        "into demos",
+    );
+    inside(
+        2,
+        &["demo a"],
+        "1 of 1   cart order   programs",
+        "F3 inside",
+    );
+    assert_not_listed(&s[2], &["k8"], "F3 inside");
+    assert_eq!(selected_rows(&s[3]), vec![6], "DEL: demos is not selected");
+    assert!(row_shows(
+        &s[3],
+        STATUS_ROW,
+        "2 of 4   cart order   all kinds"
+    ));
+    inside(
+        4,
+        &["p3", "zulu"],
+        "1 of 2   a-z order   all kinds",
+        "games, A-Z",
+    );
+    assert_selected(&s[5], "zulu", "CRSR right inside");
+    assert_selected(&s[6], "p3", "HOME inside");
+    assert_selected(&s[7], "zulu", "F5 inside");
+    inside(
+        8,
+        &["zulu"],
+        "1 of 1   a-z order   all kinds",
+        "text inside",
+    );
+    assert_not_listed(&s[8], &["p3"], "text inside");
+    assert!(
+        row_shows(&s[8], QUERY_ROW, "1 of 2 match"),
+        "text inside: row 23 does not count out of the folder's two entries"
+    );
+    inside(
+        9,
+        &["p3", "zulu"],
+        "1 of 2   a-z order   all kinds",
+        "DEL with text",
+    );
+    assert_eq!(selected_rows(&s[10]), vec![5], "DEL: games is not selected");
+    assert_eq!(
+        row_name(&s[10], 5),
+        folder_row("games", 2),
+        "DEL: back at the top"
+    );
+    assert_eq!(
+        selected_rows(&s[11]),
+        vec![6],
+        "RUN/STOP: demos is not selected"
+    );
+    assert!(row_shows(
+        &s[11],
+        STATUS_ROW,
+        "2 of 4   a-z order   all kinds"
+    ));
+    assert_eq!(selected_rows(&s[12]), vec![6], "RUN/STOP with text: demos");
+    assert!(
+        row(&s[12], QUERY_ROW).iter().all(|b| b & 0x7f == 0x20),
+        "RUN/STOP with text: the text was kept"
+    );
+    assert_eq!(s[14], s[13], "SHIFT+RETURN on a folder changed the screen");
+    let help = &s[15][LIST_ROWS.start * COLS..HELP_ROW * COLS];
+    assert!(
+        vice::find(help, &vice::screen_text("folder")).is_some(),
+        "the help does not name the folder keys"
+    );
+
+    let d = boot_or_panic(
+        &dir,
+        &f.cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Keys(vec![key::STOP]),
+            Step::Break(Target::Addr(BASIC_MAIN)),
+            screen(),
+        ],
+    );
+    assert!(shows(&d[0], "ready."), "RUN/STOP at the top did not leave");
+
+    let d = boot_or_panic(
+        &dir,
+        &f.cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Keys(vec![key::RETURN, key::DOWN, key::RETURN]),
+            Step::Break(Target::Addr(f.p3.spin)),
+            screen(),
+            soft_reset(),
+            screen(),
+        ],
+    );
+    assert_marker(&d[0], &f.p3);
+    assert_selected(&d[1], "p3", "after a soft reset");
+    assert_listed_in_order(&d[1], &["zulu", "p3"], "after a soft reset");
+    assert_not_listed(&d[1], &["games", "top one"], "after a soft reset");
+    assert!(row_shows(
+        &d[1],
+        STATUS_ROW,
+        "2 of 2   cart order   all kinds"
+    ));
+
+    let mut steps = vec![idle()];
+    steps.extend(hold(stick::FIRE, 2));
+    steps.push(screen());
+    let d = boot_stick(&dir, &f.cart, stick::REST, steps);
+    assert_listed_in_order(&d[0], &["zulu", "p3"], "fire on a folder");
+    assert!(row_shows(
+        &d[0],
+        STATUS_ROW,
+        "1 of 2   cart order   all kinds"
+    ));
+}
+
+/// AC-168 (none): text typed at the top level lists the matching visible entries of every folder and
+/// of the top level flat, in the order in use, matching the name or the title, ignoring case. An
+/// entry started from that list comes back inside its folder after a soft reset.
+#[test]
+fn ac_168_text_at_the_top_searches_every_folder() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-168: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac168");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let p3 = markers::basic_prg("P3 FOUND RAN");
+    let hidden = write(&dir, "hidden ball.prg", &hello);
+    let inputs = [
+        write(&dir, "zulu.prg", &hello),
+        write(&dir, "demo a.prg", &hello),
+        write(&dir, "p3.prg", &p3.bytes),
+        write(&dir, "football.prg", &hello),
+        hidden.clone(),
+        write(&dir, "top two.prg", &hello),
+    ];
+    let cart = build(
+        &dir,
+        "search",
+        &["--hide", hidden.to_str().unwrap()],
+        &inputs,
+    );
+    edit(
+        &cart,
+        &[
+            "--title",
+            "0",
+            "Ballblazer",
+            "--group",
+            "0",
+            "games",
+            "--title",
+            "1",
+            "PINBALL Dreams",
+            "--group",
+            "1",
+            "demos",
+            "--group",
+            "2",
+            "games",
+            "--group",
+            "4",
+            "demos",
+        ],
+    );
+    let mut az = vec![key::CLR];
+    az.extend(typed("ball"));
+    az.push(key::F1);
+    let s = screens_after(
+        &dir,
+        &cart,
+        &[typed("ball"), vec![key::CLR], typed("zul"), az],
+    );
+    for (n, text) in [(5, "Ballblazer"), (6, "PINBALL Dreams"), (7, "football")] {
+        assert_eq!(
+            row_name(&s[0], n),
+            vice::screen_text(text),
+            "'ball': row {n}"
+        );
+    }
+    assert!(row_name(&s[0], 8).is_empty(), "'ball': a fourth row");
+    assert_not_listed(&s[0], &["games", "demos", "hidden"], "'ball'");
+    assert!(row_shows(
+        &s[0],
+        STATUS_ROW,
+        "1 of 3   cart order   all kinds"
+    ));
+    assert!(
+        row_shows(&s[0], QUERY_ROW, "3 of 5 match"),
+        "'ball': the match count"
+    );
+    assert_eq!(
+        row_name(&s[1], 5),
+        folder_row("games", 2),
+        "CLR: the folders are back"
+    );
+    assert_eq!(
+        row_name(&s[1], 6),
+        folder_row("demos", 1),
+        "CLR: the folders are back"
+    );
+    assert_eq!(
+        row_name(&s[2], 5),
+        vice::screen_text("Ballblazer"),
+        "'zul' finds the name"
+    );
+    assert!(row_name(&s[2], 6).is_empty(), "'zul': a second row");
+    for (n, text) in [(5, "Ballblazer"), (6, "football"), (7, "PINBALL Dreams")] {
+        assert_eq!(
+            row_name(&s[3], n),
+            vice::screen_text(text),
+            "'ball' A-Z: row {n}"
+        );
+    }
+
+    let mut keys = typed("p3");
+    keys.push(key::RETURN);
+    let d = boot_or_panic(
+        &dir,
+        &cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Keys(keys),
+            Step::Break(Target::Addr(p3.spin)),
+            screen(),
+            soft_reset(),
+            screen(),
+        ],
+    );
+    assert_marker(&d[0], &p3);
+    assert_selected(&d[1], "p3", "after a soft reset");
+    assert_listed_in_order(&d[1], &["Ballblazer", "p3"], "after a soft reset");
+    assert!(row_shows(
+        &d[1],
+        STATUS_ROW,
+        "2 of 2   cart order   all kinds"
+    ));
+}
+
+/// A metadata record as the format lays it out: its length, the index, the 16 name bytes a slot
+/// storing `name` holds, the group number, the title, and an empty year, author and note.
+fn meta_record(index: u8, name: &str, group: u8, title: &str) -> Vec<u8> {
+    let mut r = vec![0, index];
+    r.extend(stidcart_core::directory::name_bytes(name));
+    r.push(group);
+    let t = stidcart_core::petscii::ascii_to_petscii(title);
+    r.push(t.len() as u8);
+    r.extend(t);
+    r.extend([0, 0, 0]);
+    r[0] = r.len() as u8;
+    r
+}
+
+/// A metadata entry's data: the load address $4000, then a payload of `len` bytes: the magic,
+/// `version`, `groups`, padding, and the records as its last bytes, where the header's offset points.
+/// So the records are the last bytes a copy reaches.
+fn meta_data(version: u8, groups: &[&str], records: &[Vec<u8>], len: usize) -> Vec<u8> {
+    let first = len - records.iter().map(Vec::len).sum::<usize>();
+    let mut p = b"STIDMETA".to_vec();
+    p.extend([version, groups.len() as u8, records.len() as u8]);
+    p.extend((first as u16).to_le_bytes());
+    for g in groups {
+        let mut n = stidcart_core::petscii::ascii_to_petscii(g);
+        n.resize(16, 0);
+        p.extend(n);
+    }
+    assert!(p.len() <= first, "the records overlap the header");
+    p.resize(first, 0);
+    p.extend(records.concat());
+    let mut data = vec![0x00, 0x40];
+    data.extend(p);
+    data
+}
+
+/// alpha and bravo, then `meta` (if any) as a hidden program named `stidcart.meta`.
+fn meta_cart(dir: &Path, meta: Option<&[u8]>) -> PathBuf {
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let mut inputs = vec![
+        write(dir, "alpha.prg", &hello),
+        write(dir, "bravo.prg", &hello),
+    ];
+    let mut extra = Vec::new();
+    if let Some(m) = meta {
+        let p = write(dir, "stidcart.meta.prg", m);
+        extra = vec!["--hide".to_string(), p.to_str().unwrap().to_string()];
+        inputs.push(p);
+    }
+    let extra: Vec<&str> = extra.iter().map(String::as_str).collect();
+    build(dir, "meta rules", &extra, &inputs)
+}
+
+/// AC-169 (none): the menu copies the metadata entry to `$4000-$7FFF` once at boot, with interrupts
+/// masked (AC-127 holds through a boot that copies a full 16 KB, which spans two banks), and boots as
+/// for a cart without metadata (the same screen) when the entry is missing or lacks the magic, its
+/// version is unknown, it is larger than 16 KB, or a record's length runs past the payload. A record
+/// whose name doesn't match its slot is ignored. Each refused payload differs from one the menu uses
+/// in that one respect.
+#[test]
+fn ac_169_the_metadata_entry_is_checked_before_use() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-169: skipping — x64sc is not installed");
+        return;
+    }
+    let alpha = meta_record(0, "alpha", 1, "Alpha Title");
+    let bravo = meta_record(1, "bravo", 0, "Bravo Title");
+    let groups = ["meta games"];
+    let full = meta_data(1, &groups, &[alpha.clone(), bravo.clone()], 16384);
+
+    let screen_of = |tag: &str, meta: Option<&[u8]>| {
+        let dir = scratch(&format!("ac169-{tag}"));
+        let cart = meta_cart(&dir, meta);
+        menu_screen(&dir, &cart)
+    };
+    let without = screen_of("none", None);
+    assert_eq!(row_name(&without, 5), vice::screen_text("alpha"));
+
+    let used = screen_of("full", Some(&full));
+    assert_eq!(
+        row_name(&used, 5),
+        folder_row("meta games", 1),
+        "16 KB: the folder"
+    );
+    assert_eq!(
+        row_name(&used, 6),
+        vice::screen_text("Bravo Title"),
+        "16 KB: the title"
+    );
+
+    let mut long = bravo.clone();
+    long[0] += 1;
+    let mut no_magic = full.clone();
+    no_magic[2] = b'X';
+    for (tag, data, what) in [
+        ("magic", no_magic, "without the magic"),
+        (
+            "version",
+            meta_data(2, &groups, &[alpha.clone(), bravo.clone()], 16384),
+            "version 2",
+        ),
+        (
+            "large",
+            meta_data(1, &groups, &[alpha.clone(), bravo.clone()], 16385),
+            "16385 bytes",
+        ),
+        (
+            "length",
+            meta_data(1, &groups, &[alpha.clone(), long], 16384),
+            "a record past the payload",
+        ),
+    ] {
+        assert_eq!(
+            screen_of(tag, Some(&data)),
+            without,
+            "{what}: the menu did not boot as without metadata"
+        );
+    }
+
+    let renamed = meta_record(0, "alphx", 0, "Alpha Title");
+    let s = screen_of(
+        "name",
+        Some(&meta_data(1, &groups, &[renamed, bravo.clone()], 200)),
+    );
+    assert_eq!(
+        row_name(&s, 5),
+        vice::screen_text("alpha"),
+        "a renamed record was used"
+    );
+    assert_eq!(
+        row_name(&s, 6),
+        vice::screen_text("Bravo Title"),
+        "the other record"
+    );
+
+    // AC-127 through a boot that copies the 16 KB entry: the watch is set before a soft reset and
+    // logs every bank or mode write until the menu is idle again. Every one is masked, and the copy
+    // routine at $0100 is among them.
+    let dir = scratch("ac169-watch");
+    let cart = meta_cart(&dir, Some(&full));
+    let mut steps = vec![
+        Step::Labels(vice::menu_labels()),
+        idle(),
+        Step::Raw(
+            "logname \"monlog.txt\"\nlog on\nwatch store $de00\nwatch store $de02\nreset 0\n\
+             r\nm $d01a $d01a"
+                .into(),
+        ),
+    ];
+    steps.extend((0..40).map(|_| Step::Raw("g\nr\nm $d01a $d01a".into())));
+    let _ = vice::boot(&dir, &cart, &steps);
+    let log = String::from_utf8_lossy(&std::fs::read(dir.join("monlog.txt")).unwrap_or_default())
+        .into_owned();
+    let writes = bank_writes(&log);
+    assert!(!writes.is_empty(), "no bank or mode write was seen");
+    for (i, (masked, _)) in writes.iter().enumerate() {
+        assert!(*masked, "write {i} to $DE00/$DE02 with interrupts unmasked");
+    }
+    assert!(
+        log.lines().any(|l| l.trim_start().starts_with(".;01")),
+        "no bank write was seen from the copy routine at $0100 during the boot"
+    );
+}
+
+/// Every directory slot of `cart` as stored, up to the end marker.
+fn stored_slots(cart: &Path) -> Vec<stidcart_core::directory::DirEntry> {
+    use stidcart_core::directory::{self, Slot, ENTRY_LEN};
+    let bytes = std::fs::read(cart).unwrap();
+    let image = stidcart_core::crt::parse(&bytes).unwrap().image;
+    let mut out = Vec::new();
+    for slot in 0..256 {
+        let at = stidcart_core::reserved::DIRECTORY_OFFSET + slot * ENTRY_LEN;
+        let raw: [u8; ENTRY_LEN] = image.as_bytes()[at..at + ENTRY_LEN].try_into().unwrap();
+        match directory::decode(&raw) {
+            Slot::Program(e) | Slot::Cartridge(e) => out.push(e),
+            _ => break,
+        }
+    }
+    out
+}
+
+/// AC-169 (none): a metadata entry confined to one half (type `0x02` or `0x03`), as the placer
+/// makes one that fits a gap left between cartridges, is read like an interleaved one. Three 8K
+/// cartridges of a kind in banks 1-3 leave the other half of banks 1-2 free (gaps are searched
+/// below the top bank only), a 16 KB run, and a 10 KB entry placed there
+/// crosses from one bank's half into the next one's, with its records last. The test reads the
+/// slot's type and extent back from the cart, so a change in placement can't quietly turn it into
+/// an interleaved entry.
+#[test]
+fn ac_169_a_metadata_entry_confined_to_one_half_is_read() {
+    use stidcart_core::directory::EntryType;
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-169: skipping — x64sc is not installed");
+        return;
+    }
+    for (kind, tag, want) in [
+        (CartKind::K8, "romh", EntryType::PrgRomH),
+        (CartKind::Ultimax8, "roml", EntryType::PrgRomL),
+    ] {
+        let dir = scratch(&format!("ac169-confined-{tag}"));
+        let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+        let carts = ["c1", "c2", "c3"].map(|n| {
+            let m = markers::cart(kind, &format!("{} RAN", n.to_uppercase()));
+            write(&dir, &format!("{n}.crt"), &m.bytes)
+        });
+        let meta = meta_data(
+            1,
+            &[],
+            &[
+                meta_record(3, "alpha", 0, "Alpha Title"),
+                meta_record(4, "bravo", 0, "Bravo Title"),
+            ],
+            10000,
+        );
+        let meta = write(&dir, "stidcart.meta.prg", &meta);
+        let inputs = [
+            carts[0].clone(),
+            carts[1].clone(),
+            carts[2].clone(),
+            write(&dir, "alpha.prg", &hello),
+            write(&dir, "bravo.prg", &hello),
+            meta.clone(),
+        ];
+        let cart = build(
+            &dir,
+            "confined",
+            &["--hide", meta.to_str().unwrap()],
+            &inputs,
+        );
+        let slot = stored_slots(&cart)
+            .into_iter()
+            .find(|e| e.name == "stidcart.meta")
+            .expect("no metadata slot");
+        assert_eq!(
+            slot.kind, want,
+            "{tag}: the entry is not confined to that half"
+        );
+        assert!(
+            (slot.offset as usize & 0x1fff) + slot.size as usize > 0x2000,
+            "{tag}: the entry doesn't cross into the next bank's half"
+        );
+
+        let s = menu_screen(&dir, &cart);
+        assert_eq!(
+            row_name(&s, 8),
+            vice::screen_text("Alpha Title"),
+            "{tag}: alpha"
+        );
+        assert_eq!(
+            row_name(&s, 9),
+            vice::screen_text("Bravo Title"),
+            "{tag}: bravo"
+        );
+    }
+}
+
+/// AC-169 (none): with two hidden `STIDCART.META` slots carrying the magic, the last one is the
+/// metadata, and with the last one lacking the magic, the one before it is.
+#[test]
+fn ac_169_the_last_of_two_metadata_entries_is_the_one() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-169: skipping — x64sc is not installed");
+        return;
+    }
+    let titles = |prefix: &str| {
+        meta_data(
+            1,
+            &[],
+            &[
+                meta_record(0, "alpha", 0, &format!("{prefix} Alpha")),
+                meta_record(1, "bravo", 0, &format!("{prefix} Bravo")),
+            ],
+            200,
+        )
+    };
+    let mut no_magic = titles("Last");
+    no_magic[2] = b'X';
+    for (tag, last, want) in [
+        ("both", titles("Last"), "Last"),
+        ("no-magic", no_magic, "First"),
+    ] {
+        let dir = scratch(&format!("ac169-two-{tag}"));
+        let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+        let first = write_in(&dir, "a", "stidcart.meta", &titles("First"));
+        let second = write_in(&dir, "b", "stidcart.meta", &last);
+        let inputs = [
+            write(&dir, "alpha.prg", &hello),
+            write(&dir, "bravo.prg", &hello),
+            first.clone(),
+            second.clone(),
+        ];
+        let cart = build(
+            &dir,
+            "two metas",
+            &[
+                "--hide",
+                first.to_str().unwrap(),
+                "--hide",
+                second.to_str().unwrap(),
+            ],
+            &inputs,
+        );
+        let slots: Vec<(String, bool)> = stored_slots(&cart)
+            .into_iter()
+            .map(|e| (e.name, e.hidden))
+            .collect();
+        let meta = ("stidcart.meta".to_string(), true);
+        assert_eq!(
+            slots[2..],
+            [meta.clone(), meta],
+            "{tag}: the cart doesn't carry two hidden metadata slots last"
+        );
+
+        let s = menu_screen(&dir, &cart);
+        for (n, entry) in [(5, "Alpha"), (6, "Bravo")] {
+            assert_eq!(
+                row_name(&s, n),
+                vice::screen_text(&format!("{want} {entry}")),
+                "{tag}: row {n}"
+            );
+        }
+    }
 }

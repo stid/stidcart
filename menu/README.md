@@ -15,25 +15,25 @@ code.
 | --------------- | ------------------------------------------------------------------------ |
 | CRSR ↓ / CRSR ↑ | move the selection. The list scrolls past 16 rows                        |
 | CRSR → / CRSR ← | move 16 entries down or up, stopping at the last or first                |
-| RETURN          | start the selected entry                                                 |
+| RETURN          | start the selected entry, or open the selected folder                    |
 | SHIFT+RETURN    | load the selected program and stop at `READY.`; on a cartridge, nothing  |
-| letters, digits | filter: list only the entries whose name contains the text               |
-| DEL             | remove the last character of the filter text                             |
+| letters, digits | filter: list only the entries whose name or title contains the text      |
+| DEL             | remove the last character of the filter text; with none, leave a folder  |
 | HOME / CLR      | clear the filter text; with none, go to the first / last entry           |
 | F1              | switch between the cart's own order and A-Z                              |
 | F3              | list all entries, then only programs, then only cartridges               |
 | F5              | select a random entry among those listed, never the one already selected |
 | F7              | show every key and the stick; the next key press goes back to the menu   |
-| RUN/STOP        | leave to BASIC with the cartridge switched off                           |
+| RUN/STOP        | leave a folder; at the top level, leave to BASIC with the cartridge off  |
 
 A joystick in port 2 does what the cursor keys and RETURN do (D-052):
 
-| Stick        | Does                                  |
-| ------------ | ------------------------------------- |
-| up / down    | as CRSR ↑ / CRSR ↓, one entry         |
-| left / right | as CRSR ← / CRSR →, a page            |
-| fire         | as RETURN, start the selected entry   |
-| any, on help | go back to the menu, and nothing else |
+| Stick        | Does                                     |
+| ------------ | ---------------------------------------- |
+| up / down    | as CRSR ↑ / CRSR ↓, one entry            |
+| left / right | as CRSR ← / CRSR →, a page               |
+| fire         | as RETURN: start an entry, open a folder |
+| any, on help | go back to the menu, and nothing else    |
 
 A direction acts when it is pushed, and if it is held it repeats after 0.4 s, then ten times a
 second. Fire acts once per press. Anything held when the menu starts does nothing until it is let
@@ -49,8 +49,8 @@ bar. When the list is longer than the screen, the divider to its right becomes a
 thumb's length is the share of the list in view, and its place is where the view is. The pane on the
 right describes the selection: its type, size, load address (program) or first bank (cartridge),
 and how it starts. Below the list are the position ("17 of 40"), the order in use and the kind
-listed, then the filter text in yellow with the number listed out of the visible entries, then a
-grey bar naming the keys, `return go  f1 sort  f7 help  run/stop`. Hidden entries are not listed.
+listed, then the filter text in yellow with the number listed out of the visible entries (inside a
+folder, out of the folder's), then a grey bar naming the keys, `return go  f1 sort  f7 help  run/stop`. Hidden entries are not listed.
 The filter and A-Z both ignore case. The filter takes up to 16 characters, any printable one except
 `"`. A boot starts in the cart's own order, which is the order they were built in (D-039), with all
 kinds listed, unless it comes back from a reset (below). The kind filter (F3) combines with the
@@ -79,9 +79,40 @@ program that the menu can't start (D-056):
 EasyLoader itself won't start programs that reach `$D000` (ndefpack's `easyloader.asm:957-985`).
 The tool doesn't check EasyLoader carts for any of this.
 
+## Titles and folders
+
+A cart can carry a title, year, author, note and group for each entry, set with `edit --title`,
+`--year`, `--author`, `--note`, `--group` or `--import`, or in the window (D-054). They are stored in a
+hidden entry, `STIDCART.META`, which the menu reads once at boot (D-057).
+
+- An entry with a title shows the title in its row instead of its name, cut to the row's 16
+  characters. A-Z sorts by what the rows show.
+- The pane shows the name as before, then the facts on every row instead of every other row, then
+  the title in full, the year, the author and the note. Each starts on a row of its own and wraps
+  every 16 characters, so all of them fit at their longest. An entry with no title, year, author
+  or note keeps the usual pane.
+- Groups are folders. The top level lists one row per group that has a visible entry, with a folder
+  badge, the group's name and its number of entries, then the entries without a group. RETURN or
+  fire opens a folder. Inside, the keys act on the folder's entries, and DEL with no text or
+  RUN/STOP goes back to the top level with the folder selected. A name too long for the row is cut
+  to leave room for the count.
+- Text typed at the top level searches every entry, in every folder, by name or title, and lists
+  the matches without folders.
+- Folder rows ignore the kind filter and stay in the order the groups were first used, also under
+  A-Z.
+
+A cart whose metadata the menu can't use boots as a cart without any: no `STIDCART.META` entry, one
+whose payload doesn't start with the magic, a layout version other than 1, a payload over 16 KB, or
+a record that runs past the end. A record whose stored name differs from its entry's is ignored, so
+a cart re-ordered by another tool shows names, not wrong titles.
+
+## Coming back after a reset
+
 After a soft reset the menu comes back where it was left: the entry last started, or the one
-selected at RUN/STOP, is selected and in view, in the same order and kind filter. The filter text
-isn't kept. If the kind filter would hide that entry, all kinds are listed. A power cycle starts at
+selected at RUN/STOP, is selected and in view, in the same order and kind filter. An entry in a
+folder comes back inside that folder, wherever it was started from. The filter text isn't kept.
+RUN/STOP with a folder row selected leaves nothing to come back to, so the next boot starts at the
+top. If the kind filter would hide that entry, all kinds are listed. A power cycle starts at
 the top, and so does a reset after a program that wrote the menu's state (an EAPI or xbank game
 may). The state is checked before it is used, so state that was damaged or written for another cart
 starts at the top too (D-053). This is proven in VICE; whether an EasyFlash 3's own RESET button
@@ -97,12 +128,13 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
   initialises the KERNAL from there with the cartridge off, so the top of memory comes out right.
   It copies the ROM's mixed-case character set to `$3800` and adds the menu's own glyphs to it in
   codes `$60-$7F`: the badges (with their inverses at `$E0` and up, for the selection bar), the rule,
-  the scroll bar and the logo's quarter-block cells. The cartridge mark's nine multicolour cells go
-  in `$EA-$F2`, reversed codes that names never reach. It then scans the EasyFS2 directory at `$A000`
-  and draws straight into screen and colour RAM, writing each cell once per update. A cursor move
-  that doesn't scroll redraws only the two rows it changes, and drawing starts below the visible
-  screen, so nothing flickers. CHROUT isn't used: a full 40-column row links into the next line,
-  and the last cell of row 24 scrolls the screen.
+  the scroll bar, the logo's quarter-block cells and the folder badge (`$7D-$7E`). The cartridge
+  mark's nine multicolour cells go in `$EA-$F2`, reversed codes that names never reach. It then
+  scans the EasyFS2 directory at `$A000`, reads the metadata entry (below), turns the raster
+  interrupt on, and draws straight into screen and colour RAM, writing each cell once per update. A
+  cursor move that doesn't scroll redraws only the two rows it changes, and drawing starts below
+  the visible screen, so nothing flickers. CHROUT isn't used: a full 40-column row links into the
+  next line, and the last cell of row 24 scrolls the screen.
 - A raster interrupt draws the brand once a frame (D-048). From line 46 it turns multicolour on for
   the logo rows, where only the mark's cells have colours 8-15, and rewrites `$D022` every three
   lines so the mark's label shows the five bands. It turns multicolour off after row 2, then sets
@@ -143,12 +175,26 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
   works (AC-160..AC-162, AC-165): writes with `$01=$33` leave the chips, the bank register and the
   cart RAM alone. Real hardware hasn't been tried.
 
+- The metadata entry is read once at boot, before the raster interrupt is on, so interrupts are
+  still masked from `entry` (D-057). The menu takes the last hidden program slot named
+  `STIDCART.META` and reads it through the program path (`prg_params`, `get_byte`), which follows
+  all three program layouts; the boot tests place it interleaved only.
+  It needs the load address `$4000` and a payload of at most 16 KB, and copies the payload to
+  `$4000-$7FFF` with `high_copy`. It then checks the magic and the version and walks the records,
+  stepping by their length bytes. Each record whose name matches its slot is attached to it in
+  tables at `$C600-$C9FF`: the record's address and group by slot, and each group's count of
+  visible entries. `$4000-$7FFF` isn't shown by VIC bank 0, and a program the menu starts may load
+  over it. A full 16 KB takes 1.3 s to copy (1.31 million cycles in VICE, PAL), during which the
+  screen stays blank.
+
 - `$DFF6-$DFFF` holds the state a reset comes back to (D-053). The menu writes it when it starts an
   entry and on RUN/STOP: the magic "STID", the selected entry's directory slot, the order, the kind
   filter, the cart's number of directory entries, the 8-bit sum of the entry's name, and a checksum
   of the other nine bytes. At boot it restores them only when the magic and the checksum hold and
   the count, the slot and the name match this cart. A soft reset keeps the page; a power cycle
-  fills it with a pattern that fails the check. RUN/STOP with nothing listed spoils the magic.
+  fills it with a pattern that fails the check. RUN/STOP with nothing listed, or with a folder row
+  selected, spoils the magic. The folder an entry comes back into is its group, so the state holds
+  no folder.
 
 ## Rebuilding
 
@@ -173,4 +219,4 @@ The evidence that the menu works is VICE, because the reference tool knows nothi
 AC-136..AC-141 for the keys of D-051, AC-142..AC-146 for the stick, AC-147..AC-152 for coming
 back after a reset, which the tests do with the monitor's `reset 0` and `reset 1`, and
 AC-160..AC-162 and AC-165 for programs reaching `$D000-$FFFF`, read back as RAM with the monitor's
-`bank ram`).
+`bank ram`, and AC-166..AC-169 for titles, folders and the metadata checks).
