@@ -8,7 +8,41 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-055 (D-053 is menu-resume's, on its branch) -->
+<!-- Next id: D-056 (D-053 is menu-resume's, on its branch) -->
+
+---
+
+## D-055 · 2026-11-08 · The metadata entry's layout v1: a 16 KB cap, records by index and stored name, kept-version edits refused by name prefix
+
+- **Context:** menu-meta, planning D-054's hidden `STIDCART.META` entry. The C64 side
+  (menu-folders) will copy the whole entry into `$4000-$7FFF` once at boot, so it can never be
+  more than 16 KB. A fully filled record is 147 bytes, so 254 of them need about 37 KB. The spec
+  lists no refusal for that, and D-054 left open what "an edit that would have to rewrite" a kept
+  unknown-version entry is.
+- **Decision:**
+  - The layout is version 1, a stidcart extension in `docs/format/`. It is a PRG loading at
+    `$4000`, holding the magic `STIDMETA`, the version, the group and record counts and the
+    record-table offset. Then come fixed 16-byte NUL-padded group names (group n at
+    `table + (n-1)*16`, in order of first use), then one length-prefixed record per entry that
+    has metadata, in index order. Each record holds its index, the 16 name bytes its slot
+    stores, a group number and four length-prefixed PETSCII fields.
+  - A set whose payload would pass 16384 bytes is refused, naming both sizes
+    (`BuildError::MetadataTooLarge`). This adds a refusal; it weakens nothing.
+  - On read, META is the *last* hidden program slot whose name is `STIDCART.META` and whose
+    payload starts with the magic. A record attaches when its 16 bytes equal its slot's raw name
+    bytes. META is always written last, so a record's index is the directory slot.
+  - A kept (unknown or malformed) META is written back byte for byte. A build is refused when
+    the entry names as loaded are no longer a prefix of the current names (a remove, rename or
+    re-order) or when any entry has metadata set. Hide, align, replace, add, names and a menu
+    switch still save.
+  - Text maps to PETSCII when `petscii_to_ascii(ascii_to_petscii(v)) == v`, that is, printable
+    ASCII. Entry names stay unvalidated as before.
+- **Alternatives rejected:** fixed-offset records (37 KB worst case, mostly padding); records
+  without the name copy (D-054 detects a re-order by name); refusing every save of a cart with a
+  kept META (blocks harmless edits); a hash of the name instead of the bytes (the menu would need
+  to compute it).
+- **Scope:** `docs/format/`, `crates/stidcart-core/src/meta.rs`, `read.rs`, `lib.rs`
+- **Status:** active · refines D-054
 
 ---
 
