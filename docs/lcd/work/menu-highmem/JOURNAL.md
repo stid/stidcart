@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our menu starts programs reaching into `$D000-$FFFF`, copying that part into the RAM under I/O and the KERNAL; with our menu the tool refuses only what still can't start (D-056)
-- **Next action:** S6 — root `README.md` (lines 33, 107 still state the `$D000-$DFFF` refusal; outside this item's boundary), SPEC rows for AC-95/AC-113, audit, closeout, PR
+- **Next action:** done; PR open, merge when gate, gui and claude-review are green (user authorised)
 - **Branch:** feat/menu-highmem · **Updated:** 2026-11-08
 
 ## STEPS
@@ -22,7 +22,7 @@
 - [x] S3 — failing tests: VICE boots (AC-160..AC-162, AC-165), CLI refusals (AC-163, flipping AC-95's test), the window (AC-164)
 - [x] S4 — the refusal in the core; the split copy in `menu/src/menu.s`/`launch.s`; rebuild `menu.bin`/`menu.lbl`; the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [x] S5 — `menu/README.md`, SPEC-visible refusal text, gates with `STIDCART_REQUIRE_TOOLS=1` and `gui-gate.sh`
-- [ ] S6 — audit, reconcile, closeout, PR
+- [x] S6 — audit, reconcile, closeout, PR
 
 ## DECISIONS (this work-item)
 
@@ -149,3 +149,13 @@ interrupt off when the program starts. The NMI vector and `$01` are back to the 
   `high_copy` works. Root `README.md` isn't in the EDIT BOUNDARY, so it still states the old
   refusal; left for S6. Gates green: root 273 passed (`STIDCART_REQUIRE_TOOLS=1`), GUI gate 42
   cargo + 60 vitest.
+- 2026-11-08 — orchestrator: merged main (menu-meta) into the branch. `BuildError` kept the three
+  new variants beside menu-meta's `MetadataTooLarge`/`MetadataKept`; DECISIONS, triage-log,
+  conventions and Cargo.lock resolved keeping both sides. Version 0.21.0 → 0.22.0. Root README and
+  SPEC refusal wording updated; the as-built routine, floor and known limits folded into D-056.
+- 2026-11-08 — audit: PASS (test-presence). `AC-160 (none)`, `AC-161 (none)`, `AC-162 (none)`,
+  `AC-165 (none)` in `crates/stidcart-cli/tests/menu_boot.rs`, `AC-163 (CLI)` in
+  `crates/stidcart-cli/tests/menu_cli.rs`, `AC-164 (RENDER)` in `gui/src-tauri/tests/menu.rs`. Gates
+  re-run after the merge. Closeout line appended.
+- 2026-11-08 — reconciled: AC-163 folded into the CLI refusal row (rewritten in place), AC-164 into
+  the window's menu row, AC-160..AC-162 and AC-165 → one new SPEC.md/none row.

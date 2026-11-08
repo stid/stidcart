@@ -29,6 +29,9 @@ function editingText(): boolean {
 export function createViewer(host: Host) {
   let state = $state<ViewState>({ kind: 'empty' });
   let notice = $state<string | null>(null);
+  /** Counts the documents shown: opening a cart or New starts a new one, an edit or a save does
+   * not, so per-document view state (the selected entry) can be reset by keying on it. */
+  let generation = $state(0);
 
   const doc = $derived(state.kind === 'document' ? state.doc : null);
   const editable = $derived(doc !== null && doc.readOnly === null);
@@ -54,6 +57,7 @@ export function createViewer(host: Host) {
     notice = null;
     try {
       show(await host.openDocument(path));
+      generation++;
     } catch (e) {
       // Whatever was on screen describes another file, so it goes.
       state = { kind: 'error', file: fileName(path), message: String(e) };
@@ -98,7 +102,7 @@ export function createViewer(host: Host) {
 
   async function newCart() {
     if (!(await settle())) return;
-    await attempt(() => host.newDocument());
+    if (await attempt(() => host.newDocument())) generation++;
   }
 
   async function quit() {
@@ -120,6 +124,9 @@ export function createViewer(host: Host) {
     },
     get notice() {
       return notice;
+    },
+    get generation() {
+      return generation;
     },
     get editable() {
       return editable;

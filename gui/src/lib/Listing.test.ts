@@ -180,3 +180,69 @@ test('AC-118 (RENDER): each type badge carries its family', () => {
     expect(within(table[i]).getByText(r.kind)).toHaveAttribute('data-family', r.family);
   });
 });
+
+/** `two.json` with a title and group on entry 0 only. */
+function annotated(): ListingData {
+  return {
+    ...listing,
+    rows: listing.rows.map((r, i) => ({
+      ...r,
+      title: i === 0 ? 'Hello There' : '',
+      group: i === 0 ? 'Games' : '',
+    })),
+  };
+}
+
+test('AC-158 (RENDER): each entry shows its title under its name and its group in a column', () => {
+  render(Listing, { props: { listing: annotated(), file: 'two.crt' } });
+  expect(screen.getByRole('columnheader', { name: /group/i })).toBeInTheDocument();
+  const rows = screen.getAllByRole('row').slice(1);
+  expect(within(rows[0]).getByText('Hello There')).toBeInTheDocument();
+  expect(within(rows[0]).getByText('Games')).toBeInTheDocument();
+  expect(within(rows[1]).queryByText('Hello There')).toBeNull();
+});
+
+test('AC-158 (RENDER): without metadata there is no group column and no title line', () => {
+  render(Listing, { props: { listing, file: 'two.crt' } });
+  expect(screen.queryByRole('columnheader', { name: /group/i })).toBeNull();
+  const rows = screen.getAllByRole('row').slice(1);
+  listing.rows.forEach((r, i) => {
+    expect(within(rows[i]).getAllByRole('cell')[1].textContent?.trim()).toBe(r.name);
+  });
+});
+
+test('AC-158 (RENDER): the window says how many records were dropped, and a kept layout', () => {
+  render(Listing, {
+    props: {
+      listing: {
+        ...listing,
+        metaDropped: 2,
+        metaKept: 'layout version 9 is unknown to this stidcart; kept as stored',
+      },
+      file: 'two.crt',
+    },
+  });
+  expect(screen.getByText(/2 metadata records dropped/i)).toBeInTheDocument();
+  expect(screen.getByText(/layout version 9/)).toBeInTheDocument();
+});
+
+test('AC-159 (RENDER): selecting an entry offers its five fields, each change a setMeta edit', async () => {
+  const { onedit } = editable({ listing: annotated() });
+  const rows = screen.getAllByRole('row').slice(1);
+  expect(screen.queryByRole('button', { name: /edit title/i })).toBeNull();
+
+  await fireEvent.click(within(rows[1]).getByText(listing.rows[1].kind));
+  expect(rows[1]).toHaveAttribute('aria-selected', 'true');
+  expect(rows[0]).not.toHaveAttribute('aria-selected', 'true');
+
+  await fireEvent.click(screen.getByRole('button', { name: /edit title/i }));
+  const input = screen.getByRole('textbox', { name: /title/i });
+  await fireEvent.input(input, { target: { value: 'Ramp' } });
+  await fireEvent.keyDown(input, { key: 'Enter' });
+  expect(onedit).toHaveBeenLastCalledWith({
+    kind: 'setMeta',
+    index: 1,
+    field: 'title',
+    value: 'Ramp',
+  });
+});

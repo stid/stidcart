@@ -8,7 +8,7 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-057 (D-054 and D-055 are menu-meta's, on its branch) -->
+<!-- Next id: D-057 -->
 
 ---
 
@@ -42,7 +42,85 @@
   refusal (EasyLoader parity is no reason to stay as limited as it).
 - **Scope:** `menu/src/menu.s`, `menu/src/launch.s`, the refusal in `crates/stidcart-core/src/lib.rs`,
   the CLI and GUI refusal tests, the boot tests
+- **As built:** the routine is 80 bytes (`$0100-$014F`), so the low floor is `$0150`
+  (`menu::HIGH_COPY_END`, held equal to the label by a test). It brackets the copy with
+  `php`/`sei` … `plp` and saves and restores `$0318/9` on the stack. The core's one refusal became
+  three: `ProgramLoadsHigh`, `ProgramPastTop`, `ProgramOverHighCopy`. Known limits, not refused:
+  a program that loads below about `$0334` has always overwritten the stack and the KERNAL vectors
+  the trap is using, and still does; after SHIFT+RETURN on a program ending exactly at `$10000`,
+  BASIC's end pointer is `$0000`, so `SYS` works but `LIST`/`RUN` don't; the NMI vector is written
+  in two stores, so a RESTORE press between them would jump through half a vector. The `$01=$33`
+  writes are proven in VICE only.
 - **Status:** active · refines D-038 (AC-95's refusal)
+
+---
+
+## D-055 · 2026-11-08 · The metadata entry's layout v1: a 16 KB cap, records by index and stored name, kept-version edits refused by name prefix
+
+- **Context:** menu-meta, planning D-054's hidden `STIDCART.META` entry. The C64 side
+  (menu-folders) will copy the whole entry into `$4000-$7FFF` once at boot, so it can never be
+  more than 16 KB. A fully filled record is 147 bytes, so 254 of them need about 37 KB. The spec
+  lists no refusal for that, and D-054 left open what "an edit that would have to rewrite" a kept
+  unknown-version entry is.
+- **Decision:**
+  - The layout is version 1, a stidcart extension in `docs/format/`. It is a PRG loading at
+    `$4000`, holding the magic `STIDMETA`, the version, the group and record counts and the
+    record-table offset. Then come fixed 16-byte NUL-padded group names (group n at
+    `table + (n-1)*16`, in order of first use), then one length-prefixed record per entry that
+    has metadata, in index order. Each record holds its index, the 16 name bytes its slot
+    stores, a group number and four length-prefixed PETSCII fields.
+  - A set whose payload would pass 16384 bytes is refused, naming both sizes
+    (`BuildError::MetadataTooLarge`). This adds a refusal; it weakens nothing.
+  - On read, META is the *last* hidden program slot whose name is `STIDCART.META` and whose
+    payload starts with the magic. A record attaches when its 16 bytes equal its slot's raw name
+    bytes. META is always written last, so a record's index is the directory slot.
+  - A kept (unknown or malformed) META is written back byte for byte. A build is refused when
+    the entry names as loaded are no longer a prefix of the current names (a remove, rename or
+    re-order) or when any entry has metadata set. Hide, align, replace, add, names and a menu
+    switch still save.
+  - Text maps to PETSCII when `petscii_to_ascii(ascii_to_petscii(v)) == v`, that is, printable
+    ASCII. Entry names stay unvalidated as before.
+- **Alternatives rejected:** fixed-offset records (37 KB worst case, mostly padding); records
+  without the name copy (D-054 detects a re-order by name); refusing every save of a cart with a
+  kept META (blocks harmless edits); a hash of the name instead of the bytes (the menu would need
+  to compute it).
+- **Scope:** `docs/format/`, `crates/stidcart-core/src/meta.rs`, `read.rs`, `lib.rs`
+- **Status:** active · refines D-054
+
+---
+
+## D-054 · 2026-11-08 · Entry metadata lives in one hidden directory entry, carried per entry by the model
+
+- **Context:** menu-meta. The user asked for a full title, year, author, note and group per entry,
+  shown by our menu with groups as folders, and edited three ways: `edit` flags, an import file
+  and the window (2026-11-08, spec approved the same day). EasyFS2 has no field for any of it. A
+  200-entry cart needs about 8-12 KB, and the loader slot has about 3 KB to spare once the
+  planned menu keys are in.
+- **Decision:**
+  - The metadata is one hidden program entry, `STIDCART.META`, placed by the normal placement
+    path, written only when at least one entry carries metadata. A cart without metadata is
+    byte-identical to today's. EasyLoader skips hidden entries (`easyloader.asm:900`, `:935-941`),
+    so the cart works under either menu and keeps its metadata through a menu switch.
+  - `load` lifts that entry out of the entry list and attaches each record to its entry, as the
+    hidden flag is carried (AC-29), so remove, re-order and rename carry it and a save writes it
+    again. Each record holds its entry's index and stored name; a record whose name no longer
+    matches is dropped and counted, which catches another tool's re-order.
+  - The layout carries a version. One the tool doesn't know is kept verbatim and described, and an
+    edit that would have to rewrite it is refused.
+  - The format doc gains its section first (D-018), marked as a stidcart extension, not an
+    ndefpack fact. Its evidence is round-trip tests and VICE boots, not reference citations.
+  - Its load address avoids `$D000-$DFFF`, so the D-038 rule never refuses it.
+  - The work splits in two: `menu-meta` (store, round-trip, CLI, import, listing, window) and
+    `menu-folders` (our menu reads it at boot and shows titles, the pane fields and folders), so
+    the first can run while other menu work holds the menu source.
+- **Alternatives rejected:** spare space in the loader slot (too small, changes the menu
+  fingerprint, lost on a switch to EasyLoader); free regions of bank 0 (the boot region is checked
+  byte-for-byte, so `load` would refuse the cart); a fixed high bank (nothing in the directory
+  points at it, so the placer and other tools treat it as free space); a sidecar file beside the
+  `.crt` (the C64 can't read it).
+- **Scope:** `docs/format/`, the core's entry model and read/write paths, `edit`, `list`, the
+  window, and later `menu/`
+- **Status:** active
 
 ---
 

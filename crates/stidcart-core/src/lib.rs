@@ -22,6 +22,7 @@ pub mod firmware;
 pub mod image;
 pub mod listing;
 pub mod menu;
+pub mod meta;
 pub mod petscii;
 pub mod place;
 pub mod read;
@@ -35,6 +36,7 @@ pub use read::{inspect, load, CartInfo, ReadError};
 use directory::{DirEntry, EntryType, ENTRY_LEN, MAX_ENTRIES};
 use image::{BANK_SIZE, N_BANKS};
 use menu::Menu;
+use meta::{Field, KeptMeta, Meta, MetaError};
 use place::Placer;
 use reserved::{Mode, DEFAULT_EF_NAME, DIRECTORY_OFFSET};
 
@@ -47,6 +49,9 @@ pub struct Program {
     /// survives a save and a reload — which is the whole reason [`read::load`] no longer refuses a
     /// cart that carries one (D-020).
     pub hidden: bool,
+    /// Title, year, author, note and group. Carried as `hidden` is, so remove, rename, replace and
+    /// re-order keep it with its entry (D-054).
+    pub meta: Meta,
 }
 
 impl Program {
@@ -55,6 +60,7 @@ impl Program {
             name: name.to_string(),
             data,
             hidden: false,
+            meta: Meta::default(),
         }
     }
 
@@ -84,6 +90,20 @@ impl Entry {
         match self {
             Entry::Program(p) => p.hidden,
             Entry::Cartridge(c) => c.hidden,
+        }
+    }
+
+    pub fn meta(&self) -> &Meta {
+        match self {
+            Entry::Program(p) => &p.meta,
+            Entry::Cartridge(c) => &c.meta,
+        }
+    }
+
+    pub(crate) fn meta_mut(&mut self) -> &mut Meta {
+        match self {
+            Entry::Program(p) => &mut p.meta,
+            Entry::Cartridge(c) => &mut c.meta,
         }
     }
 
@@ -186,9 +206,12 @@ impl From<Cartridge> for Entry {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BuildError {
+    /// More slots needed than the directory has. `metadata` says one of them is the metadata
+    /// entry's (D-054).
     TooManyEntries {
         max: usize,
         got: usize,
+        metadata: bool,
     },
     OutOfSpace {
         name: String,
@@ -196,40 +219,56 @@ pub enum BuildError {
         free: usize,
     },
     /// Only one entry can own bank 0, which every Ocean cartridge must (D-024).
-    SecondOcean {
-        name: String,
-    },
+    SecondOcean { name: String },
     /// 64 KB alignment is an xbank property; the format has nowhere to record it on another kind.
-    AlignNotXbank {
-        name: String,
-    },
+    AlignNotXbank { name: String },
     /// Our menu has no Ocean-mode build (D-037), and this entry is an Ocean cartridge.
-    MenuNeedsNormalMode {
-        name: String,
-    },
+    MenuNeedsNormalMode { name: String },
     /// Our menu starts a program by `SYS` or `RUN` at its load address, which in `$D000-$FFFF` is
     /// I/O or the KERNAL ROM (D-056).
-    ProgramLoadsHigh {
-        name: String,
-        load: u16,
-    },
+    ProgramLoadsHigh { name: String, load: u16 },
     /// The program's bytes run past `$FFFF`, where memory ends; our menu would wrap them to `$0000`.
-    ProgramPastTop {
-        name: String,
-    },
+    ProgramPastTop { name: String },
     /// The program reaches `$D000` and loads below [`menu::HIGH_COPY_END`], over the routine our
     /// menu copies its bytes from `$D000` on with (D-056).
-    ProgramOverHighCopy {
-        name: String,
-    },
+    ProgramOverHighCopy { name: String },
+    /// The metadata payload would not fit the 16 KB a C64 copies it into at `$4000` (D-055).
+    MetadataTooLarge { size: usize, max: usize },
+    /// The cart's metadata is kept as stored in a layout this build can't read, and the entries
+    /// it describes were renamed, removed or re-ordered, or metadata was set (D-055).
+    MetadataKept { reason: String },
 }
 
 impl std::fmt::Display for BuildError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BuildError::TooManyEntries { max, got } => {
+            BuildError::TooManyEntries {
+                max,
+                got,
+                metadata: false,
+            } => {
                 write!(f, "{got} entries requested but the directory holds {max}")
             }
+            BuildError::TooManyEntries {
+                max,
+                got,
+                metadata: true,
+            } => write!(
+                f,
+                "{} entries and the metadata need {got} directory slots, but the directory holds \
+                 {max}",
+                got - 1
+            ),
+            BuildError::MetadataTooLarge { size, max } => write!(
+                f,
+                "the metadata needs {size} bytes, more than the {max} a C64 can copy it into"
+            ),
+            BuildError::MetadataKept { reason } => write!(
+                f,
+                "the cart's metadata is kept as stored ({reason}), and this edit would need it \
+                 rewritten: it renames, removes or re-orders the entries it describes, or sets \
+                 metadata"
+            ),
             BuildError::OutOfSpace { name, size, free } => write!(
                 f,
                 "'{name}' needs {size} bytes but only {free} are free on the cartridge"
@@ -272,6 +311,9 @@ pub struct CartBuilder {
     header_name: String,
     menu: Menu,
     entries: Vec<Entry>,
+    /// A metadata entry in a layout this build can't read, with the entry names as loaded: written
+    /// back byte for byte while those names stay a prefix of the entries (D-055).
+    kept: Option<(KeptMeta, Vec<String>)>,
 }
 
 impl Default for CartBuilder {
@@ -287,6 +329,7 @@ impl CartBuilder {
             header_name: format!("stidcart {}", env!("CARGO_PKG_VERSION")),
             menu: Menu::default(),
             entries: Vec::new(),
+            kept: None,
         }
     }
 
@@ -361,6 +404,71 @@ impl CartBuilder {
         self.entries[index].set_hidden(hidden);
     }
 
+    /// Set one metadata field on the entry at `index`, or clear it with an empty value. Refused
+    /// for a value [`Meta::set`] refuses, and on a cart whose metadata is kept as stored in a
+    /// layout this build can't read (D-055).
+    pub fn set_meta(&mut self, index: usize, field: Field, value: &str) -> Result<(), MetaError> {
+        if let Some((kept, _)) = &self.kept {
+            return Err(MetaError::Kept {
+                reason: kept.reason.clone(),
+            });
+        }
+        self.entries[index].meta_mut().set(field, value)
+    }
+
+    /// An entry's metadata as read from an image, which the walk has already validated.
+    pub(crate) fn entry_meta_mut(&mut self, index: usize) -> &mut Meta {
+        self.entries[index].meta_mut()
+    }
+
+    /// Carry a metadata entry this build can't read, against the entries as they are now.
+    pub(crate) fn keep_meta(&mut self, kept: KeptMeta) {
+        let names = self.entries.iter().map(|e| e.name().to_string()).collect();
+        self.kept = Some((kept, names));
+    }
+
+    /// The metadata entry a build writes last, or `None` when no entry has metadata (D-054). The
+    /// layout is `docs/format/`'s "stidcart extension: entry metadata".
+    fn meta_entry(&self) -> Result<Option<Entry>, BuildError> {
+        let data = if let Some((kept, names)) = &self.kept {
+            let same = self.entries.len() >= names.len()
+                && self.entries.iter().zip(names).all(|(e, n)| e.name() == n);
+            if !same || self.entries.iter().any(|e| !e.meta().is_empty()) {
+                return Err(BuildError::MetadataKept {
+                    reason: kept.reason.clone(),
+                });
+            }
+            kept.data.clone()
+        } else {
+            let records: Vec<meta::Record> = self
+                .entries
+                .iter()
+                .enumerate()
+                .filter(|(_, e)| !e.meta().is_empty())
+                .map(|(index, e)| meta::Record {
+                    index,
+                    name: directory::name_bytes(e.name()),
+                    meta: e.meta(),
+                })
+                .collect();
+            if records.is_empty() {
+                return Ok(None);
+            }
+            let data = meta::encode(&records);
+            let size = data.len() - 2;
+            if size > meta::MAX_PAYLOAD {
+                return Err(BuildError::MetadataTooLarge {
+                    size,
+                    max: meta::MAX_PAYLOAD,
+                });
+            }
+            data
+        };
+        Ok(Some(
+            Program::new(meta::META_NAME, data).with_hidden(true).into(),
+        ))
+    }
+
     /// Request or clear 64 KB alignment on the cartridge at `index`. Recorded on any cartridge;
     /// [`CartBuilder::build`] refuses it on anything but an xbank, and it is meaningless on a
     /// program, where it is ignored.
@@ -376,6 +484,7 @@ impl CartBuilder {
         let mut entry = entry.into();
         entry.set_name(self.entries[index].name());
         entry.set_hidden(self.entries[index].hidden());
+        *entry.meta_mut() = self.entries[index].meta().clone();
         self.entries[index] = entry;
     }
 
@@ -429,9 +538,15 @@ impl CartBuilder {
     pub fn free_space(&self) -> usize {
         let mode = self.mode();
         let mut entries = self.entries.clone();
+        let probe = entries.len();
         entries.push(Program::new("", Vec::new()).into());
+        // The metadata entry is placed last, after the probe, as a build after `push` would place
+        // it. A set whose metadata can't be written won't build at all, so it counts for nothing here.
+        if let Ok(Some(m)) = self.meta_entry() {
+            entries.push(m);
+        }
         let mut fits = |size: usize| {
-            if let Some(Entry::Program(p)) = entries.last_mut() {
+            if let Entry::Program(p) = &mut entries[probe] {
                 p.data.resize(size, 0);
             }
             Placer::new(mode).place_all(&entries).is_ok()
@@ -451,10 +566,13 @@ impl CartBuilder {
 
     /// Lay out the flash image without wrapping it in a container.
     pub fn build_image(&self) -> Result<FlashImage, BuildError> {
-        if self.entries.len() > MAX_ENTRIES {
+        let meta = self.meta_entry()?;
+        let slots = self.entries.len() + usize::from(meta.is_some());
+        if slots > MAX_ENTRIES {
             return Err(BuildError::TooManyEntries {
                 max: MAX_ENTRIES,
-                got: self.entries.len(),
+                got: slots,
+                metadata: meta.is_some(),
             });
         }
         let mut oceans = self
@@ -501,7 +619,10 @@ impl CartBuilder {
 
         let mode = self.mode();
         let mut placer = Placer::new(mode);
-        let placements = placer.place_all(&self.entries)?;
+        // The entries as written: the metadata entry, if any, last (D-054).
+        let mut placed = self.entries.clone();
+        placed.extend(meta);
+        let placements = placer.place_all(&placed)?;
 
         let mut img = FlashImage::erased();
         reserved::write_eapi(&mut img);
@@ -509,7 +630,7 @@ impl CartBuilder {
         reserved::write_loader(&mut img, mode, self.menu);
         reserved::write_ef_name(&mut img, &self.ef_name);
 
-        for (i, entry) in self.entries.iter().enumerate() {
+        for (i, entry) in placed.iter().enumerate() {
             let at = placements[i];
             let dir_entry = match entry {
                 Entry::Program(program) => {
@@ -544,7 +665,7 @@ impl CartBuilder {
         }
 
         img.write_at(
-            DIRECTORY_OFFSET + self.entries.len() * ENTRY_LEN,
+            DIRECTORY_OFFSET + placed.len() * ENTRY_LEN,
             &directory::end_marker(),
         );
 

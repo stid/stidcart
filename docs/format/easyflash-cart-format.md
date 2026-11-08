@@ -338,6 +338,71 @@ listing them is that the choice should be deliberate.
   is an expected byte difference rather than a parity failure. Pin it explicitly on both sides
   when diffing output.
 
+## stidcart extension: entry metadata (`STIDCART.META`)
+
+> **Not an ndefpack fact.** Nothing in the reference tree defines this. stidcart defines it
+> (D-054, D-055), and its evidence is stidcart's own round-trip tests and VICE boots, not
+> citations. Every other tool sees an ordinary hidden program entry.
+
+A cart may carry a title, year, author, note and group per entry in one extra directory entry.
+It is written only when at least one entry has metadata, so a cart without any is unchanged.
+
+**The entry.** It is an ordinary program entry: interleaved type `0x01`, or `0x02`/`0x03` if
+placement confines it to a gap, so a reader must follow all three program kinds. It has the
+hidden bit set, and its 16 name bytes are `STIDCART.META` (`53 54 49 44 43 41 52 54 2E 4D 45 54
+41`) NUL-padded. It is placed like any program and written in the **last** directory slot. Both
+menus skip hidden entries, and EasyLoader skips it as it skips any hidden entry
+(`easyloader.asm:900`, `:935-941`). Its data is a PRG with load address `$4000`, followed by a
+payload of at most 16384 bytes, so a copy of the payload fills at most `$4000-$7FFF`.
+
+**Recognising it.** A hidden program slot with that name whose payload begins with the magic.
+Without the magic it is an ordinary entry. When several qualify, the last slot is the one. A
+reader numbers entries without it: the _entry index_ of a slot is its position among the other
+entries. A writer that puts the entry last makes that the directory slot.
+
+**Payload, layout version 1.** All multi-byte values are little-endian. Text is PETSCII,
+converted the way names are (see "Names and PETSCII").
+
+| Offset | Size | Field                                                                |
+| ------ | ---- | -------------------------------------------------------------------- |
+| `0`    | 8    | magic `53 54 49 44 4D 45 54 41` (ASCII `STIDMETA`)                   |
+| `8`    | 1    | layout version, `1`                                                  |
+| `9`    | 1    | G, the number of groups                                              |
+| `10`   | 1    | R, the number of records                                             |
+| `11`   | 2    | offset of the first record from the payload start (`13 + 16G`)       |
+| `13`   | 16·G | group names, 16 bytes each, NUL-padded; group n is at `13 + 16(n-1)` |
+| …      | …    | R records, one after another                                         |
+
+Groups are numbered from 1, in the order entries first use them. A record exists only for an
+entry with some metadata, and records run in ascending entry index:
+
+| Offset | Size | Field                                                    |
+| ------ | ---- | -------------------------------------------------------- |
+| `0`    | 1    | L, the record's whole length including this byte (≤ 147) |
+| `1`    | 1    | entry index                                              |
+| `2`    | 16   | the entry's name bytes as its directory slot stores them |
+| `18`   | 1    | group number, `0` for none                               |
+| `19`   | 1+n  | title: length n (≤ 48), then n bytes                     |
+| …      | 1+n  | year: length n (≤ 4), then n bytes                       |
+| …      | 1+n  | author: length n (≤ 24), then n bytes                    |
+| …      | 1+n  | note: length n (≤ 48), then n bytes                      |
+
+A field of length 0 is absent. Group names are at most 16 characters. Text is restricted to
+characters that convert to PETSCII and back unchanged (printable ASCII, `0x20-0x7E`).
+
+**Attaching records.** A record belongs to the entry at its index only when its 16 name bytes
+equal that slot's stored name bytes. A record whose index is out of range, whose name differs (the
+directory was re-ordered or renamed by a tool that doesn't know this entry), or which repeats an
+index already matched is dropped. Writing the cart again drops it for good.
+
+**Other versions.** A payload with the magic but another version, or a version-1 payload that
+doesn't parse, is kept byte for byte by a writer that can't read it. Such a writer must not change
+anything a record could refer to: the entries before it, their order and their names.
+
+**Reading it on the C64.** Copy the payload to `$4000`, check the magic and the version, and walk
+the records from the offset at `$400B`. Each record's length byte skips to the next. A record's
+group name is at `$400D + 16(group-1)`.
+
 ## Checking an image by hand
 
 Rebuild the flash image from a `.crt` and look at it directly. This is how the bank-0 map above

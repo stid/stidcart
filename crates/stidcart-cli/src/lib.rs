@@ -12,6 +12,7 @@ use std::path::Path;
 
 use stidcart_core::listing::{self, Listing};
 use stidcart_core::menu::Menu;
+use stidcart_core::meta::{self, Field};
 use stidcart_core::read;
 use stidcart_core::{CartBuilder, Entry, InputError};
 
@@ -48,9 +49,18 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   --header NAME   set the container header name
   --menu MENU     switch the menu to easyloader or stidcart, replacing whatever the loader slot
                   holds; without it the cart keeps its menu
+  --title N TEXT  set the title of the entry at index N (at most 48 characters)
+  --year N TEXT   set its year (at most 4)
+  --author N TEXT set its author (at most 24)
+  --note N TEXT   set its note (at most 48)
+  --group N TEXT  put it in a group (at most 16); an empty TEXT clears any of these
+  --import FILE   set metadata from a TOML file of [[entry]] tables, each naming an
+                  entry by its stored name (case ignored) with any of title, year,
+                  author, note and group; any problem refuses the whole file
 
   Indices are the ones `list` prints, and every index in one invocation refers
   to the image as it was given, not to the state a previous operation left.
+  Metadata text is printable ASCII, so it maps to PETSCII as names do.
 ";
 
 /// Returns the path written, or `None` when there was nothing to write.
@@ -137,6 +147,10 @@ enum Op {
     Replace(usize, String),
     Hidden(usize, bool),
     Align(usize, bool),
+    /// One metadata field on one entry; an empty value clears it (D-054).
+    Meta(usize, Field, String),
+    /// A TOML file of metadata, resolved against the cart as given into [`Op::Meta`]s.
+    Import(String),
 }
 
 /// Change an existing image and write it back.
@@ -171,6 +185,15 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             "--add-aligned" => ops.push(Op::Add(
                 it.next().ok_or("--add-aligned needs a file")?.clone(),
                 true,
+            )),
+            "--title" | "--year" | "--author" | "--note" | "--group" => {
+                let field = Field::from_name(&arg[2..]).expect("the five field options");
+                let at = index(it.next(), arg)?;
+                let value = it.next().ok_or_else(|| format!("{arg} needs a value"))?;
+                ops.push(Op::Meta(at, field, value.clone()));
+            }
+            "--import" => ops.push(Op::Import(
+                it.next().ok_or("--import needs a file")?.clone(),
             )),
             "--align" => ops.push(Op::Align(index(it.next(), "--align")?, true)),
             "--unalign" => ops.push(Op::Align(index(it.next(), "--unalign")?, false)),
@@ -208,6 +231,19 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     };
     let mut builder = loaded.map_err(|e| e.to_string())?;
 
+    // An import names entries by their stored name, so it is resolved against the cart as given,
+    // in its place among the other operations, before anything applies.
+    let ops: Vec<Op> = ops
+        .into_iter()
+        .map(|op| match op {
+            Op::Import(path) => import(&path, &builder),
+            op => Ok(vec![op]),
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect();
+
     // Every index is checked against the image as read, before anything is applied — so the two
     // halves of a request cannot disagree about what entry 1 is, and so a request that names an
     // entry the cart does not have fails without having half-changed it.
@@ -218,8 +254,9 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             | Op::Rename(at, _)
             | Op::Replace(at, _)
             | Op::Hidden(at, _)
-            | Op::Align(at, _) => *at,
-            Op::Add(..) => continue,
+            | Op::Align(at, _)
+            | Op::Meta(at, ..) => *at,
+            Op::Add(..) | Op::Import(_) => continue,
         };
         if at >= held {
             return Err(format!(
@@ -246,7 +283,10 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
                 }
                 builder.set_align_64k(*at, *on);
             }
-            Op::Add(..) | Op::Remove(_) => {}
+            Op::Meta(at, field, value) => builder
+                .set_meta(*at, *field, value)
+                .map_err(|e| e.to_string())?,
+            Op::Add(..) | Op::Remove(_) | Op::Import(_) => {}
         }
     }
 
@@ -286,6 +326,80 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     write_replacing(&destination, &out_bytes)?;
 
     Ok(Some(destination))
+}
+
+/// Read a metadata import file into the [`Op::Meta`]s it asks for, against the cart as given.
+///
+/// The file is `[[entry]]` tables, each with a `name` matched against the entries' stored names
+/// ignoring case, and any of the five fields as text (a year may be a bare number). Anything wrong
+/// refuses the whole file, naming the problem, before any of it applies: an unknown key, a value
+/// that isn't text or doesn't fit its field, a name matching no entry or several, or one entry
+/// named twice.
+fn import(path: &str, builder: &CartBuilder) -> Result<Vec<Op>, String> {
+    use toml::Value;
+
+    let text = std::fs::read_to_string(path).map_err(|e| format!("reading '{path}': {e}"))?;
+    let at = |what: String| format!("'{path}': {what}");
+    let table: toml::Table = text.parse().map_err(|e| at(format!("{e}")))?;
+    if let Some(key) = table.keys().find(|k| *k != "entry") {
+        return Err(at(format!(
+            "unknown key '{key}'; the file holds [[entry]] tables"
+        )));
+    }
+    let tables = match table.get("entry") {
+        None => return Ok(Vec::new()),
+        Some(Value::Array(tables)) => tables,
+        Some(_) => return Err(at("'entry' must be [[entry]] tables".into())),
+    };
+
+    let mut ops = Vec::new();
+    let mut named: Vec<usize> = Vec::new();
+    for (n, t) in tables.iter().enumerate() {
+        let Value::Table(t) = t else {
+            return Err(at(format!("entry {n} is not a table")));
+        };
+        let Some(Value::String(name)) = t.get("name") else {
+            return Err(at(format!("entry {n} has no name")));
+        };
+        let matching: Vec<usize> = builder
+            .entries()
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| e.name().eq_ignore_ascii_case(name))
+            .map(|(i, _)| i)
+            .collect();
+        let index = match matching[..] {
+            [i] => i,
+            [] => return Err(at(format!("no entry is named '{name}'"))),
+            _ => {
+                return Err(at(format!(
+                    "{} entries are named '{name}', so it can't say which",
+                    matching.len()
+                )))
+            }
+        };
+        if named.contains(&index) {
+            return Err(at(format!("'{name}' is named twice")));
+        }
+        named.push(index);
+
+        for (key, value) in t.iter().filter(|(k, _)| *k != "name") {
+            let field = Field::from_name(key).ok_or_else(|| {
+                at(format!(
+                    "entry '{name}' has an unknown key '{key}'; the fields are title, year, \
+                     author, note and group"
+                ))
+            })?;
+            let value = match value {
+                Value::String(s) => s.clone(),
+                Value::Integer(i) if field == Field::Year => i.to_string(),
+                _ => return Err(at(format!("entry '{name}': the {key} must be text"))),
+            };
+            meta::check(field, &value).map_err(|e| at(format!("entry '{name}': {e}")))?;
+            ops.push(Op::Meta(index, field, value));
+        }
+    }
+    Ok(ops)
 }
 
 /// Read an input file as the entry it is, named after its file stem. What the file *is* —
@@ -382,6 +496,21 @@ fn render(l: &Listing, exact: bool) -> String {
                 "  {:>3}  {:<16}  {:<5}  {:<6}  {:>4}  {:<12}  {:>10}\n",
                 r.index, r.name, r.flags, r.kind, r.bank, r.layout, size,
             ));
+            // The entry's metadata, indented under its name, only when it has some (D-054).
+            let fields: Vec<String> = [
+                ("title", &r.title),
+                ("year", &r.year),
+                ("author", &r.author),
+                ("note", &r.note),
+                ("group", &r.group),
+            ]
+            .iter()
+            .filter(|(_, v)| !v.is_empty())
+            .map(|(k, v)| format!("{k}: {v}"))
+            .collect();
+            if !fields.is_empty() {
+                out.push_str(&format!("       {}\n", fields.join("  ")));
+            }
         }
     }
 
@@ -399,6 +528,20 @@ fn render(l: &Listing, exact: bool) -> String {
             "entries"
         },
     ));
+    if l.meta_dropped > 0 {
+        let (records, them) = if l.meta_dropped == 1 {
+            ("record", "it")
+        } else {
+            ("records", "them")
+        };
+        out.push_str(&format!(
+            "metadata: {} {records} dropped: no entry matches {them} any more\n",
+            l.meta_dropped
+        ));
+    }
+    if let Some(kept) = &l.meta_kept {
+        out.push_str(&format!("metadata: {kept}\n"));
+    }
     out
 }
 
