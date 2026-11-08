@@ -23,6 +23,9 @@
   });
 
   const doc = $derived(viewer.state.kind === 'document' ? viewer.state.doc : null);
+
+  /** The raster strip's bands, top to bottom (D-046); each colour is a theme token. */
+  const BANDS = ['red', 'peach', 'yellow', 'green', 'blue'];
 </script>
 
 <div class="app">
@@ -34,6 +37,9 @@
       onopen={() => void viewer.pick()}
     />
   </header>
+  <div class="raster" data-raster aria-hidden="true">
+    {#each BANDS as band (band)}<span data-band={band} style:background="var(--band-{band})"></span>{/each}
+  </div>
 
   <main>
     {#if doc}
@@ -73,6 +79,16 @@
     padding: 0 var(--space-4) 0 var(--titlebar-inset);
     border-bottom: 1px solid var(--border);
     background: var(--bg-subtle);
+  }
+
+  .raster {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+  }
+
+  .raster span {
+    height: var(--band-height);
   }
 
   main {

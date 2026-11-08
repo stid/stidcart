@@ -2891,18 +2891,18 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "stidcart-cli"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "stidcart-core",
 ]
 
 [[package]]
 name = "stidcart-core"
-version = "0.14.0"
+version = "0.15.0"
 
 [[package]]
 name = "stidcart-gui"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "serde",
  "serde_json",

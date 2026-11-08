@@ -56,3 +56,17 @@ test('a view-only cart or no cart offers nothing to add to', () => {
   setup(null);
   expect(screen.queryByRole('button', { name: /add/i })).toBeNull();
 });
+
+/** The fills of the mark's label bands, top to bottom. */
+function markBands(): string[] {
+  return [...screen.getByTestId('mark').querySelectorAll('[data-band]')].map((b) => b.getAttribute('fill') ?? '');
+}
+
+test('AC-122 (RENDER): the title bar carries the stidcart mark, with or without a cart open', () => {
+  const raster = ['#f38ba8', '#fab387', '#f9e2af', '#a6e3a1', '#89b4fa'];
+  setup(null);
+  expect(markBands()).toEqual(raster);
+  cleanup();
+  setup(doc());
+  expect(markBands()).toEqual(raster);
+});

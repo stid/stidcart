@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- The stidcart app icon (D-046): the raster cartridge of src/lib/Mark.svelte, drawn on the macOS
+       icon grid (an 824 px tile centred on 1024). Regenerate the bundled files from this source:
+       npx tauri icon src-tauri/icons/icon-source.svg -o <dir>, then copy the six the config lists. -->
+  <defs>
+    <clipPath id="label"><rect x="30" y="32" width="68" height="44" rx="4"/></clipPath>
+  </defs>
+  <g transform="translate(100 100) scale(6.4375)">
+    <rect width="128" height="128" rx="28" fill="#1e1e2e"/>
+    <rect x="0.75" y="0.75" width="126.5" height="126.5" rx="27.25" fill="none" stroke="#313244" stroke-width="1.5"/>
+    <rect x="36" y="84" width="56" height="20" rx="3" fill="#313244"/>
+    <g fill="#f9e2af" opacity="0.75">
+      <rect x="41" y="92" width="4" height="9" rx="1"/>
+      <rect x="48" y="92" width="4" height="9" rx="1"/>
+      <rect x="55" y="92" width="4" height="9" rx="1"/>
+      <rect x="62" y="92" width="4" height="9" rx="1"/>
+      <rect x="69" y="92" width="4" height="9" rx="1"/>
+      <rect x="76" y="92" width="4" height="9" rx="1"/>
+      <rect x="83" y="92" width="4" height="9" rx="1"/>
+    </g>
+    <rect x="22" y="24" width="84" height="64" rx="8" fill="#45475a"/>
+    <g clip-path="url(#label)">
+      <rect x="30" y="32" width="68" height="9" fill="#f38ba8"/>
+      <rect x="30" y="41" width="68" height="9" fill="#fab387"/>
+      <rect x="30" y="50" width="68" height="9" fill="#f9e2af"/>
+      <rect x="30" y="59" width="68" height="9" fill="#a6e3a1"/>
+      <rect x="30" y="68" width="68" height="8" fill="#89b4fa"/>
+    </g>
+  </g>
+</svg>
