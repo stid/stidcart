@@ -1931,6 +1931,20 @@ fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
         ),
         ("cart", vec![key::RETURN]),
         ("stop", vec![key::DOWN, key::STOP]),
+        // menu-keys (D-051): help and back, a page each way, programs only, a random pick, then
+        // load it without running.
+        (
+            "keys-then-load",
+            vec![
+                key::F7,
+                b'X',
+                key::RIGHT,
+                key::LEFT,
+                key::F3,
+                key::F5,
+                key::SHIFT_RETURN,
+            ],
+        ),
     ] {
         let dir = scratch(&format!("ac127-{name}"));
         let mut inputs = vec![write(&dir, "k8.crt", &k8.bytes)];
@@ -2006,6 +2020,11 @@ fn ac_128_every_exit_puts_the_interrupts_back() {
         (vec![key::RETURN], prg.spin, "the started program"),
         (vec![key::DOWN, key::RETURN], k8.spin, "the started cart"),
         (vec![key::STOP], BASIC_MAIN, "BASIC after RUN/STOP"),
+        (
+            vec![key::SHIFT_RETURN],
+            KEY_WAIT,
+            "a program loaded without running",
+        ),
     ] {
         let mut steps = press_then_wait(&keys, spin);
         steps.push(Step::Dump(0x0314, 0x0315));
@@ -2021,5 +2040,518 @@ fn ac_128_every_exit_puts_the_interrupts_back() {
             0,
             "{what}: a VIC interrupt is still enabled"
         );
+    }
+}
+
+// --- menu-keys: load without running, paging, the ends, the kind filter, a random pick and help
+// (AC-136..AC-141, D-051) --------------------------------------------------------------------------
+
+/// The KERNAL's keyboard wait inside CHRIN (`$E5CD: LDA $C6 … BEQ $E5CD`), where BASIC sits at
+/// `READY.` with nothing typed.
+const KEY_WAIT: u16 = 0xe5cd;
+
+/// The list rows (5-20) whose name column is shown reversed: the selection.
+fn selected_rows(screen: &[u8]) -> Vec<usize> {
+    LIST_ROWS
+        .filter(|&n| screen[n * COLS + 4] & 0x80 != 0)
+        .collect()
+}
+
+/// Assert `name` is the one selected entry, and return its screen row.
+fn assert_selected(screen: &[u8], name: &str, what: &str) -> usize {
+    let at = listed(screen, name).unwrap_or_else(|| panic!("{what}: '{name}' is not listed"));
+    assert_eq!(
+        selected_rows(screen),
+        vec![at / COLS],
+        "{what}: '{name}' is not the one selected entry"
+    );
+    at / COLS
+}
+
+/// The name in list row `n`, columns 4-19, trailing spaces dropped, as screen codes.
+fn row_name(screen: &[u8], n: usize) -> Vec<u8> {
+    let mut name: Vec<u8> = screen[n * COLS + 4..n * COLS + 20]
+        .iter()
+        .map(|b| b & 0x7f)
+        .collect();
+    while name.last() == Some(&0x20) {
+        name.pop();
+    }
+    name
+}
+
+/// AC-136 (none): SHIFT+RETURN on a program loads it and stops at READY. with BASIC's pointers
+/// set, so LIST and RUN work, and leaves the machine as RETURN does; on a cartridge it does nothing.
+#[test]
+fn ac_136_shift_return_loads_a_program_without_running_it() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-136: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac136");
+    let m = markers::basic_prg("LOADED PROGRAM RAN");
+    let cart = build(&dir, "load only", &[], &[write(&dir, "prog.prg", &m.bytes)]);
+    let load = 0x07f0u16;
+    let end = load + m.bytes.len() as u16 - 2;
+    let mut list = typed("list");
+    list.push(key::RETURN);
+    let mut run = typed("run");
+    run.push(key::RETURN);
+    let steps = vec![
+        Step::Labels(vice::menu_labels()),
+        idle(),
+        Step::Keys(vec![key::SHIFT_RETURN]),
+        Step::Break(Target::Label("basic_resume")),
+        Step::Break(Target::Addr(KEY_WAIT)),
+        screen(),
+        Step::Dump(load, end - 1),
+        Step::Dump(0x002b, 0x002e),
+        Step::Dump(0x8000, 0x8001),
+        Step::Dump(VIC.0, VIC.1),
+        Step::Dump(TEXT_COLOUR.0, TEXT_COLOUR.1),
+        Step::Dump(0x0314, 0x0315),
+        Step::Dump(0xd01a, 0xd01a),
+        Step::Keys(list),
+        Step::Break(Target::Addr(BASIC_MAIN)),
+        screen(),
+        Step::Keys(run),
+        Step::Break(Target::Addr(m.spin)),
+        screen(),
+    ];
+    let d = boot_or_panic(&dir, &cart, &steps);
+
+    let ready = vice::find(&d[0], &vice::screen_text("ready.")).expect("no READY. prompt");
+    let next = ready / COLS + 1;
+    assert!(
+        row(&d[0], next).iter().all(|b| b & 0x7f == 0x20),
+        "something was typed after READY."
+    );
+    assert!(!shows(&d[0], &m.text), "the program ran");
+    assert_eq!(d[1], m.bytes[2..], "the program is not in memory at $07F0");
+    assert_eq!(
+        d[2],
+        [0x01, 0x08, end as u8, (end >> 8) as u8],
+        "BASIC's start and end pointers"
+    );
+    assert_ne!(
+        d[3].as_slice(),
+        &stidcart_core::menu::STIDCART_MENU[..2],
+        "the cart is still mapped at $8000"
+    );
+    assert_eq!(
+        (d[4][8] & 0x0f, d[4][9] & 0x0f, d[5][0] & 0x0f, d[4][0] | 1),
+        (
+            colour::LIGHT_BLUE,
+            colour::BLUE,
+            colour::LIGHT_BLUE,
+            UPPER_CASE
+        ),
+        "(border, background, text colour, $D018)"
+    );
+    assert_eq!(d[6], [0x31, 0xea], "the IRQ vector is not $EA31");
+    assert_eq!(d[7][0] & 0x0f, 0, "a VIC interrupt is still enabled");
+    assert!(shows(&d[8], "10 sys2061"), "LIST does not show the program");
+    assert_marker(&d[9], &m);
+
+    // A cartridge: nothing changes, and RETURN still starts it afterwards.
+    let dir = scratch("ac136-cart");
+    let k8 = markers::cart(CartKind::K8, "CART AFTER SHIFT RETURN");
+    let cart = build(
+        &dir,
+        "load cart",
+        &[],
+        &[
+            write(&dir, "k8.crt", &k8.bytes),
+            write(&dir, "prog.prg", &m.bytes),
+        ],
+    );
+    let d = boot_or_panic(
+        &dir,
+        &cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            screen(),
+            Step::Keys(vec![key::SHIFT_RETURN]),
+            idle(),
+            screen(),
+            Step::Keys(vec![key::RETURN]),
+            Step::Break(Target::Addr(k8.spin)),
+            screen(),
+        ],
+    );
+    assert_eq!(d[0], d[1], "SHIFT+RETURN on a cartridge changed the screen");
+    assert_marker(&d[2], &k8);
+}
+
+/// AC-137 (none): CRSR → and CRSR ← move the selection 16 entries, stopping at the ends, and scroll
+/// the view only as far as it takes to show it; on a list that fits they reach the last and first.
+#[test]
+fn ac_137_crsr_right_and_left_move_a_page() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-137: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac137");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs: Vec<PathBuf> = (1..=40)
+        .map(|i| write(&dir, &format!("e{i:02}.prg"), &hello))
+        .collect();
+    let cart = build(&dir, "pages", &[], &inputs);
+    let (first, last) = (LIST_ROWS.start, LIST_ROWS.end - 1);
+
+    let d = screens_after(
+        &dir,
+        &cart,
+        &[
+            vec![key::RIGHT],
+            vec![key::RIGHT],
+            vec![key::RIGHT],
+            vec![key::LEFT],
+            vec![key::LEFT],
+            vec![key::LEFT],
+        ],
+    );
+    for (s, name, at, pos, what) in [
+        (&d[0], "e17", last, "17 of 40", "one page down"),
+        (&d[1], "e33", last, "33 of 40", "two pages down"),
+        (&d[2], "e40", last, "40 of 40", "past the end"),
+        (&d[3], "e24", first, "24 of 40", "one page up from the end"),
+        (&d[4], "e08", first, "8 of 40", "two pages up"),
+        (&d[5], "e01", first, "1 of 40", "past the start"),
+    ] {
+        assert_eq!(assert_selected(s, name, what), at, "{what}: '{name}' row");
+        assert!(row_shows(s, STATUS_ROW, pos), "{what}: position");
+    }
+
+    let few_dir = scratch("ac137-few");
+    let few: Vec<PathBuf> = ["a", "b", "c"]
+        .iter()
+        .map(|n| write(&few_dir, &format!("{n}.prg"), &hello))
+        .collect();
+    let few_cart = build(&few_dir, "few", &[], &few);
+    let d = screens_after(&few_dir, &few_cart, &[vec![key::RIGHT], vec![key::LEFT]]);
+    assert_selected(&d[0], "c", "a short list, CRSR right");
+    assert_selected(&d[1], "a", "a short list, CRSR left");
+}
+
+/// AC-138 (none): with filter text HOME and CLR clear it; without, HOME selects the first entry and
+/// CLR the last, scrolling to show it.
+#[test]
+fn ac_138_home_and_clr_go_to_the_ends_without_text() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-138: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac138");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs: Vec<PathBuf> = (1..=40)
+        .map(|i| write(&dir, &format!("e{i:02}.prg"), &hello))
+        .collect();
+    let cart = build(&dir, "ends", &[], &inputs);
+    let blank = |s: &[u8]| row(s, QUERY_ROW).iter().all(|b| b & 0x7f == 0x20);
+    let (first, last) = (LIST_ROWS.start, LIST_ROWS.end - 1);
+
+    let mut clr = typed("e1");
+    clr.push(key::CLR);
+    let mut home = typed("e2");
+    home.push(key::HOME);
+    let d = screens_after(
+        &dir,
+        &cart,
+        &[
+            vec![key::CLR],
+            vec![key::HOME],
+            vec![key::DOWN, key::DOWN, key::DOWN, key::HOME],
+            clr,
+            vec![key::CLR],
+            home,
+        ],
+    );
+    for (s, name, at, pos, what) in [
+        (&d[0], "e40", last, "40 of 40", "CLR"),
+        (&d[1], "e01", first, "1 of 40", "HOME"),
+        (&d[2], "e01", first, "1 of 40", "three DOWNs, HOME"),
+        (&d[3], "e01", first, "1 of 40", "text, CLR"),
+        (
+            &d[4],
+            "e40",
+            last,
+            "40 of 40",
+            "CLR after the text was cleared",
+        ),
+        (&d[5], "e01", first, "1 of 40", "text, HOME"),
+    ] {
+        assert_eq!(assert_selected(s, name, what), at, "{what}: '{name}' row");
+        assert!(row_shows(s, STATUS_ROW, pos), "{what}: position");
+        assert!(blank(s), "{what}: the text row is not empty");
+    }
+}
+
+/// AC-139 (none): F3 steps the kind filter all → programs → cartridges → all, combined with the
+/// text filter; row 22 names the kind, the count counts what is listed, and the first match is
+/// selected. A kind with no match says so.
+#[test]
+fn ac_139_f3_filters_by_kind() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-139: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac139");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let k8 = markers::cart(CartKind::K8, "GAMMA");
+    let k16 = markers::cart(CartKind::K16, "DELTA");
+    let inputs = [
+        write(&dir, "alpha.prg", &hello),
+        write(&dir, "gamma.crt", &k8.bytes),
+        write(&dir, "beta.prg", &hello),
+        write(&dir, "delta.crt", &k16.bytes),
+    ];
+    let cart = build(&dir, "kinds", &[], &inputs);
+    let all = ["alpha", "gamma", "beta", "delta"];
+
+    let mut l_then_f3 = typed("l");
+    l_then_f3.push(key::F3);
+    let mut gam = vec![key::DEL];
+    gam.extend(typed("gam"));
+    gam.extend([key::F3, key::F3]);
+    let d = screens_after(
+        &dir,
+        &cart,
+        &[
+            vec![],
+            vec![key::F3],
+            vec![key::DOWN, key::F3],
+            vec![key::F3],
+            l_then_f3,
+            vec![key::F3],
+            gam,
+        ],
+    );
+
+    for (s, listed_names, hidden, kind, pos, what) in [
+        (&d[0], &all[..], &[][..], "all kinds", "1 of 4", "boot"),
+        (
+            &d[1],
+            &["alpha", "beta"][..],
+            &["gamma", "delta"][..],
+            "programs",
+            "1 of 2",
+            "F3",
+        ),
+        (
+            &d[2],
+            &["gamma", "delta"][..],
+            &["alpha", "beta"][..],
+            "cartridges",
+            "1 of 2",
+            "DOWN, F3",
+        ),
+        (
+            &d[3],
+            &all[..],
+            &[][..],
+            "all kinds",
+            "1 of 4",
+            "F3 three times",
+        ),
+        (
+            &d[4],
+            &["alpha"][..],
+            &["gamma", "beta", "delta"][..],
+            "programs",
+            "1 of 1",
+            "l, F3",
+        ),
+        (
+            &d[5],
+            &["delta"][..],
+            &["alpha", "gamma", "beta"][..],
+            "cartridges",
+            "1 of 1",
+            "l, F3 twice",
+        ),
+    ] {
+        assert_listed_in_order(s, listed_names, what);
+        assert_not_listed(s, hidden, what);
+        assert_selected(s, listed_names[0], what);
+        assert!(
+            row_shows(s, STATUS_ROW, &format!("{pos}   cart order   {kind}")),
+            "{what}: row 22 does not show '{pos}   cart order   {kind}'"
+        );
+    }
+    for (s, what) in [(&d[4], "l, F3"), (&d[5], "l, F3 twice")] {
+        assert!(
+            row_shows(s, QUERY_ROW, "1 of 4 match"),
+            "{what}: the match count does not count what is listed"
+        );
+    }
+
+    let s = &d[6];
+    assert!(
+        listed(s, "no matches").is_some(),
+        "gam among the programs: no 'no matches'"
+    );
+    assert_not_listed(s, &all, "gam among the programs");
+    assert!(row_shows(s, STATUS_ROW, "programs"), "gam: the kind");
+    assert!(row_shows(s, QUERY_ROW, "0 of 4 match"), "gam: the count");
+}
+
+/// AC-140 (none): F5 selects a random entry among those listed, both filters applied, shows it and
+/// starts nothing; repeated presses choose different entries. With one entry or none listed it
+/// changes nothing.
+#[test]
+fn ac_140_f5_picks_a_random_listed_entry() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-140: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac140");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let k8 = markers::cart(CartKind::K8, "ITEM CART");
+    let mut inputs: Vec<PathBuf> = (0..24)
+        .map(|i| write(&dir, &format!("item {i:02}.prg"), &hello))
+        .collect();
+    inputs.push(write(&dir, "item cart.crt", &k8.bytes));
+    inputs.push(write(&dir, "other a.prg", &hello));
+    inputs.push(write(&dir, "other b.prg", &hello));
+    let cart = build(&dir, "random", &[], &inputs);
+    const PRESSES: usize = 8;
+
+    let mut set_up = typed("item");
+    set_up.push(key::F3);
+    let mut groups = vec![set_up];
+    groups.extend((0..PRESSES).map(|_| vec![key::F5]));
+    let d = screens_after(&dir, &cart, &groups);
+    let names: Vec<Vec<u8>> = (0..24)
+        .map(|i| vice::screen_text(&format!("item {i:02}")))
+        .collect();
+    assert_selected(&d[0], "item 00", "item, F3");
+    let mut picked = Vec::new();
+    for (i, s) in d[1..].iter().enumerate() {
+        let what = format!("F5 press {}", i + 1);
+        let rows = selected_rows(s);
+        assert_eq!(rows.len(), 1, "{what}: not exactly one entry selected");
+        let name = row_name(s, rows[0]);
+        let k = names
+            .iter()
+            .position(|n| *n == name)
+            .unwrap_or_else(|| panic!("{what}: the selection is not a listed program"));
+        assert!(
+            row_shows(s, STATUS_ROW, &format!("{} of 24", k + 1)),
+            "{what}: the position does not match the selection"
+        );
+        assert!(
+            listed(s, "item cart").is_none(),
+            "{what}: a cartridge is listed"
+        );
+        assert!(
+            listed(s, "other").is_none(),
+            "{what}: a non-match is listed"
+        );
+        picked.push(k);
+    }
+    picked.sort_unstable();
+    picked.dedup();
+    assert!(picked.len() >= 3, "{PRESSES} presses chose only {picked:?}");
+
+    let mut none = vec![key::CLR];
+    none.extend(typed("zz"));
+    let d = screens_after(
+        &dir,
+        &cart,
+        &[typed("other a"), vec![key::F5], none, vec![key::F5]],
+    );
+    assert!(listed(&d[0], "other a").is_some(), "other a: not listed");
+    assert_eq!(d[0], d[1], "F5 with one entry listed changed the screen");
+    assert!(listed(&d[2], "no matches").is_some(), "zz: no 'no matches'");
+    assert_eq!(d[2], d[3], "F5 with nothing listed changed the screen");
+}
+
+/// AC-141 (none): F7 shows a screen naming every key; the next key returns to the menu as it was
+/// and does nothing else. Row 24's help bar names F7.
+#[test]
+fn ac_141_f7_shows_help_and_any_key_returns() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-141: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac141");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let k8 = markers::cart(CartKind::K8, "HELP CART");
+    let inputs = [
+        write(&dir, "bravo.prg", &hello),
+        write(&dir, "alpha.prg", &hello),
+        write(&dir, "banana.crt", &k8.bytes),
+        write(&dir, "abba.prg", &hello),
+        write(&dir, "kiwi.prg", &hello),
+    ];
+    let cart = build(&dir, "help", &[], &inputs);
+
+    let mut set_up = typed("a");
+    set_up.extend([key::F1, key::F3, key::DOWN]);
+    let looks = looks_after(
+        &dir,
+        &cart,
+        &[
+            set_up,
+            vec![key::F7],
+            typed("x"),
+            vec![key::F7],
+            vec![key::RETURN],
+            vec![key::F7],
+            vec![key::DOWN],
+        ],
+    );
+    let before = &looks[0];
+    assert_listed_in_order(&before.screen, &["abba", "alpha", "bravo"], "the set-up");
+    assert_not_listed(&before.screen, &["banana", "kiwi"], "the set-up");
+    assert_selected(&before.screen, "alpha", "the set-up");
+    assert!(
+        row_shows(&before.screen, HELP_ROW, "f7"),
+        "the help bar does not name F7"
+    );
+
+    let help = &looks[1].screen;
+    assert!(
+        listed(help, "alpha").is_none(),
+        "F7: the list is still shown"
+    );
+    let body = &help[LIST_ROWS.start * COLS..];
+    for k in [
+        "crsr",
+        "return",
+        "shift+return",
+        "letters",
+        "del",
+        "home",
+        "clr",
+        "f1",
+        "f3",
+        "f5",
+        "f7",
+        "run/stop",
+    ] {
+        assert!(
+            vice::find(body, &vice::screen_text(k)).is_some(),
+            "F7: the help does not name '{k}'"
+        );
+    }
+    assert_eq!(&looks[3].screen, help, "F7 a second time: a different help");
+
+    for (i, what) in [(2, "x"), (4, "RETURN"), (6, "DOWN")] {
+        let after = &looks[i];
+        assert!(
+            after.screen == before.screen,
+            "{what} after F7: the menu did not come back as it was"
+        );
+        for c in 0..1000 {
+            if before.screen[c] != 0x20 {
+                assert_eq!(
+                    after.colour[c], before.colour[c],
+                    "{what} after F7: the colour of cell {c} changed"
+                );
+            }
+        }
     }
 }

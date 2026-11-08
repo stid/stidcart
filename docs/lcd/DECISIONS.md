@@ -8,7 +8,36 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-051 -->
+<!-- Next id: D-052 -->
+
+---
+
+## D-051 · 2026-11-08 · The menu's new keys: load without running, paging, ends, kind filter, random pick, help
+
+- **Context:** menu-keys, the first of the menu improvements the user asked to have built end to
+  end (2026-11-08), with the spec decided here by delegation. The menu reads keys only from GETIN
+  (D-038), and the C64 has no page or end keys, so each new action needs a key the KERNAL buffer
+  can carry and that the filter text doesn't already take.
+- **Decision:**
+  - SHIFT+RETURN on a program loads it as RETURN does and stops at `READY.` without typing `RUN`
+    or `SYS`, BASIC's pointers set, so `LIST`, `RUN` or a `SYS` work. On a cartridge it does
+    nothing: a cartridge has no "loaded but not started" state.
+  - CRSR → and CRSR ← move a page (16 rows) down and up, stopping at the last and first entry.
+  - HOME and CLR still clear the filter text when there is some. With no text, HOME goes to the
+    first entry and CLR to the last, so both keep their meaning and gain one.
+  - F3 cycles a kind filter: all, programs, cartridges. It combines with the text filter, row 22
+    names it beside the order, and changing it lists again from the first match, as the text does.
+  - F5 moves the selection to a random entry among those listed, never the one already selected,
+    so every press visibly moves. It never starts anything.
+  - A move that leaves the view scrolls only as far as it takes to show the selection. The help
+    bar reads `return go  f1 sort  f7 help  run/stop` to fit F7 in its 38 cells.
+  - F7 shows a full-screen help naming every key; any key returns to the menu as it was.
+- **Alternatives rejected:** F-keys for first/last (F2/F4, F6/F8): shifted F-keys are hard to
+  remember, and HOME/CLR already mean "home". Making F5 start the random pick: one key press
+  shouldn't start a game the user hasn't seen. Starting a cartridge on SHIFT+RETURN: it would do
+  the same as RETURN, so the key would mean nothing on half the list.
+- **Scope:** `menu/src/menu.s`, `menu/src/launch.s`, the boot tests
+- **Status:** active · refines D-039 (HOME/CLR)
 
 ---
 
@@ -35,7 +64,7 @@
   bytes through an edit, which can't be vouched for: the tool can't know that loader works with a
   re-placed directory. Leaving such carts view-only, the status quo.
 - **Scope:** `crates/stidcart-core/src/read.rs`, `crates/stidcart-core/src/reserved.rs`, `edit
-  --menu`, the window's document and its menu picker
+--menu`, the window's document and its menu picker
 - **Status:** active · refines D-038 and D-042 (the picker on a view-only cart)
 
 ---

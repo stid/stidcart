@@ -80,6 +80,12 @@ KEY_DEL    = $14
 KEY_HOME   = $13
 KEY_CLR    = $93
 KEY_F1     = $85
+KEY_F3     = $86
+KEY_F5     = $87
+KEY_F7     = $88
+KEY_LOAD   = $8d                ; SHIFT+RETURN
+KEY_RIGHT  = $1d
+KEY_LEFT   = $9d
 
 ptr     = $fb                   ; 2 bytes: a directory slot, later the copy source
 dst     = $fd                   ; 2 bytes: the copy destination; in the menu, a second pointer
@@ -118,7 +124,8 @@ rvs     = $c125                 ; $80 when draw writes in reverse, else 0
 sx      = $c126                 ; the length of the status text so far
 etmp    = $c127
 nlen    = $c128
-sbuf    = $c130                 ; the status text, "200 of 200   cart order" and its NUL
+kinds   = $c129                 ; the kind filter: 0 all, 1 programs, 2 cartridges
+helping = $c12a                 ; non-zero while the help screen is up
 srow    = $c150                 ; the screen row a list row goes to
 kind    = $c151                 ; the entry's kind: 0 program, 1 8K, 2 16K, 3 Ultimax, 4 multi-bank
 ipen    = $c152                 ; the icon's colour
@@ -132,6 +139,7 @@ mhi     = $c159
 tmpd    = $c15a
 tlen    = $c15b                 ; the scroll bar's thumb: its length and its first row
 tat     = $c15c
+sbuf    = $c160                 ; the status text, "200 of 200   cart order   cartridges" and its NUL
 sorted  = $c200                 ; the visible entries' slot numbers, A-Z
 shown   = $c300                 ; the ones listed: visible or sorted, filtered
 name_lo = $c400                 ; each directory slot's address, by slot number
@@ -165,6 +173,8 @@ back_from_init:
         sta qlen
         sta order
         sta sorted_ok
+        sta kinds
+        sta helping
         jsr scan
         jsr draw_frame
         jmp refresh
@@ -176,14 +186,21 @@ menu_idle:
         jmp loop
 
 key:
-        cmp #KEY_DOWN
-        beq down
-        cmp #KEY_UP
+        ldx helping
+        beq +
+        jmp leave_help          ; any key leaves the help, and does nothing else
++       cmp #KEY_DOWN
+        bne +
+        jmp down
++       cmp #KEY_UP
         bne +
         jmp up
 +       cmp #KEY_RETURN
         bne +
         jmp start
++       cmp #KEY_LOAD
+        bne +
+        jmp load
 +       cmp #KEY_STOP
         bne +
         jmp stop
@@ -192,10 +209,24 @@ key:
         cmp #KEY_DEL
         beq erase
         cmp #KEY_HOME
-        beq clear
+        beq to_first
         cmp #KEY_CLR
-        beq clear
-        jsr typable
+        beq to_last
+        cmp #KEY_RIGHT
+        bne +
+        jmp page_down
++       cmp #KEY_LEFT
+        bne +
+        jmp page_up
++       cmp #KEY_F3
+        beq kind_next
+        cmp #KEY_F5
+        bne +
+        jmp pick
++       cmp #KEY_F7
+        bne +
+        jmp show_help
++       jsr typable
         bcc loop
         ldx qlen
         cpx #QMAX
@@ -216,21 +247,49 @@ toggle:
 
 erase:
         lda qlen
-        beq loop
-        dec qlen
+        bne +
+        jmp loop
++       dec qlen
         jmp refresh
+
+; F3: all, programs, cartridges, then all again.
+kind_next:
+        ldx kinds
+        inx
+        cpx #3
+        bcc +
+        ldx #0
++       stx kinds
+        jmp refresh
+
+; HOME and CLR clear the text when there is some (D-039); without, they go to the first and the
+; last entry (D-051).
+to_first:
+        lda qlen
+        bne clear
+        lda #0
+        jmp select
+
+to_last:
+        lda qlen
+        bne clear
+        ldx nshown
+        dex
+        txa
+        jmp select
 
 clear:
         lda #0
         sta qlen
 
-; The text or the order changed: list again from the first match.
+; The text, the kind or the order changed: list again from the first match.
 refresh:
         jsr refilter
         lda #0
         sta sel
         sta top
         jsr vsync
+redraw:
         jsr draw_list
         jsr draw_track
         jsr draw_pane
@@ -285,6 +344,85 @@ described:
         jsr draw_status
         jmp loop
 
+; Select entry A of those listed, scrolling the view only as far as it takes to show it.
+select:
+        ldx nshown
+        bne +
+        jmp loop                ; nothing listed
++       ldx sel
+        stx old
+        sta sel
+        cmp top
+        bcc _top                ; above the view: it goes on the first row
+        sec
+        sbc top
+        cmp #ROWS
+        bcc moved               ; in view
+        lda sel
+        sec
+        sbc #ROWS - 1           ; below the view: it goes on the last row
+_top:
+        sta top
+        jmp scrolled
+
+; CRSR right and left: a page of 16 entries down or up, stopping at the last and the first.
+page_down:
+        lda sel
+        clc
+        adc #ROWS
+        bcs +
+        cmp nshown
+        bcc select
++       ldx nshown
+        dex
+        txa
+        jmp select
+
+page_up:
+        lda sel
+        sec
+        sbc #ROWS
+        bcs select
+        lda #0
+        jmp select
+
+; F5: a random entry among those listed, never the one already selected. The CIA timer, the beam
+; and the jiffy clock differ at every key press a person makes.
+pick:
+        lda nshown
+        cmp #2
+        bcs +
+        jmp loop                ; one entry or none: nothing to pick from
++       sbc #1                  ; the carry is set: the other entries
+        sta den
+        lda $dc04
+        eor RASTER
+        eor $a2
+-       cmp den
+        bcc +
+        sbc den
+        bcs -
++       cmp sel
+        bcc +
+        adc #0                  ; the carry is set: skip the selection
++       jmp select
+
+; F7: the help, below the logo and the cart name, until the next key.
+show_help:
+        lda #1
+        sta helping
+        jsr vsync
+        jsr draw_help
+        jmp loop
+
+leave_help:
+        lda #0
+        sta helping
+        jsr vsync
+        jsr blank_body
+        jsr draw_frame
+        jmp redraw
+
 ; --- starting the selected entry --------------------------------------------------------------
 
 ; RUN/STOP: the interrupts as the KERNAL left them, then BASIC.
@@ -292,7 +430,13 @@ stop:
         jsr irq_off
         jmp leave
 
+; SHIFT+RETURN: a program as RETURN starts it, but stopped at READY. with nothing typed (D-051).
+load:
+        lda #1
+        .byte $2c               ; bit abs: skips the lda below
 start:
+        lda #0
+        sta p_only
         lda nshown
         bne +
         jmp loop                ; nothing listed, nothing to start
@@ -312,8 +456,10 @@ start:
         lda cur
         cmp #$04
         bcc start_prg           ; $01-$03: a program
-
-        ldx #MODE_8K
+        ldx p_only
+        beq +
+        jmp loop                ; a cartridge has no loaded-but-not-started state
++       ldx #MODE_8K
         cmp #$10
         beq _cart
         cmp #$1c
@@ -423,7 +569,8 @@ copy_prg:
         jmp basic_go
 
 ; Back from the trap with the program copied, the cartridge on and dst one past its last byte:
-; set BASIC's pointers to its end, type RUN or SYS for it, and leave through the real CHRIN.
+; set BASIC's pointers to its end, type RUN or SYS for it unless it is only loaded, and leave
+; through the real CHRIN.
 copied:
         lda #$01
         sta $2b
@@ -441,8 +588,11 @@ copied:
         sta $af
         lda #8
         sta $ba                 ; last device used: the drive, as after a LOAD
+        ldx #0
+        lda p_only
+        bne +
         jsr make_keys
-        stx $c6
++       stx $c6
         jmp basic_resume
 
 ; Where the copy source wraps to the next bank, by type: $01 interleaved ROML then ROMH, $02 ROML
@@ -622,7 +772,8 @@ _no:
         clc
         rts
 
-; shown = the visible entries in the order in use, keeping those whose name contains the text.
+; shown = the visible entries in the order in use, keeping those whose name contains the text and
+; whose kind the kind filter lets through.
 refilter:
         lda #0
         sta nshown
@@ -640,8 +791,20 @@ _dir:
         lda visible,x
 _have:
         sta skey
-        jsr match
+        jsr match               ; leaves ptr at the entry's slot
         bcc _skip
+        lda kinds
+        beq _keep
+        ldy #16
+        lda (ptr),y
+        and #$1f
+        cmp #$04                ; the carry set for a cartridge
+        lda #0
+        rol a
+        adc #1                  ; 1 a program, 2 a cartridge
+        cmp kinds
+        bne _skip
+_keep:
         ldy nshown
         lda skey
         sta shown,y
@@ -1309,6 +1472,79 @@ _mark:
         sta rvs
         rts
 
+; --- the help -----------------------------------------------------------------------------------
+
+; Rows 5-23 blank, in grey.
+blank_body:
+        lda #GREY
+        sta pen
+        ldx #LIST
+-       stx row
+        lda #$20
+        jsr line
+        ldx row
+        inx
+        cpx #HELP
+        bne -
+        rts
+
+; F7's screen: rows 5-23 name every key, in white, and what it does, in grey; row 24 says how to
+; go back. Rows 0-4 stay as they are.
+draw_help:
+        lda #0
+        sta rvs
+        jsr blank_body
+        lda #<help_lines
+        sta dst
+        lda #>help_lines
+        sta dst+1
+        lda #LIST + 1
+        sta row
+_line:
+        ldy #0
+        lda (dst),y
+        beq _bar
+        lda #WHITE
+        sta pen
+        ldx row
+        lda #2
+        jsr at
+        jsr _text
+        lda #GREY
+        sta pen
+        ldx row
+        lda #18
+        jsr at
+        jsr _text
+        inc row
+        jmp _line
+_bar:
+        ldx #HELP
+        lda #$a0                ; a reverse space
+        jsr line
+        lda #$80
+        sta rvs
+        ldx #HELP
+        lda #1
+        jsr at
+        lda #<help_back
+        ldy #>help_back
+        jsr say
+        lda #0
+        sta rvs
+        rts
+
+; Write the text at dst and move dst past its NUL.
+_text:
+        jsr write
+        tya
+        sec
+        adc dst
+        sta dst
+        bcc +
+        inc dst+1
++       rts
+
 ; --- the list ---------------------------------------------------------------------------------
 
 ; Every list row.
@@ -1755,6 +1991,10 @@ draw_status:
         lda #<az_order
         ldy #>az_order
 +       jsr append
+        ldx kinds
+        lda kinds_lo,x
+        ldy kinds_hi,x
+        jsr append
         ldx #STATUS
         lda #1
         jmp finish
@@ -1905,7 +2145,36 @@ kind_4: .null "multi-bank"
 hex_digits:
         .text "0123456789ABCDEF"
 help_text:
-        .null "return start  f1 sort  run/stop basic"
+        .null "return go  f1 sort  f7 help  run/stop"
+help_back:
+        .null "any key returns to the menu"
+kinds_lo:
+        .byte <all_kinds, <programs, <cartridges
+kinds_hi:
+        .byte >all_kinds, >programs, >cartridges
+all_kinds:
+        .null "   all kinds"
+programs:
+        .null "   programs"
+cartridges:
+        .null "   cartridges"
+
+; The help screen: each line a key and what it does, ending at an empty key.
+help_lines:
+        .text "crsr up/down", 0, "move the selection", 0
+        .text "crsr left/right", 0, "move a page", 0
+        .text "return", 0, "start the selection", 0
+        .text "shift+return", 0, "load, but not start", 0
+        .text "letters, digits", 0, "find by name", 0
+        .text "del", 0, "delete the last letter", 0
+        .text "home / clr", 0, "clear what you typed", 0
+        .text " ", 0, "or go to first / last", 0
+        .text "f1", 0, "cart order or a-z", 0
+        .text "f3", 0, "all, programs, carts", 0
+        .text "f5", 0, "pick one at random", 0
+        .text "f7", 0, "this help", 0
+        .text "run/stop", 0, "leave to basic", 0
+        .byte 0
 no_entries:
         .null "no entries"
 no_matches:
