@@ -8,7 +8,41 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-054 -->
+<!-- Next id: D-057 (D-054 and D-055 are menu-meta's, on its branch) -->
+
+---
+
+## D-056 · 2026-11-08 · Our menu starts programs that reach into `$D000-$FFFF`, copying that part into the RAM under I/O and the KERNAL
+
+- **Context:** menu-highmem, the fifth menu improvement the user asked for (D-054 and D-055 belong
+  to menu-meta, on its branch). Since D-038 the tool refuses our menu on a
+  cart holding a program whose bytes touch `$D000-$DFFF` (AC-95), because the copier runs from
+  `$DF00` and writes with I/O mapped in. EasyLoader refuses these too
+  (`ndefpack/src/fw/easyloader.asm:957-985`: an end at or past `$D000`, or one that wraps past
+  `$FFFF`), so this goes past it. Recon found the check also lets through a program loading at
+  `$E000` or above, which our menu would start by `SYS` into the KERNAL ROM (`touches_io_area`
+  tests only `start <= $DFFF`), and that no check limits a program's end to `$FFFF`.
+- **Decision:**
+  - The copy splits at `$D000`. The part below is copied by today's trap with I/O in. The rest is
+    copied by a small routine put at `$0100` (bottom of the stack page) once the first part is done.
+    With interrupts masked and the NMI pointed at an `RTI`, it reads each byte with `$01=$37` (so
+    the bank register works) and writes it with `$01=$33`, so every byte lands in RAM, under I/O at
+    `$D000-$DFFF` and under the KERNAL at `$E000-$FFFF`. It puts `$01`, the NMI vector and the bank
+    back before returning to today's path (BASIC's pointers, then `RUN`, `SYS` or `READY.`).
+  - The bytes for `$D000-$DFFF` go to RAM, not to the VIC, SID, CIA or colour RAM as a KERNAL
+    `LOAD` would put them. One-file programs that reach that high expect them in RAM, and writing
+    them to I/O would reprogram the chips under the menu.
+  - With our menu the tool still refuses, naming the entry: a program that loads at `$D000` or
+    above (the menu would `SYS` into I/O or ROM), a program that ends past `$FFFF`, and a program
+    reaching `$D000` that loads below `$0100` plus the routine's length (the routine would overwrite
+    it). EasyLoader carts are not checked differently than today.
+- **Alternatives rejected:** a second copier staged in a RAM buffer (banking I/O out hides the bank
+  register, so it would copy in chunks for no gain over reading through `$01=$37` per byte); writing
+  `$D000-$DFFF` to I/O as a KERNAL `LOAD` does (reprograms the VIC and CIAs mid-copy); keeping the
+  refusal (EasyLoader parity is no reason to stay as limited as it).
+- **Scope:** `menu/src/menu.s`, `menu/src/launch.s`, the refusal in `crates/stidcart-core/src/lib.rs`,
+  the CLI and GUI refusal tests, the boot tests
+- **Status:** active · refines D-038 (AC-95's refusal)
 
 ---
 
