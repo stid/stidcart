@@ -8,7 +8,30 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-043 -->
+<!-- Next id: D-044 -->
+
+---
+
+## D-043 · 2026-11-08 · The Claude review skips a pull request whose whole diff is Markdown
+- **Context:** the user asked where CI spends budget. About a third of merged PRs (12 of the last
+  38) changed only Markdown, and the review of a one-line docs PR measured about $0.48 of
+  subscription usage (D-012), plus a billed Actions minute.
+- **Decision:** (user's choices) `claude-review` diffs the PR head against its base. When every
+  changed path ends in `.md`, it skips the review step and the gate passes with a notice. Anything
+  else, including scripts under `docs/` and an empty diff, is reviewed as before. The test is the
+  whole PR, never the latest push. Markdown that steers agents or this review is always reviewed:
+  `CLAUDE.md`, `.claude/`, `docs/lcd/DECISIONS.md` and `MAP.md` (the review prompt treats them as
+  settled), `docs/format/`, and `fixtures/`. Otherwise an unreviewed PR could rewrite what a later
+  review takes as authority (raised by the automated security review on the PR).
+- **Alternatives rejected:** skipping per push, which would let a docs-only push after a blocking
+  finding turn the gate green without fixing the code. A `paths:` filter in `on:`, which D-009
+  rules out for a required check. Dropping the review from required checks for docs PRs by hand.
+- **Landing:** the action refuses to run while the workflow differs from `main`'s, so this change
+  fails its own required check. It lands by unrequiring `claude-review` for that one merge, with
+  the user's OK, and requiring it again straight after. Any later change to this workflow needs the
+  same.
+- **Scope:** `.github/workflows/claude-review.yml`
+- **Status:** active · refines D-012 (the review gate)
 
 ---
 
