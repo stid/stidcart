@@ -2796,8 +2796,10 @@ fn ac_145_the_stick_leaves_the_help_and_does_nothing_else() {
         );
         for c in 0..1000 {
             if before[c] != 0x20 {
+                // Colour RAM holds four bits; the rest of what a read returns is open bus.
                 assert_eq!(
-                    after_colours[c], colours[c],
+                    after_colours[c] & 0x0f,
+                    colours[c] & 0x0f,
                     "{what}: the colour of cell {c} changed"
                 );
             }

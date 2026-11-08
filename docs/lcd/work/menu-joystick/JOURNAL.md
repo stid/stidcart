@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu takes a joystick in port 2: moves, paging and fire act as the keys do, with repeat while held (D-052)
-- **Next action:** S4 — the stick in `menu.s`, rebuild, fingerprint
+- **Next action:** S5 — `menu/README.md`, gates
 - **Branch:** feat/menu-joystick · **Updated:** 2026-11-08
 
 ## STEPS
@@ -20,7 +20,7 @@
 - [x] S1 — version 0.18.0 → 0.19.0 (first commit on the branch)
 - [x] S2 — triage, D-052, AC-142..AC-146 claimed, this JOURNAL
 - [x] S3 — `support/vice.rs` takes extra emulator arguments; failing boot tests in `menu_boot.rs` for AC-142..AC-146
-- [ ] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
+- [x] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
 
@@ -98,3 +98,14 @@ interrupts unmasked.
   one selected" (still e01); AC-143 "moved 0 entries"; AC-144 held-fire screen dumped, then fire never
   reached the program's spin; AC-145 set-up "e02 is not the one selected"; AC-146 keyboard half green
   (same screens with the device at rest), watch half "only 0 bank or mode writes".
+- 2026-11-08 — S4. `stick` in `menu.s`, called from `loop` after an empty GETIN; its key goes
+  through `key`, so help, RETURN and the exits need nothing new. Sampled once a jiffy (debounce).
+  Port A read with `$FF` in `$DC00` under `sei`, then `$7F` back: the KERNAL leaves `$7F` (checked
+  in ROM, `$EB42`), and a column driven low lets SPACE+B ghost PA3 low on real hardware. VICE models
+  no such ghosting, so that holds by construction only. Repeat due = `$A2`+20, then +5, signed
+  compare. Anything held at the start waits for a release (`joy_last`=`$1f`, `joy_dead` set), so
+  a direction held at the start does nothing either. `leave_help` sets `joy_dead`, so a held
+  direction that closed the help never repeats. A mutant without that fails AC-145. AC-143 saw 9
+  moves in 60 frames, as predicted. AC-145's colour compare masked to 4 bits: colour RAM's high
+  nibble is open bus. ROM 4906 → 5041 bytes (ends `$93B1`). 63ba913's build joins
+  `EARLIER_STIDCART_BUILDS`. Gate 260/0, GUI gate green.

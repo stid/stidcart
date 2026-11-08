@@ -23,6 +23,7 @@ pub const EARLIER_STIDCART_BUILDS: &[u64] = &[
     0x37bc_d298_704d_d07f, // 280f474
     0x9548_f328_dfac_82fb, // 5b54e81, stidcart 0.15
     0xeac9_353f_0e59_ab86, // e8eb154
+    0xa4cb_0aba_6e81_53e0, // 63ba913
 ];
 
 /// FNV-1a 64 over `bytes`: how an earlier build of our menu is recognised in a loader slot.

@@ -6,9 +6,10 @@
 ; over to the menu loader"). Bank 0 ROMH, at $A000 here, holds the EasyFS2 directory and the cart
 ; name.
 ;
-; Keys are read only through GETIN, i.e. the KERNAL keyboard buffer, which is also the only place
-; VICE can inject them (D-038). menu_idle is reached only when that buffer is empty: the boot tests
-; break there before pressing anything.
+; Keys are read through GETIN, i.e. the KERNAL keyboard buffer, which is where VICE injects them
+; (D-038). A joystick in port 2 acts as the keys it stands for (D-052), read by stick. menu_idle is
+; reached only when that buffer is empty and the stick was last seen at rest: the boot tests break
+; there before pressing anything.
 ;
 ; Typed characters filter the list to the entries whose name contains them, and F1 switches between
 ; directory order and A-Z (D-039). Both compare letters through fold, so case never matters.
@@ -126,6 +127,10 @@ etmp    = $c127
 nlen    = $c128
 kinds   = $c129                 ; the kind filter: 0 all, 1 programs, 2 cartridges
 helping = $c12a                 ; non-zero while the help screen is up
+joy_last = $c12b                ; the stick's lines at the last sample, a bit set for each one pressed
+joy_jiffy = $c12c               ; the jiffy of that sample
+joy_due = $c12d                 ; the jiffy a held direction repeats at
+joy_dead = $c12e                ; non-zero: a held direction does nothing until released
 srow    = $c150                 ; the screen row a list row goes to
 kind    = $c151                 ; the entry's kind: 0 program, 1 8K, 2 16K, 3 Ultimax, 4 multi-bank
 ipen    = $c152                 ; the icon's colour
@@ -175,6 +180,9 @@ back_from_init:
         sta sorted_ok
         sta kinds
         sta helping
+        lda #$1f                ; as if every line were held: what is held at the start waits for
+        sta joy_last            ; a release, so a stick resting on fire starts nothing (D-052)
+        sta joy_dead
         jsr scan
         jsr draw_frame
         jmp refresh
@@ -182,6 +190,10 @@ back_from_init:
 loop:
         jsr GETIN
         bne key
+        jsr stick
+        bne key
+        lda joy_last
+        bne loop                ; the stick is held: not idle
 menu_idle:
         jmp loop
 
@@ -418,10 +430,87 @@ show_help:
 leave_help:
         lda #0
         sta helping
+        lda #1                  ; a direction that ended the help doesn't go on to repeat
+        sta joy_dead
         jsr vsync
         jsr blank_body
         jsr draw_frame
         jmp redraw
+
+; --- the joystick in port 2 (D-052) -------------------------------------------------------------
+;
+; Sampled once a jiffy, which also rides out a contact's bounce. Port A is read with every keyboard
+; column high, so no key held in the matrix can pull one of its lines low, then the $7F the KERNAL
+; leaves there goes back before the next scan. A direction acts on its press as the cursor key it
+; stands for, then repeats while held, after STICK_FIRST jiffies and then every STICK_NEXT. Fire
+; acts as RETURN on its press only. Port 1 is not read: its lines are the keyboard's rows.
+
+STICK_FIRST = 20                ; 0.4 s
+STICK_NEXT  = 5                 ; ten a second
+
+; The key the stick stands for in A, or 0, with the flags set from A.
+stick:
+        lda $a2
+        cmp joy_jiffy
+        beq _none               ; sampled already this jiffy
+        sta joy_jiffy
+        sei
+        lda #$ff
+        sta $dc00
+        lda $dc00
+        ldx #$7f
+        stx $dc00
+        cli
+        eor #$ff
+        and #$1f                ; bit 0 up, 1 down, 2 left, 3 right, 4 fire; set when pressed
+        tax
+        eor joy_last            ; the lines that changed
+        stx joy_last
+        and joy_last            ; and are pressed now
+        tay
+        and #$10
+        bne _fire
+        tya
+        and #$0f
+        bne _press
+        txa
+        and #$0f
+        beq _rest
+        lda joy_dead
+        bne _none
+        lda $a2
+        sec
+        sbc joy_due
+        bmi _none               ; not yet
+        lda #STICK_NEXT
+        bne _move
+_press:
+        lda #0
+        sta joy_dead
+        lda #STICK_FIRST
+_move:
+        clc
+        adc $a2
+        sta joy_due
+        lda joy_last            ; the first direction held, in the order up, down, left, right
+        ldx #0
+-       lsr a
+        bcs +
+        inx
+        bne -
++       lda stick_keys,x
+        rts
+_fire:
+        lda #KEY_RETURN
+        rts
+_rest:
+        sta joy_dead            ; no direction held: A is 0
+_none:
+        lda #0
+        rts
+
+stick_keys:
+        .byte KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
 
 ; --- starting the selected entry --------------------------------------------------------------
 
