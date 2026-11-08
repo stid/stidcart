@@ -31,24 +31,24 @@ Failing tests (one commit, phase 4):
 
 Implementation (red-green, phase 5):
 
-- [ ] **T7**: `crates/stidcart-core/src/meta.rs`: `Field`, `Meta`, `MetaError`, `KeptMeta`, encode/decode v1 (T1)
-- [ ] **T8**: `crates/stidcart-core/src/cartridge.rs`: `meta` field on `Cartridge` (T1)
-- [ ] **T9**: `crates/stidcart-core/src/lib.rs`: `meta` on `Program`, `Entry::meta`, `set_meta`, `replace` keeps meta, `placed_entries`, the new build errors (T1)
-- [ ] **T10**: `crates/stidcart-core/src/read.rs`: the walk finds, lifts and decodes META; `CartInfo` fields; `load` attaches (T1)
-- [ ] **T11**: `crates/stidcart-core/src/listing.rs`: row fields, dropped count, kept note (T1, T3)
-- [ ] **T12**: `crates/stidcart-cli/Cargo.toml` and `Cargo.lock`: `toml` 1.2.1 (T3)
-- [ ] **T13**: `crates/stidcart-cli/src/lib.rs`: metadata flags, `--import`, render lines, usage (T3)
-- [ ] **T14**: `gui/src-tauri/src/lib.rs`: DTO fields (T4)
-- [ ] **T15**: `gui/src-tauri/src/document.rs`: `Edit::SetMeta` (T4)
-- [ ] **T16**: `gui/src-tauri/Cargo.lock`: picks up `toml` through the CLI (T4)
-- [ ] **T17**: `gui/src/lib/fixtures/two.json` and `gui/src/lib/fixtures/document.json`: regenerated with `UPDATE_GOLDEN=1` (`gui/src-tauri/tests/contract.rs`)
-- [ ] **T18**: `gui/src/lib/types.ts`: `Row`, `Listing`, `Edit` mirror the DTO (T5, T6)
-- [ ] **T19**: `gui/src/lib/MetaPanel.svelte`: the selected entry's fields (T6)
-- [ ] **T20**: `gui/src/lib/Listing.svelte`: the title line, the Group column, selection, the panel (T5)
+- [x] **T7**: `crates/stidcart-core/src/meta.rs`: `Field`, `Meta`, `MetaError`, `KeptMeta`, encode/decode v1 (T1)
+- [x] **T8**: `crates/stidcart-core/src/cartridge.rs`: `meta` field on `Cartridge` (T1)
+- [x] **T9**: `crates/stidcart-core/src/lib.rs`: `meta` on `Program`, `Entry::meta`, `set_meta`, `replace` keeps meta, `placed_entries`, the new build errors (T1)
+- [x] **T10**: `crates/stidcart-core/src/read.rs`: the walk finds, lifts and decodes META; `CartInfo` fields; `load` attaches (T1)
+- [x] **T11**: `crates/stidcart-core/src/listing.rs`: row fields, dropped count, kept note (T1, T3)
+- [x] **T12**: `crates/stidcart-cli/Cargo.toml` and `Cargo.lock`: `toml` 1.2.1 (T3)
+- [x] **T13**: `crates/stidcart-cli/src/lib.rs`: metadata flags, `--import`, render lines, usage (T3)
+- [x] **T14**: `gui/src-tauri/src/lib.rs`: DTO fields (T4)
+- [x] **T15**: `gui/src-tauri/src/document.rs`: `Edit::SetMeta` (T4)
+- [x] **T16**: `gui/src-tauri/Cargo.lock`: picks up `toml` through the CLI (T4)
+- [x] **T17**: `gui/src/lib/fixtures/two.json` and `gui/src/lib/fixtures/document.json`: regenerated with `UPDATE_GOLDEN=1` (`gui/src-tauri/tests/contract.rs`)
+- [x] **T18**: `gui/src/lib/types.ts`: `Row`, `Listing`, `Edit` mirror the DTO (T5, T6)
+- [x] **T19**: `gui/src/lib/MetaPanel.svelte`: the selected entry's fields (T6)
+- [x] **T20**: `gui/src/lib/Listing.svelte`: the title line, the Group column, selection, the panel (T5)
 - [x] **T21**: folded into T4: the save-equals-`edit` scenario sits in `gui/src-tauri/tests/meta.rs` (in the Test scope), on the AC-80 harness pattern
-- [ ] **T22**: `gui/src/lib/viewer.test.ts`: fixture-shape updates, only if svelte-check asks
-- [ ] **T23**: `README.md`: the new `edit` options and the import file
-- [ ] **T24**: `docs/lcd/MAP.md`: `meta.rs` in the core zone
+- [x] **T22**: `gui/src/lib/viewer.test.ts`: no change needed (svelte-check clean against the regenerated goldens)
+- [x] **T23**: `README.md`: the new `edit` options and the import file
+- [x] **T24**: `docs/lcd/MAP.md`: `meta.rs` in the core zone
 
 Close:
 
