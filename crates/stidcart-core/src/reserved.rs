@@ -7,7 +7,7 @@
 
 use crate::firmware;
 use crate::image::{FlashImage, Half, BANK_SIZE};
-use crate::menu::{Menu, STIDCART_MENU};
+use crate::menu::{fingerprint, Menu, Recognised, EARLIER_STIDCART_BUILDS, STIDCART_MENU};
 use crate::petscii;
 
 /// EasyFS2 directory: 256 slots of 24 bytes, filling exactly `0x1800`.
@@ -85,12 +85,25 @@ pub fn write_loader(img: &mut FlashImage, mode: Mode, menu: Menu) {
 
 /// Which menu the loader slot holds, or `None` when it is neither. Never refuses: describing an
 /// image reports this, and only `load` turns `None` into a refusal (D-011).
-pub fn detect_menu(img: &FlashImage, mode: Mode) -> Option<Menu> {
+pub fn detect_menu(img: &FlashImage, mode: Mode) -> Option<Recognised> {
     let at = mode.loader_offset();
     let slot = &img.as_bytes()[at..at + LOADER_SIZE];
-    [Menu::EasyLoader, Menu::Stidcart]
+    let current = [Menu::EasyLoader, Menu::Stidcart]
         .into_iter()
         .find(|&m| mode.loader(m) == Some(slot))
+        .map(|menu| Recognised {
+            menu,
+            older_build: false,
+        });
+    // Our menu has no Ocean build, so only a normal-mode slot can hold an earlier one (D-049).
+    current.or_else(|| {
+        (mode == Mode::Normal && EARLIER_STIDCART_BUILDS.contains(&fingerprint(slot))).then_some(
+            Recognised {
+                menu: Menu::Stidcart,
+                older_build: true,
+            },
+        )
+    })
 }
 
 /// Fill the boot region with erased flash, then overlay the launcher at `load_addr - $FB18`.
@@ -121,7 +134,8 @@ pub fn write_ef_name(img: &mut FlashImage, name: &str) {
 /// Rebuilding always writes the embedded blobs, so an image carrying different ones could be
 /// loaded but never rebuilt to the same bytes. Refusing here makes that failure land where its
 /// cause is legible instead of surfacing later as an unexplained diff. The loader slot may hold
-/// either menu this crate embeds (D-038); anything else is a mismatch.
+/// either menu this crate embeds (D-038), or an earlier build of ours (D-049); anything else is a
+/// mismatch.
 pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<Menu, crate::read::ReadError> {
     let mut expected = FlashImage::erased();
     write_eapi(&mut expected);
@@ -142,7 +156,8 @@ pub fn verify_regions(img: &FlashImage, mode: Mode) -> Result<Menu, crate::read:
             return mismatch(region);
         }
     }
-    let Some(menu) = detect_menu(img, mode) else {
+    // An earlier build of our menu loads as ours, so the rebuild writes the current one (D-049).
+    let Some(Recognised { menu, .. }) = detect_menu(img, mode) else {
         return mismatch("menu loader");
     };
 
@@ -287,7 +302,13 @@ mod tests {
             write_boot(&mut img, Mode::Normal);
             write_loader(&mut img, Mode::Normal, menu);
             write_ef_name(&mut img, "either");
-            assert_eq!(detect_menu(&img, Mode::Normal), Some(menu));
+            assert_eq!(
+                detect_menu(&img, Mode::Normal),
+                Some(Recognised {
+                    menu,
+                    older_build: false
+                })
+            );
             assert_eq!(verify_regions(&img, Mode::Normal), Ok(menu));
         }
         let mut img = FlashImage::erased();

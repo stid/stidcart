@@ -124,6 +124,18 @@ test('AC-114 (RENDER): a view-only cart, or a listing without edits, shows the m
   expect(screen.getByText('EasyLoader')).toBeInTheDocument();
 });
 
+test('AC-130 (RENDER): an older build of our menu shows as such, and choosing stidcart is an edit', async () => {
+  const { onedit } = editable({ listing: { ...listing, menu: 'stidcart (older build)' } });
+  const picker = screen.getByRole('combobox', { name: /menu/i }) as HTMLSelectElement;
+  expect(picker.value).toBe('stidcart (older build)');
+  const options = within(picker).getAllByRole('option') as HTMLOptionElement[];
+  expect(options.map((o) => o.textContent)).toEqual(['EasyLoader', 'stidcart', 'stidcart (older build)']);
+  expect(options[2].disabled).toBe(true);
+
+  await fireEvent.change(picker, { target: { value: 'stidcart' } });
+  expect(onedit).toHaveBeenLastCalledWith({ kind: 'setMenu', menu: 'stidcart' });
+});
+
 test('AC-117 (RENDER): every size and the free figure show their exact byte count on hover', () => {
   render(Listing, { props: { listing, file: 'two.crt' } });
   const exact = (n: number) => `${n.toLocaleString('en-US')} bytes`;

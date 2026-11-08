@@ -8,7 +8,35 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-049 -->
+<!-- Next id: D-050 -->
+
+---
+
+## D-049 · 2026-11-08 · A cart carrying an earlier build of our menu loads as stidcart, and saving writes the current build
+
+- **Context:** older-menus. After 0.16.0 changed the menu, the user's `stidcollection.crt`, built
+  with the 0.15 menu (commit `5b54e81`), opened view-only as "menu unrecognised": `load` accepts a
+  loader slot only when it is byte-for-byte one of the two menus this build embeds (D-038). Every
+  change to `menu/menu.bin` would strand every cart built before it the same way.
+- **Decision:**
+  - Every committed build of `menu/menu.bin` is recognised by an FNV-1a 64 fingerprint of the full
+    8 KiB slot, normal mode only (our menu has no Ocean build). The list lives in
+    `crates/stidcart-core/src/menu.rs`. A test pins the current build's fingerprint, so changing
+    the menu fails it until the replaced fingerprint joins the list of earlier builds.
+  - Such a cart describes as `stidcart (older build)` and loads as `Menu::Stidcart`, so any edit, and
+    choosing stidcart in the window's picker or `edit --menu stidcart`, writes the current build.
+    The rebuild differs from the input in the loader slot only.
+  - This is a scoped exception to D-011's "rebuild unchanged": the loader slot of a known earlier
+    build is the one region a rebuild may change on its own. EAPI, boot and the EF-Name magic are
+    held to exact bytes as before, and a slot matching no known build is still refused.
+  - One earlier build is committed at `menu/past/5b54e81.bin`, the one the user's cart carries, so a
+    test can produce a cart that carries it. Fingerprints can't be forged, so the tests need real bytes.
+- **Alternatives rejected:** a signature string in the menu, which can't tell our build from a
+  modified or foreign one with the same text. Embedding every past build and keeping it on save:
+  56 KB for eight builds, and an edit would keep the old menu's bugs. Leaving such carts view-only:
+  the status quo, with no way back to an editable cart.
+- **Scope:** `crates/stidcart-core` (menu, reserved, read, listing), the window's menu picker
+- **Status:** active · supersedes D-038 in part (the loader slot may also hold an earlier build of our menu)
 
 ---
 
@@ -283,7 +311,7 @@
   copier in low RAM). apt's vice, which drifts and lacks 3.10's breakpoint fix. A macOS CI job
   (10x minutes, no version pin). A separate CI job, which would need a branch-protection change.
 - **Scope:** `menu/`, `crates/stidcart-core` (`menu.rs`, `reserved.rs`, `read.rs`, `listing.rs`), CLI `--menu`, GUI DTO, `ci.yml`
-- **Status:** active
+- **Status:** active · superseded in part by D-049 (earlier builds of our menu load too)
 
 ---
 

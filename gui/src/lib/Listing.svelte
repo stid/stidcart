@@ -111,6 +111,8 @@
             }}
           >
             {#each MENUS as m (m)}<option value={m}>{m}</option>{/each}
+            <!-- An earlier build of our menu (D-049): shown as what the cart holds, never chosen. -->
+            {#if !MENUS.includes(listing.menu)}<option value={listing.menu} disabled>{listing.menu}</option>{/if}
           </select>
         </label>
       {:else}
