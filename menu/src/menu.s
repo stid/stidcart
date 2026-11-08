@@ -15,7 +15,8 @@
 ;
 ; The screen is layout C (D-041): a block logo, the list with a type icon per entry, a scroll bar and
 ; a pane describing the selection, drawn from a RAM copy of the ROM's mixed-case set that carries
-; the menu's own glyphs.
+; the menu's own glyphs. It wears the raster brand (D-048): the cartridge mark beside the logo and
+; a strip of five bands under the cart name, both drawn by a raster interrupt.
 
 GETIN   = $ffe4
 
@@ -30,9 +31,9 @@ CHAR_ROM = $d800                ; the ROM's mixed-case set, with the character R
 CHAR_RAM = $3800                ; our copy, which the VIC reads in its bank 0
 BLACK      = 0                  ; the colours the menu uses (D-040, D-041)
 WHITE      = 1
-CYAN       = 3
 PURPLE     = 4
 YELLOW     = 7
+ORANGE     = 8
 LIGHT_RED  = 10
 DARK_GREY  = 11
 GREY       = 12
@@ -48,6 +49,8 @@ RULE    = $6a
 TRACK   = $6b
 THUMB   = $6c
 QUARTER = $6d                   ; sixteen: the quarter-block cells of the logo
+MARK    = $ea                   ; nine: the cartridge mark, 3x3 multicolour cells row by row. These are
+                                ; reversed codes of the glyphs above, which names never reach either
 
 BANK    = $de00                 ; EasyFlash bank register
 CONTROL = $de02                 ; EasyFlash mode register
@@ -149,6 +152,7 @@ entry:
 
 back_from_init:
         jsr charset_init        ; interrupts are still off, as it needs
+        jsr irq_on
         cli
         lda #BLACK
         sta BORDER
@@ -182,7 +186,7 @@ key:
         jmp start
 +       cmp #KEY_STOP
         bne +
-        jmp leave
+        jmp stop
 +       cmp #KEY_F1
         beq toggle
         cmp #KEY_DEL
@@ -283,6 +287,11 @@ described:
 
 ; --- starting the selected entry --------------------------------------------------------------
 
+; RUN/STOP: the interrupts as the KERNAL left them, then BASIC.
+stop:
+        jsr irq_off
+        jmp leave
+
 start:
         lda nshown
         bne +
@@ -324,7 +333,7 @@ start:
         jmp loop                ; nothing else is startable by this menu
 _cart:
         stx cur                 ; the mode
-        sei
+        jsr irq_off             ; before any bank is mapped in, and as the stock menu left it
         lda #$7f                ; quiet the machine as a power-on leaves it
         sta $dc0d
         sta $dd0d
@@ -345,6 +354,7 @@ _cart:
         jmp cart_go
 
 start_prg:
+        jsr irq_off             ; read_load maps the program's bank in
         jsr prg_params
         jsr read_load
         jmp copy_prg
@@ -763,6 +773,111 @@ _yes:
         sec
         rts
 
+; --- the raster interrupt (D-048) ---------------------------------------------------------------
+;
+; One interrupt a frame draws the brand. From IRQ_LINE it turns multicolour on for the logo rows,
+; where only the mark's cells have colour 8-15, and rewrites $D022 every three lines so the mark's
+; label shows the five bands. It turns multicolour off at the end of row 2, then sets the background
+; for one line each on 84-88: the strip under the cart name. Each colour is loaded before its wait,
+; so the store lands in the line's first cycles, before its visible pixels. Then it runs the
+; KERNAL's own work at $EA31, the clock and the keyboard, which the CIA timer no longer triggers:
+; nothing else can hold the bars up.
+;
+; The handler runs from this ROM. Whatever maps another bank in masks interrupts first, and every
+; way out calls irq_off before it does.
+
+IRQ_LINE = 46                   ; a few lines before the label's first band
+MARK_TOP = 54                   ; the label's first line
+MC_OFF  = 74                    ; the last line of row 2, after which no cell may be multicolour
+STRIP   = 84                    ; row 4 starts on the badline at 83: one band a line from 84
+
+irq_on:
+        lda #$7f                ; the CIA timer's interrupt off: this one runs the KERNAL's work
+        sta $dc0d
+        lda $dc0d
+        lda #<irq
+        sta $0314
+        lda #>irq
+        sta $0315
+        lda #IRQ_LINE
+        sta RASTER
+        lda $d011
+        and #$7f                ; bit 8 of the line
+        sta $d011
+        lda #$ff
+        sta $d019
+        lda #1
+        sta $d01a
+        rts
+
+; Put the interrupts back as the KERNAL set them, and leave them masked: the caller is on its way out
+; and maps other banks in next.
+irq_off:
+        sei
+        lda #0
+        sta $d01a
+        lda #$ff
+        sta $d019
+        lda #<$ea31
+        sta $0314
+        lda #>$ea31
+        sta $0315
+        lda #$81
+        sta $dc0d
+        rts
+
+irq:
+        lda #$ff
+        sta $d019
+        bit $d011
+        bmi _late               ; lines 256-311
+        lda RASTER
+        cmp #MARK_TOP
+        bcs _late               ; held up past the first band: no bars this frame
+        lda $d016
+        ora #$10
+        sta $d016
+        ldx #0
+_label:
+        ldy mark_lines,x
+        lda band_colours,x
+-       cpy RASTER
+        bne -
+        sta $d022
+        inx
+        cpx #5
+        bne _label
+        ldy #MC_OFF
+-       cpy RASTER
+        bne -
+        ldx #5                  ; past the mark's columns on that line
+-       dex
+        bne -
+        lda $d016
+        and #$ef
+        sta $d016
+        ldy #STRIP
+        ldx #0
+_strip:
+        lda band_colours,x
+-       cpy RASTER
+        bne -
+        sta BACKGROUND
+        iny
+        inx
+        cpx #6
+        bne _strip
+        jmp $ea31
+
+; Entered too late to draw the bars: make sure nothing of them is left on, and go on.
+_late:
+        lda $d016
+        and #$ef
+        sta $d016
+        lda #BLACK
+        sta BACKGROUND
+        jmp $ea31
+
 ; --- the screen -------------------------------------------------------------------------------
 ;
 ; Layout C (D-041): rows 0-2 the logo, row 3 the cart name, rows 4 and 21 rules, rows 5-20 the list
@@ -811,6 +926,14 @@ charset_init:
         inx
         cpx #10 * 8
         bne -
+        ldx #0
+-       lda mark_glyphs,x
+        sta CHAR_RAM + MARK * 8,x
+        inx
+        cpx #mark_glyphs_end - mark_glyphs
+        bne -
+        lda #DARK_GREY
+        sta $d023               ; multicolour %10: the mark's shell
         rts
 
 ; Wait until the beam is below the visible screen, so an update starts where no row is being shown.
@@ -1089,7 +1212,7 @@ _logo:
         lda logo_colours,x
         sta pen
         stx row
-        lda #4
+        lda #7
         jsr at
         ldx row
         lda logo_lo,x
@@ -1108,6 +1231,32 @@ _logo:
         inx
         cpx #3
         bne _logo
+
+        ; rows 0-2, columns 2-4: the mark, in multicolour cells (8 + their own colour, the pins')
+        ldx #0
+_mark:
+        stx row
+        lda #2
+        jsr at
+        lda row
+        asl a
+        adc row                 ; row * 3, carry clear
+        adc #MARK
+        ldy #0
+-       sta (scr),y
+        tax
+        lda #8 + YELLOW
+        sta (clr),y
+        txa
+        clc
+        adc #1
+        iny
+        cpy #3
+        bne -
+        ldx row
+        inx
+        cpx #3
+        bne _mark
 
         ; row 3: the cart name, centred
         lda #LIGHT_GREY
@@ -1132,12 +1281,12 @@ _logo:
         ldx #16
         jsr write_n
 
-        ; rows 4 and 21: the rules
+        ; row 4: spaces, where the raster strip shows; row 21: the rule
+        ldx #4
+        lda #$20
+        jsr line
         lda #DARK_GREY
         sta pen
-        ldx #4
-        lda #RULE
-        jsr line
         ldx #21
         lda #RULE
         jsr line
@@ -1246,7 +1395,7 @@ _listed:
         bne +
         lda #$80                ; the selection: a cyan reverse bar over columns 1-20
         sta rvs
-        lda #CYAN
+        lda #ORANGE             ; the selection bar: the brand's accent (D-048)
         sta pen
         sta ipen
 +       ldx srow
@@ -1498,7 +1647,9 @@ _program:
         and #$1f
         sta cur
         jsr prg_params
+        sei                     ; the raster handler runs from bank 0, which read_load maps out
         jsr read_load           ; moves ptr: everything from the slot is read by now
+        cli
         ldx #12
         lda #<load_text
         ldy #>load_text
@@ -1701,6 +1852,26 @@ glyphs:
         .next
 glyphs_end:
 
+; The cartridge mark (D-048) in multicolour pixels, two bits each: %01 the label ($D022, a band
+; every three lines), %10 the shell ($D023, dark grey), %11 the pins (the cells' own colour, yellow).
+; Nine cells, 3x3, row by row, for codes MARK to MARK+8.
+mark_glyphs:
+        .byte $00, $2a, $aa, $a5, $a5, $a5, $a5, $a5
+        .byte $00, $aa, $aa, $55, $55, $55, $55, $55
+        .byte $00, $a8, $aa, $5a, $5a, $5a, $5a, $5a
+        .byte $a5, $a5, $a5, $a5, $a5, $a5, $a5, $a5
+        .byte $55, $55, $55, $55, $55, $55, $55, $55
+        .byte $5a, $5a, $5a, $5a, $5a, $5a, $5a, $5a
+        .byte $a5, $a5, $aa, $2a, $02, $02, $02, $00
+        .byte $55, $55, $aa, $aa, $aa, $eb, $eb, $00
+        .byte $5a, $5a, $aa, $a8, $80, $80, $80, $00
+mark_glyphs_end:
+
+mark_lines:
+        .byte 54, 57, 60, 63, 66        ; where each label band starts; none is a badline (51, 59, 67)
+band_colours:
+        .byte LIGHT_RED, ORANGE, YELLOW, LIGHT_GREEN, LIGHT_BLUE, BLACK  ; black ends the strip
+
 ; "STIDCART" in block letters on a 6x6 grid of quarter cells, three characters a letter and one
 ; between, as screen codes: the space, or QUARTER + the cell's four quarters (bit 3 top left).
 logo_0:
@@ -1717,7 +1888,7 @@ logo_lo:
 logo_hi:
         .byte >logo_0, >logo_1, >logo_2
 logo_colours:
-        .byte WHITE, CYAN, LIGHT_BLUE
+        .byte WHITE, WHITE, WHITE       ; white beside the colourful mark (D-048); multicolour rows need 0-7
 
 kind_colours:
         .byte LIGHT_GREEN, YELLOW, LIGHT_RED, PURPLE, LIGHT_BLUE

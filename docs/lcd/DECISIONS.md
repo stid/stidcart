@@ -8,7 +8,42 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-048 -->
+<!-- Next id: D-049 -->
+
+---
+
+## D-048 · 2026-11-08 · The C64 menu wears the raster brand: a white logo beside the cartridge mark, a raster strip, an orange bar
+
+- **Context:** menu-raster. After D-046 the user asked for the same brand on our C64 menu, within
+  what the machine allows. Three levels were prototyped on throwaway copies of `menu/src` and
+  captured in VICE (the "c64 menu · vice captures" board on the brand canvas): palette only, plus a
+  raster strip, plus the cartridge mark. The user picked the third after running it live in VICE.
+- **Decision:**
+  - The five bands map to the VIC-II's light red, orange, yellow, light green and light blue. Peach
+    maps to orange, so the selection bar turns orange. The logo turns white, the neutral wordmark
+    beside a colourful mark, as in the app.
+  - The rule under the cart name (row 4) gives way to a raster strip: a raster interrupt sets the
+    background colour on scanlines 84-88, one band a line, then back to black. Row 4 starts on the
+    badline at 83, and one line a band is the most a character row holds without a badline inside it.
+  - The mark is the app's cartridge in 3x3 multicolour cells at columns 2-4 of rows 0-2, its glyphs
+    in codes `$EA-$F2` (names never reach the reversed range of the menu's own codes). The logo
+    moves to column 7. The interrupt turns multicolour on for rows 0-2 only and rewrites `$D022`
+    every three lines (54-66, no badline at a boundary), so only the label shows the bands. The
+    shell is dark grey (`$D023`), the pins yellow (the cells' own colour).
+  - The raster interrupt replaces the CIA timer's: it runs the KERNAL's `$EA31` once a frame, so
+    the keyboard is scanned 50 times a second and nothing can delay the bars. An entry later than
+    its first line skips the bands for that frame and forces multicolour off.
+  - The handler runs from the cart's ROM, so interrupts are masked whenever the menu maps another
+    bank in, and every exit (program, cartridge, RUN/STOP) puts back the stock state first: raster
+    interrupt off, `$0314` at `$EA31`, the CIA timer interrupt on.
+  - Its evidence is VICE screenshots as well as memory dumps: screen RAM can't show raster colours.
+- **Alternatives rejected:** palette only (no strip, no mark), cheapest but the menu wouldn't read as
+  the same brand. Bars in the top border, two lines a band: robust, but not under the title as in
+  the app. Five colours drawn in the label as character cells, impossible: a hires cell has one
+  colour and a multicolour cell's own colour is limited to 0-7. The handler in RAM instead of
+  masking: possible later, but nothing in RAM is the menu's to keep while it starts a program.
+- **Scope:** `menu/src/menu.s`, `menu/menu.bin`, the menu's boot tests
+- **Status:** active · supersedes D-040's cyan bar and D-041's logo colours and row-4 rule
 
 ---
 
@@ -164,7 +199,7 @@
   icons, which can't cover 16 rows without multiplexing. The ROM's own PETSCII graphics for icons,
   which can't draw a disk or a cartridge. Dropping the match count, which nobody asked for.
 - **Scope:** `menu/src/menu.s`, `menu/README.md`, boot tests
-- **Status:** active · supersedes D-040 in part (font, layout) · refines D-039 (status line)
+- **Status:** superseded in part by D-048 (logo colours, row-4 rule) · supersedes D-040 in part (font, layout) · refines D-039 (status line)
 
 ---
 
@@ -197,7 +232,7 @@
   amber palettes. Rewriting the status line to match the preview, which moves four tests and SPEC
   for no gain.
 - **Scope:** `menu/src/menu.s`, `menu/README.md`, boot tests
-- **Status:** superseded in part by D-041 (font and layout) · refines D-037
+- **Status:** superseded in part by D-041 (font and layout) and D-048 (cyan bar) · refines D-037
 
 ---
 

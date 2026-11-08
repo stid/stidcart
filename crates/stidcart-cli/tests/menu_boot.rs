@@ -785,9 +785,11 @@ const ROM_MIXED_CASE: (u16, u16) = (0xd800, 0xdfff);
 const TEXT_COLOUR: (u16, u16) = (0x0286, 0x0286);
 /// The KERNAL's SHIFT+C= lock: bit 7 set stops the keys switching the character set.
 const SHIFT_LOCK: (u16, u16) = (0x0291, 0x0291);
-const LOGO_COL: usize = 4;
+const LOGO_COL: usize = 7;
 const NAME_ROW: usize = 3;
-const RULE_ROWS: [usize; 2] = [4, 21];
+/// The dark grey rule under the list. Row 4 is clear: the raster strip shows through it (D-048).
+const RULE_ROW: usize = 21;
+const STRIP_ROW: usize = 4;
 const TRACK_COL: usize = 21;
 const PANE_COL: usize = 23;
 const VALUE_COL: usize = 29;
@@ -799,10 +801,10 @@ const OWN_CODES: std::ops::Range<usize> = 0x60..0x80;
 mod colour {
     pub const BLACK: u8 = 0;
     pub const WHITE: u8 = 1;
-    pub const CYAN: u8 = 3;
     pub const PURPLE: u8 = 4;
     pub const BLUE: u8 = 6;
     pub const YELLOW: u8 = 7;
+    pub const ORANGE: u8 = 8;
     pub const LIGHT_RED: u8 = 10;
     pub const DARK_GREY: u8 = 11;
     pub const GREY: u8 = 12;
@@ -923,7 +925,8 @@ fn letter_cell(c: char, cx: usize, cy: usize) -> [u8; 8] {
 }
 
 const LOGO: &str = "STIDCART";
-const LOGO_COLOURS: [u8; 3] = [colour::WHITE, colour::CYAN, colour::LIGHT_BLUE];
+/// White beside the colourful mark, as the app's wordmark (D-048).
+const LOGO_COLOURS: [u8; 3] = [colour::WHITE; 3];
 
 /// Every glyph the menu adds, without repeats: icons, rule, track, thumb and the logo's cells.
 fn own_glyphs() -> Vec<[u8; 8]> {
@@ -1053,13 +1056,18 @@ fn check_frame(l: &Look, title: &str) -> Result<(), String> {
     if !row_shows(&l.screen, NAME_ROW, title) {
         return Err(format!("row 3 does not show the cart name '{title}'"));
     }
-    for n in RULE_ROWS {
-        for c in 0..COLS {
-            let cell = n * COLS + c;
-            if l.bitmap(cell) != bits(&RULE) || l.colour[cell] != colour::DARK_GREY {
-                return Err(format!("row {n} column {c} is not the dark grey rule"));
-            }
+    for c in 0..COLS {
+        let cell = RULE_ROW * COLS + c;
+        if l.bitmap(cell) != bits(&RULE) || l.colour[cell] != colour::DARK_GREY {
+            return Err(format!(
+                "row {RULE_ROW} column {c} is not the dark grey rule"
+            ));
         }
+    }
+    if let Some(c) = (0..COLS).find(|&c| l.screen[STRIP_ROW * COLS + c] != 0x20) {
+        return Err(format!(
+            "row {STRIP_ROW} column {c} is not a space under the strip"
+        ));
     }
     if !vice::is_reversed(&l.screen, HELP_ROW * COLS, COLS) {
         return Err("the help bar is not reversed across all 40 columns".into());
@@ -1280,8 +1288,8 @@ fn ac_107_entries_carry_their_kind_icon() {
                 for c in SELECTION_BAR {
                     let cell = n * COLS + c;
                     assert!(
-                        l.screen[cell] & 0x80 != 0 && l.colour[cell] == colour::CYAN,
-                        "{what}: '{name}': column {c} is not in the cyan bar"
+                        l.screen[cell] & 0x80 != 0 && l.colour[cell] == colour::ORANGE,
+                        "{what}: '{name}': column {c} is not in the orange bar"
                     );
                 }
             } else {
@@ -1584,4 +1592,434 @@ fn ac_104_what_the_menu_hands_over_has_the_c64_colours() {
         0,
         "the started cart: SHIFT+C= is locked"
     );
+}
+
+// --- the raster brand (AC-123..AC-128, D-048) ----------------------------------------------------
+//
+// The strip and the mark's label are made by a raster interrupt, so screen and colour RAM can't
+// show them: these read VICE's own picture of the frame (`Step::Shot`). Each waits two interrupts
+// first, because VICE's picture of the frame in progress still holds the previous frame below the
+// beam. In the 384x272 PAL capture, raster line L is image row L - 16 and the 320 visible pixels
+// start at column 32.
+
+const SHOT_SIZE: (usize, usize) = (384, 272);
+const SHOT_X: usize = 32;
+const SHOT_FIRST_LINE: usize = 16;
+/// The raster line where character row 0 starts, with the default vertical scroll.
+const ROW0_LINE: usize = 51;
+const STRIP_LINES: std::ops::RangeInclusive<usize> = 84..=88;
+const BANDS: [u8; 5] = [
+    colour::LIGHT_RED,
+    colour::ORANGE,
+    colour::YELLOW,
+    colour::LIGHT_GREEN,
+    colour::LIGHT_BLUE,
+];
+/// The mark's cells: columns 2-4 of rows 0-2, codes $EA-$F2 row by row (D-048).
+const MARK_COL: usize = 2;
+const MARK_CODES: std::ops::Range<usize> = 0xea..0xf3;
+
+/// The mark in multicolour pixels, 12 wide (each two screen pixels) by 24 lines: `S` the shell
+/// (`$D023`, dark grey), `L` the label (`$D022`, a band every three lines), `P` a pin (the cells'
+/// own colour, yellow).
+const MARK: [&str; 24] = [
+    "............",
+    ".SSSSSSSSSS.",
+    "SSSSSSSSSSSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSLLLLLLLLSS",
+    "SSSSSSSSSSSS",
+    ".SSSSSSSSSS.",
+    "...SSSSSS...",
+    "...SPSSPS...",
+    "...SPSSPS...",
+    "............",
+];
+
+/// The image row of raster line `line`.
+fn shot_y(line: usize) -> usize {
+    line - SHOT_FIRST_LINE
+}
+
+/// The colour the mark shows at multicolour pixel (x, y).
+fn mark_colour(x: usize, y: usize) -> u8 {
+    match MARK[y].as_bytes()[x] {
+        b'S' => colour::DARK_GREY,
+        b'P' => colour::YELLOW,
+        b'L' => BANDS[(y - 3) / 3],
+        _ => colour::BLACK,
+    }
+}
+
+/// The eight bitmap bytes of mark cell `n` (0-8, row by row): two bits a multicolour pixel.
+fn mark_cell(n: usize) -> [u8; 8] {
+    let (cx, cy) = (n % 3, n / 3);
+    let mut out = [0u8; 8];
+    for (ly, byte) in out.iter_mut().enumerate() {
+        for x in 0..4 {
+            let bits = match MARK[cy * 8 + ly].as_bytes()[cx * 4 + x] {
+                b'L' => 1,
+                b'S' => 2,
+                b'P' => 3,
+                _ => 0,
+            };
+            *byte |= bits << (6 - 2 * x);
+        }
+    }
+    out
+}
+
+/// A cart with `n` programs, so the list scrolls when `n` passes 16.
+fn programs_cart(dir: &Path, title: &str, n: usize) -> PathBuf {
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs: Vec<PathBuf> = (0..n)
+        .map(|i| write(dir, &format!("entry {i:02}.prg"), &hello))
+        .collect();
+    build(dir, title, &[], &inputs)
+}
+
+fn shot_after_boot(dir: &Path, cart: &Path) -> vice::Shot {
+    let dumps = boot_or_panic(
+        dir,
+        cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Break(Target::Label("irq")),
+            Step::Break(Target::Label("irq")),
+            Step::Shot,
+        ],
+    );
+    let shot = vice::Shot::parse(&dumps[0]);
+    assert_eq!(
+        (shot.width, shot.height),
+        SHOT_SIZE,
+        "not VICE's PAL capture"
+    );
+    shot
+}
+
+// AC-123: the logo is white from column 7, the selection bar orange, and row 4 clear for the strip
+#[test]
+fn ac_123_the_logo_is_white_the_bar_orange_and_row_4_clear() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-123: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac123");
+    let cart = programs_cart(&dir, "brand", 3);
+    let l = looks_after(&dir, &cart, &[vec![]]).remove(0);
+    check_frame(&l, "brand").unwrap_or_else(|e| panic!("{e}"));
+    let first = LIST_ROWS.start;
+    for c in SELECTION_BAR {
+        assert_eq!(
+            l.colour[first * COLS + c],
+            colour::ORANGE,
+            "column {c} of the selection is not orange"
+        );
+    }
+}
+
+// AC-124: scanlines 84-88 are the five bands across the visible width, 83 and 89 black
+#[test]
+fn ac_124_a_raster_strip_runs_under_the_cart_name() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-124: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac124");
+    let cart = programs_cart(&dir, "strip", 3);
+    let shot = shot_after_boot(&dir, &cart);
+    let line = |l: usize| -> Vec<u8> {
+        (SHOT_X..SHOT_X + 320)
+            .map(|x| shot.at(x, shot_y(l)))
+            .collect()
+    };
+    for (l, want) in STRIP_LINES.zip(BANDS) {
+        assert!(
+            line(l).iter().all(|&c| c == want),
+            "line {l} is not colour {want} across: {:?}",
+            line(l)
+        );
+    }
+    for l in [STRIP_LINES.start() - 1, STRIP_LINES.end() + 1] {
+        assert!(
+            line(l).iter().all(|&c| c == colour::BLACK),
+            "line {l} is not black"
+        );
+    }
+}
+
+// AC-125: the cartridge mark in columns 2-4 of rows 0-2, nothing else in rows 0-3 coloured
+#[test]
+fn ac_125_the_cartridge_mark_heads_the_menu() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-125: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac125");
+    let cart = programs_cart(&dir, "mark", 3);
+    let dumps = boot_or_panic(
+        &dir,
+        &cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Break(Target::Label("irq")),
+            Step::Break(Target::Label("irq")),
+            Step::Shot,
+            screen(),
+            Step::Dump(CHARSET.0, CHARSET.1),
+        ],
+    );
+    let (shot, scr, chars) = (vice::Shot::parse(&dumps[0]), &dumps[1], &dumps[2]);
+    assert_eq!(
+        (shot.width, shot.height),
+        SHOT_SIZE,
+        "not VICE's PAL capture"
+    );
+
+    for (n, code) in MARK_CODES.enumerate() {
+        let (cx, cy) = (n % 3, n / 3);
+        assert_eq!(
+            scr[cy * COLS + MARK_COL + cx] as usize,
+            code,
+            "mark cell {cx},{cy} is not code ${code:02x}"
+        );
+        assert_eq!(
+            chars[code * 8..code * 8 + 8],
+            mark_cell(n),
+            "code ${code:02x} does not hold mark cell {n}"
+        );
+    }
+    let left = SHOT_X + MARK_COL * 8;
+    for (y, row) in MARK.iter().enumerate() {
+        for x in 0..row.len() {
+            let want = mark_colour(x, y);
+            for half in 0..2 {
+                let got = shot.at(left + 2 * x + half, shot_y(ROW0_LINE + y));
+                assert_eq!(got, want, "mark pixel {x},{y} is {got}, not {want}");
+            }
+        }
+    }
+    let mark = left..left + 24;
+    for l in ROW0_LINE..ROW0_LINE + 32 {
+        for x in SHOT_X..SHOT_X + 320 {
+            let c = shot.at(x, shot_y(l));
+            if !mark.contains(&x) {
+                assert!(
+                    [colour::BLACK, colour::WHITE, colour::LIGHT_GREY].contains(&c),
+                    "line {l} pixel {x} is colour {c} outside the mark"
+                );
+            }
+        }
+    }
+}
+
+// AC-126: the strip and the mark hold still while the list scrolls, filters and sorts
+#[test]
+fn ac_126_the_strip_and_mark_are_steady_while_the_menu_redraws() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-126: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac126");
+    let cart = programs_cart(&dir, "steady", 24);
+    const FRAMES: usize = 20;
+    let groups = [
+        vec![key::DOWN; 10],
+        [vec![key::DOWN; 7], b"E".to_vec(), vec![key::DEL, key::F1]].concat(),
+    ];
+    let mut steps = vec![Step::Labels(vice::menu_labels())];
+    for keys in &groups {
+        steps.push(idle());
+        steps.push(Step::Keys(keys.clone()));
+        for _ in 0..FRAMES {
+            steps.push(Step::Break(Target::Label("irq")));
+            steps.push(Step::Shot);
+        }
+    }
+    let shots: Vec<vice::Shot> = boot_or_panic(&dir, &cart, &steps)
+        .iter()
+        .map(|b| vice::Shot::parse(b))
+        .collect();
+    let top = |s: &vice::Shot| -> Vec<u8> {
+        (shot_y(ROW0_LINE)..=shot_y(*STRIP_LINES.end() + 1))
+            .flat_map(|y| (0..s.width).map(move |x| (x, y)))
+            .map(|(x, y)| s.at(x, y))
+            .collect()
+    };
+    let rest = |s: &vice::Shot| -> Vec<u8> {
+        (shot_y(*STRIP_LINES.end() + 2)..s.height)
+            .flat_map(|y| (0..s.width).map(move |x| (x, y)))
+            .map(|(x, y)| s.at(x, y))
+            .collect()
+    };
+    let first = top(&shots[0]);
+    for (i, s) in shots.iter().enumerate() {
+        assert!(top(s) == first, "frame {i}: the strip or the mark changed");
+    }
+    let mut seen: Vec<Vec<u8>> = Vec::new();
+    for s in &shots {
+        let r = rest(s);
+        if !seen.contains(&r) {
+            seen.push(r);
+        }
+    }
+    assert!(
+        seen.len() > 10,
+        "only {} distinct screens below the strip: the frames did not catch the redraws",
+        seen.len()
+    );
+}
+
+/// Every stop on a write to the bank or mode register, with the I flag and whether the raster
+/// interrupt was enabled, read from the monitor's `r` and `m $d01a` lines in VICE's log.
+fn bank_writes(log: &str) -> Vec<(bool, bool)> {
+    let mut out = Vec::new();
+    let mut masked = None;
+    for line in log.lines() {
+        if let Some(rest) = line.trim_start().strip_prefix(".;") {
+            // ".;ADDR A X Y SP 00 01 NV-BDIZC ...": the flags are the seventh field after ADDR.
+            let flags = rest.split_whitespace().nth(7).unwrap_or("");
+            masked = flags.as_bytes().get(5).map(|&b| b == b'1');
+        } else if let Some(rest) = line.trim_start().strip_prefix(">C:d01a") {
+            let byte = u8::from_str_radix(rest.split_whitespace().next().unwrap(), 16).unwrap();
+            if let Some(m) = masked.take() {
+                out.push((m, byte & 1 != 0));
+            }
+        }
+    }
+    out
+}
+
+// AC-127: nothing maps a bank in while the raster interrupt can run from the cart's ROM
+#[test]
+fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-127: skipping — x64sc is not installed");
+        return;
+    }
+    const STOPS: usize = 60;
+    let k8 = markers::cart(CartKind::K8, "BANK WATCH CART");
+    for (name, keys) in [
+        (
+            // F1 puts the cart first (A-Z), so DOWN lands on a program: RETURN starts it.
+            "browse-then-program",
+            vec![
+                key::DOWN,
+                key::DOWN,
+                b'E',
+                key::DEL,
+                key::F1,
+                key::DOWN,
+                key::RETURN,
+            ],
+        ),
+        ("cart", vec![key::RETURN]),
+        ("stop", vec![key::DOWN, key::STOP]),
+    ] {
+        let dir = scratch(&format!("ac127-{name}"));
+        let mut inputs = vec![write(&dir, "k8.crt", &k8.bytes)];
+        let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+        inputs.extend((0..3).map(|i| write(&dir, &format!("prog {i}.prg"), &hello)));
+        let cart = build(&dir, "watch", &[], &inputs);
+        let mut steps = vec![Step::Labels(vice::menu_labels()), idle(), Step::Keys(keys)];
+        // The monitor's own log: a headless VICE splits what it prints to the terminal into one
+        // "Monitor:" line per fragment, while this file reads the same in every build.
+        steps.push(Step::Raw(
+            "logname \"monlog.txt\"\nlog on\nwatch store $de00\nwatch store $de02".into(),
+        ));
+        for _ in 0..STOPS {
+            steps.push(Step::Raw("g\nr\nm $d01a $d01a".into()));
+        }
+        // The run ends at the cycle limit once the writes stop; only the log is read.
+        let _ = vice::boot(&dir, &cart, &steps);
+        // The monitor's memory lines can end in raw bytes, so the log is not UTF-8.
+        let log =
+            String::from_utf8_lossy(&std::fs::read(dir.join("monlog.txt")).unwrap_or_default())
+                .into_owned();
+        let writes = bank_writes(&log);
+        if writes.is_empty() {
+            let vice =
+                String::from_utf8_lossy(&std::fs::read(dir.join("vice.log")).unwrap_or_default())
+                    .into_owned();
+            let tail = |t: &str| t.lines().rev().take(40).collect::<Vec<_>>().join("\n");
+            panic!(
+                "{name}: no bank or mode write was seen\n-- monlog.txt, last lines reversed --\n{}\n-- vice.log, last lines reversed --\n{}",
+                tail(&log),
+                tail(&vice)
+            );
+        }
+        for (i, (masked, live)) in writes.iter().enumerate() {
+            assert!(
+                *masked || !*live,
+                "{name}: write {i} to $DE00/$DE02 with the raster interrupt live and unmasked"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_bank_write_parser_reads_the_flags_and_the_interrupt_mask() {
+    let log = "  ADDR A  X  Y  SP 00 01 NV-BDIZC LIN CYC  STOPWATCH\n\
+               .;8d94 00 00 0a f3 2f 37 00100100 000 004    1234\n\
+               >C:d01a  f1  .\n\
+               .;8d98 00 00 0a f3 2f 37 00100000 000 004    1240\n\
+               >C:d01a  f1  .\n";
+    assert_eq!(bank_writes(log), vec![(true, true), (false, true)]);
+}
+
+// AC-128: every way out leaves the IRQ vector at $EA31 and the raster interrupt off
+#[test]
+fn ac_128_every_exit_puts_the_interrupts_back() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-128: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac128");
+    let prg = markers::basic_prg("IRQ PROGRAM RAN");
+    let k8 = markers::cart(CartKind::K8, "IRQ CART RAN");
+    let cart = build(
+        &dir,
+        "exits",
+        &[],
+        &[
+            write(&dir, "a prog.prg", &prg.bytes),
+            write(&dir, "b cart.crt", &k8.bytes),
+        ],
+    );
+    for (keys, spin, what) in [
+        (vec![key::RETURN], prg.spin, "the started program"),
+        (vec![key::DOWN, key::RETURN], k8.spin, "the started cart"),
+        (vec![key::STOP], BASIC_MAIN, "BASIC after RUN/STOP"),
+    ] {
+        let mut steps = press_then_wait(&keys, spin);
+        steps.push(Step::Dump(0x0314, 0x0315));
+        steps.push(Step::Dump(0xd01a, 0xd01a));
+        let dumps = boot_or_panic(&dir, &cart, &steps);
+        assert_eq!(
+            dumps[0],
+            [0x31, 0xea],
+            "{what}: the IRQ vector is not $EA31"
+        );
+        assert_eq!(
+            dumps[1][0] & 0x0f,
+            0,
+            "{what}: a VIC interrupt is still enabled"
+        );
+    }
 }

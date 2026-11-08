@@ -36,3 +36,5 @@
 2026-11-07 · readable-sizes · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
 2026-11-07 · raster-brand · 4 signals · Standard · hard:no · risk:no
 2026-11-07 · raster-brand · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
+2026-11-07 · menu-raster · 4 signals · Standard · hard:no · risk:no
+2026-11-07 · menu-raster · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0

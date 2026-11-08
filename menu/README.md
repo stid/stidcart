@@ -21,9 +21,11 @@ code.
 | F1              | switch between the cart's own order and A-Z                |
 | RUN/STOP        | leave to BASIC with the cartridge switched off             |
 
-The screen is black (D-041). A block-letter logo and the cart name sit above 16 list rows. Each
+The screen is black (D-041) and wears the stidcart brand (D-048): the cartridge mark, its label in
+five colour bands, sits left of a white block-letter logo, and a strip of the same five bands runs
+under the cart name. The cart name sits above 16 list rows. Each
 entry shows a badge for its kind, in the kind's colour: "PRG" for a program, "8K" and "16K" for
-those cartridges, "ULT" for Ultimax, and "XB" for multi-bank. The selected entry sits in a cyan
+those cartridges, "ULT" for Ultimax, and "XB" for multi-bank. The selected entry sits in an orange
 bar. When the list is longer than the screen, the divider to its right becomes a scroll bar: the
 thumb's length is the share of the list in view, and its place is where the view is. The pane on the
 right describes the selection: its type, size, load address (program) or first bank (cartridge),
@@ -46,11 +48,23 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
   initialises the KERNAL from there with the cartridge off, so the top of memory comes out right.
   It copies the ROM's mixed-case character set to `$3800` and adds the menu's own glyphs to it in
   codes `$60-$7F`: the badges (with their inverses at `$E0` and up, for the selection bar), the rule,
-  the scroll bar and the logo's quarter-block cells. It then scans the EasyFS2 directory at `$A000`
+  the scroll bar and the logo's quarter-block cells. The cartridge mark's nine multicolour cells go
+  in `$EA-$F2`, reversed codes that names never reach. It then scans the EasyFS2 directory at `$A000`
   and draws straight into screen and colour RAM, writing each cell once per update. A cursor move
   that doesn't scroll redraws only the two rows it changes, and drawing starts below the visible
   screen, so nothing flickers. CHROUT isn't used: a full 40-column row links into the next line,
   and the last cell of row 24 scrolls the screen.
+- A raster interrupt draws the brand once a frame (D-048). From line 46 it turns multicolour on for
+  the logo rows, where only the mark's cells have colours 8-15, and rewrites `$D022` every three
+  lines so the mark's label shows the five bands. It turns multicolour off after row 2, then sets
+  the background for one line each on 84-88, the strip. It replaces the CIA timer's interrupt and
+  runs the KERNAL's own work (`$EA31`) itself, so the keyboard is scanned 50 times a second and
+  nothing can hold the bars up. Entered too late in a frame, it skips that frame's bars.
+- The interrupt handler runs from the cartridge's ROM. So interrupts are masked whenever the menu
+  maps another bank in, and every way out (a program, a cartridge, RUN/STOP) first puts back the
+  KERNAL's interrupt: raster interrupt off, `$0314` at `$EA31`, the CIA timer on. The boot tests
+  watch every write to `$DE00` and `$DE02` for a live interrupt (AC-127), and read VICE
+  screenshots for what screen RAM can't show (AC-124..AC-126).
 - Keys come only from GETIN, the KERNAL keyboard buffer, because that is the only place VICE can
   inject keys for the boot tests. `menu_idle` is the point where the menu waits with an empty
   buffer, and the tests break there.
