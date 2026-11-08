@@ -8,12 +8,15 @@
     label,
     oncommit,
     editing = $bindable(false),
+    placeholder = '',
   }: {
     value: string;
     /** Names the field for assistive technology, e.g. "Cart name". */
     label: string;
     oncommit: (value: string) => void;
     editing?: boolean;
+    /** Shown, faint, in place of an empty value, so there is something to click. */
+    placeholder?: string;
   } = $props();
 
   let draft = $state('');
@@ -58,7 +61,9 @@
     onblur={() => finish(true)}
   />
 {:else}
-  <button class="text" aria-label={`Edit ${label}`} title="Click to edit" onclick={start}>{value}</button>
+  <button class="text" aria-label={`Edit ${label}`} title="Click to edit" onclick={start}
+    >{#if value === '' && placeholder}<span class="placeholder">{placeholder}</span>{:else}{value}{/if}</button
+  >
 {/if}
 
 <style>
@@ -69,6 +74,10 @@
     padding: 0 var(--space-1);
     margin: 0 calc(-1 * var(--space-1));
     transition: background var(--duration) var(--ease);
+  }
+
+  .placeholder {
+    color: var(--text-faint);
   }
 
   .text:hover {

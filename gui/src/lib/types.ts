@@ -17,6 +17,12 @@ export interface Row {
   /** The kind's family, which picks the type badge's colour as our menu does (D-045): `prg`,
    * `8k`, `16k`, `ult`, `xb`, or `other`. */
   family: string;
+  /** The entry's metadata, each empty when not set (D-054). */
+  title: string;
+  year: string;
+  author: string;
+  note: string;
+  group: string;
 }
 
 export interface Listing {
@@ -28,6 +34,10 @@ export interface Listing {
   rows: Row[];
   free: number;
   freeText: string;
+  /** Metadata records dropped because their entry no longer matches (AC-154). */
+  metaDropped: number;
+  /** Why the cart's metadata is kept as stored, when it is (D-055). */
+  metaKept: string | null;
 }
 
 /** What the window may offer on a row. Decided by the Rust side, never from the kind label. */
@@ -63,7 +73,12 @@ export type Edit =
   | { kind: 'setCartName'; name: string }
   | { kind: 'setHeaderName'; name: string }
   /** The C64-side menu, by the name the listing shows (D-042). */
-  | { kind: 'setMenu'; menu: string };
+  | { kind: 'setMenu'; menu: string }
+  /** One metadata field, by its `edit` option name; an empty value clears it (D-054). */
+  | { kind: 'setMeta'; index: number; field: MetaField; value: string };
+
+/** The five metadata fields, as `edit` names them. */
+export type MetaField = 'title' | 'year' | 'author' | 'note' | 'group';
 
 /** The answer to "save changes?". */
 export type Unsaved = 'save' | 'discard' | 'cancel';
@@ -72,9 +87,7 @@ export type Unsaved = 'save' | 'discard' | 'cancel';
 export type MenuId = 'new' | 'open' | 'save' | 'save-as' | 'undo' | 'redo' | 'quit';
 
 export type ViewState =
-  | { kind: 'empty' }
-  | { kind: 'document'; doc: Document }
-  | { kind: 'error'; file: string; message: string };
+  { kind: 'empty' } | { kind: 'document'; doc: Document } | { kind: 'error'; file: string; message: string };
 
 /** Everything the window needs from the desktop shell. The real one is host.ts. */
 export interface Host {

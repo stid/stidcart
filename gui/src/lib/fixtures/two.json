@@ -4,28 +4,40 @@
   "free": 1029088,
   "freeText": "1005.0 KB",
   "menu": "EasyLoader",
+  "metaDropped": 0,
+  "metaKept": null,
   "rows": [
     {
+      "author": "",
       "bank": "$01",
       "family": "prg",
       "flags": "-",
+      "group": "",
       "index": 0,
       "kind": "PRG",
       "layout": "$0bba",
       "name": "hello",
+      "note": "",
       "size": "102 bytes",
-      "sizeBytes": 102
+      "sizeBytes": 102,
+      "title": "",
+      "year": ""
     },
     {
+      "author": "",
       "bank": "$01",
       "family": "prg",
       "flags": "-",
+      "group": "",
       "index": 1,
       "kind": "PRG",
       "layout": "$0000",
       "name": "ramp",
+      "note": "",
       "size": "2.9 KB",
-      "sizeBytes": 3002
+      "sizeBytes": 3002,
+      "title": "",
+      "year": ""
     }
   ]
 }

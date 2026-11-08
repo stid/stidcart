@@ -30,6 +30,10 @@ pub struct ListingDto {
     pub rows: Vec<RowDto>,
     pub free: usize,
     pub free_text: String,
+    /// Metadata records dropped because their entry no longer matches (AC-154).
+    pub meta_dropped: usize,
+    /// Why the cart's metadata is kept as stored, when it is (D-055).
+    pub meta_kept: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,6 +50,12 @@ pub struct RowDto {
     pub size: String,
     /// The exact size the `size` text rounds, shown on hover (D-044).
     pub size_bytes: usize,
+    /// The entry's metadata, each empty when not set (D-054).
+    pub title: String,
+    pub year: String,
+    pub author: String,
+    pub note: String,
+    pub group: String,
 }
 
 impl From<&Listing> for ListingDto {
@@ -57,6 +67,8 @@ impl From<&Listing> for ListingDto {
             rows: l.rows.iter().map(RowDto::from).collect(),
             free: l.free,
             free_text: l.free_text(),
+            meta_dropped: l.meta_dropped,
+            meta_kept: l.meta_kept.clone(),
         }
     }
 }
@@ -73,6 +85,11 @@ impl From<&Row> for RowDto {
             layout: r.layout.clone(),
             size: r.size.clone(),
             size_bytes: r.size_bytes,
+            title: r.title.clone(),
+            year: r.year.clone(),
+            author: r.author.clone(),
+            note: r.note.clone(),
+            group: r.group.clone(),
         }
     }
 }

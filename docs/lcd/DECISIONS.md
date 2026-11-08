@@ -8,7 +8,7 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-056 (D-053 is menu-resume's, on its branch) -->
+<!-- Next id: D-057 (D-053 is menu-resume's; D-056 is menu-highmem's, on its branch) -->
 
 ---
 
