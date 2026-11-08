@@ -69,6 +69,12 @@ export function createViewer(host: Host) {
   }
 
   async function save(): Promise<boolean> {
+    if (doc?.readOnly != null && doc.dirty) {
+      // Undoing a saved menu switch brings back the cart as opened, which can't be written (D-050).
+      notice =
+        "This step can't be saved: it is the cart as opened, which can't be edited. Redo the menu switch to save, or choose Don't Save.";
+      return false;
+    }
     if (!editable || !doc) return false;
     if (doc.untitled) return saveAs();
     if (!doc.dirty) return true;

@@ -366,6 +366,19 @@ describe('a view-only cart whose loader is unknown (replace-loader)', () => {
     expect(host.edit).toHaveBeenCalledWith({ kind: 'setMenu', menu: 'stidcart' });
   });
 
+  test('AC-134 (RENDER): undoing a saved switch can not be saved, and says so', async () => {
+    // Switch, save, undo: the window holds the cart as opened again, unsaved and view-only.
+    const host = fakeHost({ confirmUnsaved: vi.fn(async () => 'save' as const) });
+    const v = await opened(
+      host,
+      doc({ readOnly: 'reserved region menu loader differs', menuReplaceable: true, dirty: true, canRedo: true }),
+    );
+    await v.menu('open');
+    expect(host.save).not.toHaveBeenCalled();
+    expect(host.pickFile).not.toHaveBeenCalled();
+    expect(v.notice).toMatch(/redo the menu switch|don't save/i);
+  });
+
   test('AC-135 (RENDER): a cart refused for another reason takes no menu switch', async () => {
     const host = fakeHost();
     const v = await opened(host, doc({ readOnly: 'reserved region EAPI differs from the embedded firmware' }));

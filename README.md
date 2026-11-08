@@ -31,8 +31,10 @@ A cart boots into EasyLoader, the embedded third-party menu, unless `build` or `
 `--menu stidcart`. That puts our own menu (`menu/`, GPL) in the same slot (D-037). It lists the
 visible entries, scrolls, and starts programs and every cartridge kind except Ocean. It is refused
 on carts it cannot run: one with an Ocean entry, or with a program loading into `$D000-$DFFF`
-(D-038). `list` and the desktop app say which menu a cart carries, and edits keep it. The reference
-tool knows nothing of this menu, so its evidence is VICE: boot tests start carts and read the
+(D-038). `list` and the desktop app say which menu a cart carries, and edits keep it. A cart
+carrying an earlier build of our menu shows as "stidcart (older build)" and is saved with the
+current one (D-049). A loader slot holding no menu the tool knows is replaced only when a menu is
+chosen, with `edit --menu` or the app's picker (D-050). The reference tool knows nothing of this menu, so its evidence is VICE: boot tests start carts and read the
 screen back (`menu/README.md`).
 
 This section is the narrative; `docs/lcd/SPEC.md` is the enumerated capability index, with each row
@@ -114,7 +116,8 @@ Changes stay in memory until you save:
 - Closing, quitting, opening another cart or New asks first.
 
 A cart `edit` refuses, such as firmware that differs from the embedded copy, opens view-only with
-the reason. The app needs Node 24, pinned in `gui/.nvmrc` (`nvm use` in `gui/` picks it up, and CI reads the same file), and, on Linux, the WebKitGTK packages the CI `gui` job installs.
+the reason. When the only reason is a loader the tool doesn't know, the menu picker stays: choosing
+a menu replaces the loader and makes the cart editable (D-050). The app needs Node 24, pinned in `gui/.nvmrc` (`nvm use` in `gui/` picks it up, and CI reads the same file), and, on Linux, the WebKitGTK packages the CI `gui` job installs.
 
 ```bash
 cd gui && npm install

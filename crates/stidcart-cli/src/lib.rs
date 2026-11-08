@@ -46,7 +46,8 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   --unalign N     clear that request
   -e NAME         set the cartridge name shown by the menu
   --header NAME   set the container header name
-  --menu MENU     switch the menu to easyloader or stidcart; without it the cart keeps its menu
+  --menu MENU     switch the menu to easyloader or stidcart, replacing whatever the loader slot
+                  holds; without it the cart keeps its menu
 
   Indices are the ones `list` prints, and every index in one invocation refers
   to the image as it was given, not to the state a previous operation left.
