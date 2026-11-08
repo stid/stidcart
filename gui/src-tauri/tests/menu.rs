@@ -1,6 +1,7 @@
 //! custom-menu in the window: the listing says which menu a cart carries (AC-85), and a cart with
 //! our menu opens editable and saves what `edit` writes (AC-86). menu-picker: switching the menu is
 //! an edit that saves what `edit --menu` writes (AC-112), through the same refusals (AC-113).
+//! menu-highmem: a program reaching into `$D000-$FFFF` from below no longer refuses it (AC-164).
 
 use std::path::{Path, PathBuf};
 
@@ -246,25 +247,85 @@ fn ac_113_render_a_cart_our_menu_cannot_run_refuses_it_unchanged() {
     assert_eq!(menu_of(&ocean), "EasyLoader");
 
     // A program that loads into $D000-$DFFF, added in the window first.
-    let prg = dir.join("upper.prg");
-    let mut bytes = 0xcf00u16.to_le_bytes().to_vec();
-    bytes.extend([0xeau8; 0x200]);
+    let mut doc = with_program(&dir, "upper", 0xd000, 0x200);
+    assert_refused(
+        &mut doc,
+        Edit::SetMenu {
+            menu: s("stidcart"),
+        },
+        &["upper", "$D000"],
+        "a program loading at $D000",
+    );
+    assert_eq!(menu_of(&doc), "EasyLoader");
+}
+
+/// `<name>.prg` in `dir`, loading at `load` with `len` bytes, as the CLI reads it.
+fn write_prg(dir: &Path, name: &str, load: u16, len: usize) -> PathBuf {
+    let prg = dir.join(format!("{name}.prg"));
+    let mut bytes = load.to_le_bytes().to_vec();
+    bytes.resize(2 + len, 0xea);
     std::fs::write(&prg, bytes).unwrap();
+    prg
+}
+
+/// A new document holding one program, added in the window.
+fn with_program(dir: &Path, name: &str, load: u16, len: usize) -> Document {
+    let prg = write_prg(dir, name, load, len);
     let mut doc = Document::new();
     doc.apply(Edit::Add {
         paths: vec![path(&prg)],
         aligned: false,
     })
     .unwrap();
-    assert_refused(
-        &mut doc,
-        Edit::SetMenu {
+    doc
+}
+
+/// AC-164 (RENDER): choosing stidcart for a cart holding a program the CLI still refuses (loading
+/// at `$D000` or above, or ending past `$FFFF`) shows that refusal and changes nothing; a cart whose
+/// only reason was a program reaching into `$D000-$FFFF` from below now takes stidcart.
+#[test]
+fn ac_164_render_only_what_our_menu_still_cannot_start_refuses_it() {
+    let dir = scratch("ac164");
+
+    // Still refused, with the reason edit --menu prints for the same program.
+    for (name, load, len) in [
+        ("atkernal", 0xe000u16, 0x10usize),
+        ("pasttop", 0xc000, 0x4001),
+    ] {
+        let prg = write_prg(&dir, name, load, len);
+        let cart = dir.join(format!("{name}.crt"));
+        run(&[s("build"), s("-o"), path(&cart), path(&prg)]);
+        let cli = stidcart_cli::run(&[
+            s("edit"),
+            path(&cart),
+            s("--menu"),
+            s("stidcart"),
+            s("-o"),
+            path(&dir.join("never.crt")),
+        ])
+        .expect_err("edit --menu stidcart accepted a program our menu cannot start");
+        assert!(!dir.join("never.crt").exists());
+        let mut doc = Document::open(&cart).unwrap();
+        assert_refused(
+            &mut doc,
+            Edit::SetMenu {
+                menu: s("stidcart"),
+            },
+            &[name, &cli],
+            name,
+        );
+        assert_eq!(menu_of(&doc), "EasyLoader");
+    }
+
+    // Reaching $D000-$FFFF from below is no longer a reason: stidcart is taken.
+    for (name, load, len) in [("iozone", 0xcf00u16, 0x200usize), ("attop", 0xc000, 0x4000)] {
+        let mut doc = with_program(&dir, name, load, len);
+        doc.apply(Edit::SetMenu {
             menu: s("stidcart"),
-        },
-        &["upper", "$D000-$DFFF"],
-        "a program over $D000",
-    );
-    assert_eq!(menu_of(&doc), "EasyLoader");
+        })
+        .unwrap_or_else(|e| panic!("{name}: stidcart was refused: {e}"));
+        assert_eq!(menu_of(&doc), "stidcart", "{name}");
+    }
 }
 
 /// Two programs with our menu, then the 5b54e81 build in the loader slot (bank 0 ROML), as a cart

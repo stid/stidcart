@@ -1,5 +1,5 @@
 //! custom-menu: choosing, refusing and recognising our own menu through the binary (AC-81..AC-85,
-//! AC-95, CLI surface).
+//! AC-95, CLI surface). menu-highmem narrows the refusal to what our menu still can't start (AC-163).
 //!
 //! Every case works in its own scratch directory, because `edit` writes over the cart it was given
 //! by default.
@@ -272,12 +272,14 @@ fn ac_84_cli_our_menu_with_an_ocean_entry_is_refused() {
     );
 }
 
-// AC-95 (CLI): our menu with a program touching $D000-$DFFF is refused naming it, nothing written
+// AC-95 (CLI): our menu with a program loading into $D000-$DFFF is refused naming it, nothing
+// written. menu-highmem (AC-163) keeps this refusal for a program that loads there and lifts it for
+// one that only reaches it from below.
 #[test]
 fn ac_95_cli_our_menu_with_a_program_in_the_io_area_is_refused() {
     let dir = scratch("ac95");
-    // $CF00 + 0x200 bytes reaches $D0FF; $CE00 + 0x200 ends exactly at $CFFF.
-    let io = prg(&dir, "iozone", 0xcf00, 0x200);
+    // $D000 + 0x200 bytes loads into I/O; $CE00 + 0x200 ends exactly at $CFFF.
+    let io = prg(&dir, "iozone", 0xd000, 0x200);
     let below = prg(&dir, "below", 0xce00, 0x200);
 
     // Control: the boundary itself is accepted.
@@ -329,6 +331,99 @@ fn ac_95_cli_our_menu_with_a_program_in_the_io_area_is_refused() {
         before,
         "a refused edit wrote the cart"
     );
+}
+
+/// One past the last byte of the routine our menu puts at `$0100` to copy `$D000-$FFFF`, from the
+/// committed labels: a program reaching `$D000` must load at or above it.
+fn high_copy_end() -> u16 {
+    let labels =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../menu/menu.lbl"))
+            .unwrap();
+    labels
+        .lines()
+        .find_map(|l| l.strip_suffix(" .high_copy_end")?.strip_prefix("al "))
+        .map(|a| u16::from_str_radix(a, 16).unwrap())
+        .expect("menu.lbl has no .high_copy_end")
+}
+
+/// AC-163 (CLI): with our menu, a program loading at `$D000` or above, one ending past `$FFFF`, and
+/// one reaching `$D000` while loading below the second copy routine's end are each refused naming
+/// the entry, through `build`, `edit --menu`, `--add` and `--replace`, with nothing written. Any
+/// other program reaching into `$D000-$FFFF` is accepted, and EasyLoader accepts all of them.
+#[test]
+fn ac_163_cli_our_menu_refuses_only_what_it_still_cannot_start() {
+    let dir = scratch("ac163");
+
+    // Accepted with our menu: the old AC-95 case, an end exactly at $10000, the largest BASIC
+    // program the format holds, and one loading right at the copy routine's end.
+    let accepted = [
+        prg(&dir, "iozone", 0xcf00, 0x200),
+        prg(&dir, "attop", 0xc000, 0x4000),
+        prg(&dir, "basicmax", 0x0801, 0xdffe),
+    ];
+    for p in &accepted {
+        ok(&build(
+            &dir.join("fine.crt"),
+            &["--menu", "stidcart"],
+            std::slice::from_ref(p),
+        ));
+    }
+    let hce = high_copy_end();
+    ok(&build(
+        &dir.join("fine.crt"),
+        &["--menu", "stidcart"],
+        &[prg(&dir, "abovecopy", hce, 0xd001 - hce as usize)],
+    ));
+
+    // Refused, each with what its message must say.
+    let refused_cases = [
+        (prg(&dir, "atio", 0xd000, 0x10), "$D000"),
+        (prg(&dir, "atkernal", 0xe000, 0x10), "$D000"),
+        (prg(&dir, "pasttop", 0xc000, 0x4001), "$FFFF"),
+        (
+            prg(&dir, "undercopy", hce - 1, 0xd001 - (hce as usize - 1)),
+            "$0100",
+        ),
+    ];
+    for (p, says) in &refused_cases {
+        let name = p.file_stem().unwrap().to_str().unwrap();
+
+        // build
+        let out = dir.join("out.crt");
+        let err = refused(&build(
+            &out,
+            &["--menu", "stidcart"],
+            std::slice::from_ref(p),
+        ));
+        assert!(
+            err.contains(name) && err.contains(says),
+            "{name}: the refusal does not name it and say '{says}': {err}"
+        );
+        assert!(!out.exists(), "{name}: a refused build wrote a file");
+
+        // EasyLoader: nothing about it changes.
+        let theirs = dir.join("theirs.crt");
+        ok(&build(&theirs, &[], &[fx("hello.prg"), p.clone()]));
+
+        // edit --menu on that EasyLoader cart
+        let before = std::fs::read(&theirs).unwrap();
+        let err = refused(&edit(&theirs, &[s("--menu"), s("stidcart")]));
+        assert!(err.contains(name), "{name}: --menu refusal: {err}");
+        assert_eq!(std::fs::read(&theirs).unwrap(), before);
+
+        // edit --add and --replace on a cart carrying our menu
+        let mine = ours(&dir);
+        let before = std::fs::read(&mine).unwrap();
+        let err = refused(&edit(&mine, &[s("--add"), p.as_os_str()]));
+        assert!(err.contains(name), "{name}: --add refusal: {err}");
+        let err = refused(&edit(&mine, &[s("--replace"), s("0"), p.as_os_str()]));
+        assert!(err.contains("hello"), "{name}: --replace refusal: {err}");
+        assert_eq!(
+            std::fs::read(&mine).unwrap(),
+            before,
+            "{name}: a refused edit wrote the cart"
+        );
+    }
 }
 
 // AC-85 (CLI): list says which menu the cart carries

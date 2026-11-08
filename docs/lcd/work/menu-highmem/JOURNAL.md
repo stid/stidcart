@@ -12,14 +12,14 @@
 
 - **Lane:** Standard
 - **Goal:** Our menu starts programs reaching into `$D000-$FFFF`, copying that part into the RAM under I/O and the KERNAL; with our menu the tool refuses only what still can't start (D-056)
-- **Next action:** S3 — failing tests for AC-160..AC-165
+- **Next action:** S4 — the refusal in the core, then the split copy in the menu
 - **Branch:** feat/menu-highmem · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.20.0 → 0.21.0 (first commit on the branch)
 - [x] S2 — triage, D-056, AC-160..AC-165 claimed, this JOURNAL
-- [ ] S3 — failing tests: VICE boots (AC-160..AC-162, AC-165), CLI refusals (AC-163, flipping AC-95's test), the window (AC-164)
+- [x] S3 — failing tests: VICE boots (AC-160..AC-162, AC-165), CLI refusals (AC-163, flipping AC-95's test), the window (AC-164)
 - [ ] S4 — the refusal in the core; the split copy in `menu/src/menu.s`/`launch.s`; rebuild `menu.bin`/`menu.lbl`; the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, SPEC-visible refusal text, gates with `STIDCART_REQUIRE_TOOLS=1` and `gui-gate.sh`
 - [ ] S6 — audit, reconcile, closeout, PR
@@ -122,3 +122,14 @@ interrupt off when the program starts. The NMI vector and `$01` are back to the 
   - A recon monitor script and cart are in the session scratchpad (`recon-d000/`).
   - AC-160..AC-165 claimed, next free AC-170 (AC-153..AC-159 are menu-meta's, AC-166..AC-169
     menu-folders').
+- 2026-11-08 — S3 red. Tests: `ac_160_…`, `ac_161_…`, `ac_162_…`, `ac_165_…` (`menu_boot.rs`),
+  `ac_163_…` (`menu_cli.rs`; AC-95's test now loads at `$D000`, still refused), `ac_164_…`
+  (`gui/src-tauri/tests/menu.rs`; AC-113's case moves to a program at `$D000`). Red runs:
+  - the four boots fail at `build`: "'high' loads into $D000-$DFFF, which the stidcart menu
+    cannot start a program over" (AC-161's filler first loaded at `$C000` and tripped it too; moved
+    to `$0801`).
+  - AC-163 fails at the first acceptance: `iozone` (`$CF00`+`$200`) refused with the same text.
+  - AC-164 fails because `edit --menu stidcart` accepts a program loading at `$E000`: the live bug.
+  - The boots' memory checks read RAM with the monitor's `bank ram`, then `bank cpu`. The routine's
+    end is read from the label `high_copy_end` in `menu.lbl`, so AC-163's boundary follows the
+    real routine.
