@@ -12,17 +12,17 @@
 
 - **Lane:** Standard
 - **Goal:** The window wears the stid design system (Catppuccin Mocha/Latte, peach, Geist bundled) with the "raster" cartridge as its mark, its icon and a five-band strip under the title bar (D-046, D-047)
-- **Next action:** S3, write the failing tests for AC-119..AC-122
+- **Next action:** S6, draw `icon-source.svg` on the macOS grid and regenerate the bundled icons
 - **Branch:** feat/raster-brand · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.14.0 → 0.15.0 (first commit on the branch)
 - [x] S2 — triage, D-046, D-047, AC-119..AC-122 claimed, this JOURNAL
-- [ ] S3 — failing tests: tokens and fonts (`tokens.test.ts`), the strip (`App.test.ts`), the mark (Toolbar, EmptyState) ← next
-- [ ] S4 — `tokens.css` to stid values, `fonts.css` and the four woff2 files with OFL; MAP licence invariant names `gui/src/fonts/`
-- [ ] S5 — `Mark.svelte`; the strip in `App.svelte`; the mark in the title bar and the empty state
-- [ ] S6 — app icon: `icon-source.svg` on the macOS grid, regenerate the six bundled files with `tauri icon`
+- [x] S3 — failing tests: tokens and fonts (`tokens.test.ts`), the strip (`App.test.ts`), the mark (Toolbar, EmptyState) ← next
+- [x] S4 — `tokens.css` to stid values, `fonts.css` and the four woff2 files with OFL; MAP licence invariant names `gui/src/fonts/`
+- [x] S5 — `Mark.svelte`; the strip in `App.svelte`; the mark in the title bar and the empty state
+- [ ] S6 — app icon: `icon-source.svg` on the macOS grid, regenerate the six bundled files with `tauri icon`  ← next
 - [ ] S7 — both gates, the user's live check, audit, reconcile, PR; deploy locally after merge
 
 ## DECISIONS (this work-item)
@@ -90,3 +90,6 @@ draws the same cartridge at every bundled size.
   bundled Geist. Triage: Standard, 4 signals. D-046, D-047. AC-119..AC-122 claimed, next free AC-123.
 - 2026-11-08 — the app icon's pixels have no automated test: AC-122's icon clause is checked live
   (the Dock and Finder at each size), the in-app mark by `Toolbar.test.ts` and `EmptyState.test.ts`.
+- 2026-11-08 — red, as expected: no `fonts.css`, no strip, no mark. Vitest hands a `?raw` CSS import
+  back empty unless it processes CSS, so `vite.config.ts` processes `src/styles/*.css` in tests only.
+  Green: vitest 54/0, svelte-check clean, GUI gate passing; the four woff2 files land in `dist/assets`.

@@ -1,6 +1,7 @@
 <script lang="ts">
   // The title bar's contents: which cart is open and whether it has unsaved changes, and the
   // commands that act on it. The bar itself is the window's drag region (App.svelte).
+  import Mark from './Mark.svelte';
   import type { Document } from './types';
 
   let {
@@ -20,6 +21,7 @@
 </script>
 
 <div class="title" data-tauri-drag-region>
+  <Mark size={16} />
   {#if doc}
     <span class="file" data-tauri-drag-region>{doc.file}</span>
     {#if doc.dirty}
@@ -45,7 +47,7 @@
 <style>
   .title {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: var(--space-3);
     min-width: 0;
   }
