@@ -8,7 +8,25 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-044 -->
+<!-- Next id: D-045 -->
+
+---
+
+## D-044 · 2026-11-08 · Sizes read as KB in the listing; exact bytes stay one hover or flag away
+- **Context:** the user uses the app day to day and found the hex sizes (`$0027d3`) hard to read.
+  Bank and layout are addresses, where hex is the convention, and stay as they are.
+- **Decision:** (user's choices) the core's listing gives each size, and the free figure, as text:
+  under 1024 bytes in bytes ("652 bytes", "1 byte"), otherwise in 1024-based KB with one decimal
+  rounded half up ("1.1 KB", "10.0 KB"), whole when the size is an exact multiple ("8 KB"), and in
+  MB the same way from 1024 KB. `list` and the window both show it, so they still agree value for
+  value (D-032). Each row also carries the exact byte count: the window shows it on hover, and
+  `list --bytes` prints exact decimal counts for every size and the free figure.
+- **Alternatives rejected:** the window only, which would break D-032's one description. Exact
+  grouped bytes, or KB with bytes beside it, which the user didn't pick. Decimal kB (1000), which
+  doesn't match how C64 sizes are counted (a 16K cart is 16384 bytes). Dropping the exact figure,
+  which would lose precision the hex had.
+- **Scope:** `stidcart-core` listing, `list`, the GUI listing
+- **Status:** active · refines D-032
 
 ---
 
