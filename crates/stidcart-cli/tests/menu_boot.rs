@@ -3502,10 +3502,11 @@ fn ac_161_a_bank_boundary_in_d000_dfff_and_shift_return() {
     }
     let dir = scratch("ac161");
     let m = markers::filled_prg(0xc000, 0x10000, "WRAPPED PROGRAM RAN", fill);
-    // A first entry this long moves the program's first byte about $2800 into a bank's 16 KiB, so
-    // the bank runs out inside $D000-$DFFF; the precondition below checks where it really falls.
+    // The heavier entry is placed first, so a first entry of $6800 bytes moves the program's first
+    // byte $2800 into a bank's 16 KiB and the bank runs out inside $D000-$DFFF; the precondition
+    // below checks where it really falls.
     let mut filler = 0x0801u16.to_le_bytes().to_vec();
-    filler.resize(0x2800, 0);
+    filler.resize(0x6800, 0);
     let cart = build(
         &dir,
         "wrap",

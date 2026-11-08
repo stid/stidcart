@@ -90,7 +90,8 @@ read_load:
         rts
 
 ; BASIC is up and asks for its first line: restore CHRIN, copy the program in with the cartridge
-; on, then let the menu finish from ROM (copied). The caller's registers are kept for the real
+; on, up to $D000 (copy_prg leaves the rest to high_copy), then let the menu finish from ROM
+; (copied). The caller's registers are kept for the real
 ; CHRIN: BASIC's line input holds its buffer index in X across the call.
 trap:
         pha
@@ -157,6 +158,7 @@ p_cbank:  .byte 0
 p_load:   .word 0
 p_chrin:  .word 0
 p_only:   .byte 0               ; non-zero: load the program but type nothing (SHIFT+RETURN)
+p_tail:   .word 0               ; bytes from $D000 on, which high_copy copies after the trap (D-056)
 
 ram_end:
         .here

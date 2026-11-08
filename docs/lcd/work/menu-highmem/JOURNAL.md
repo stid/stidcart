@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our menu starts programs reaching into `$D000-$FFFF`, copying that part into the RAM under I/O and the KERNAL; with our menu the tool refuses only what still can't start (D-056)
-- **Next action:** S4 — the refusal in the core, then the split copy in the menu
+- **Next action:** S5 — `menu/README.md`; then S6 (SPEC, DECISIONS, root README are the orchestrator's)
 - **Branch:** feat/menu-highmem · **Updated:** 2026-11-08
 
 ## STEPS
@@ -20,7 +20,7 @@
 - [x] S1 — version 0.20.0 → 0.21.0 (first commit on the branch)
 - [x] S2 — triage, D-056, AC-160..AC-165 claimed, this JOURNAL
 - [x] S3 — failing tests: VICE boots (AC-160..AC-162, AC-165), CLI refusals (AC-163, flipping AC-95's test), the window (AC-164)
-- [ ] S4 — the refusal in the core; the split copy in `menu/src/menu.s`/`launch.s`; rebuild `menu.bin`/`menu.lbl`; the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
+- [x] S4 — the refusal in the core; the split copy in `menu/src/menu.s`/`launch.s`; rebuild `menu.bin`/`menu.lbl`; the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, SPEC-visible refusal text, gates with `STIDCART_REQUIRE_TOOLS=1` and `gui-gate.sh`
 - [ ] S6 — audit, reconcile, closeout, PR
 
@@ -133,3 +133,15 @@ interrupt off when the program starts. The NMI vector and `$01` are back to the 
   - The boots' memory checks read RAM with the monitor's `bank ram`, then `bank cpu`. The routine's
     end is read from the label `high_copy_end` in `menu.lbl`, so AC-163's boundary follows the
     real routine.
+- 2026-11-08 — S4 green. Core: `ProgramInIoArea` gives way to `ProgramLoadsHigh` (load ≥ `$D000`),
+  `ProgramPastTop` (end > `$10000`) and `ProgramOverHighCopy` (reaches `$D000`, loads below
+  `menu::HIGH_COPY_END` = `$0150`, held equal to the label by `menu_builds.rs`). Menu as D-056:
+  - `copy_prg` splits at `$D000` into `p_tail` (`$DFF3`); `ram_end` is now `$DFF5`.
+  - `copied` puts `high_copy` at `$0100-$014F` (80 bytes, `php`/`sei`…`plp`, `$0318/9` saved on
+    the stack, pointed at its own `RTI`) and calls it when `p_tail` isn't 0.
+  - The trap is unchanged. ROM free: 2689 bytes. Replaced build 5bbe7bc joins the earlier builds.
+  - With the new core and the old menu, the boots fail for the menu: AC-160/AC-162 never reach
+    the program (the copy wrote I/O), AC-165 sees no write from `$01xx`. AC-161's filler had to
+    outweigh the program (the placer puts the heavier first): `$6800` bytes, wrap inside `$Dxxx`.
+  - In the watch log, the stores at `$0121` with `$01=$33` hit `$DE00/$DE02` in RAM, masked.
+    `$01` reads `$37` and `$0318` `$FE47` at the program.

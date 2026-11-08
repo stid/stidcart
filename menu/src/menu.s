@@ -659,6 +659,36 @@ copy_prg:
         lda p_size+2
         sbc #0
         sta p_size+2
+        clc                     ; split at $D000 (D-056): the trap copies the bytes below it with
+        lda p_load              ; I/O in, high_copy the rest, p_tail of them, into the RAM under
+        adc p_size              ; I/O and the KERNAL. The tool refuses a program that loads at
+        sta p_tail              ; $D000 or above, or ends past $FFFF
+        lda p_load+1
+        adc p_size+1
+        bcs _top                ; it ends at $10000
+        sbc #$cf                ; carry clear, so A - $D0: carry set once the end is $D000 or above
+        bcc _whole
+        sta p_tail+1
+        ora p_tail
+        beq _whole              ; it ends at $D000 exactly
+        bne _cut
+_top:
+        adc #$2f                ; carry set: the end's high byte plus $30, past $D000
+        sta p_tail+1
+_cut:
+        sec
+        lda p_size
+        sbc p_tail
+        sta p_size
+        lda p_size+1
+        sbc p_tail+1
+        sta p_size+1
+        jmp _trap
+_whole:
+        lda #0
+        sta p_tail
+        sta p_tail+1
+_trap:
         lda $0324               ; BASIC's first CHRIN goes to the trap
         sta p_chrin
         lda $0325
@@ -677,11 +707,20 @@ copy_prg:
         sta SHIFT_LOCK
         jmp basic_go
 
-; Back from the trap with the program copied, the cartridge on and dst one past its last byte:
-; set BASIC's pointers to its end, type RUN or SYS for it unless it is only loaded, and leave
-; through the real CHRIN.
+; Back from the trap with the program copied below $D000, the cartridge on and dst one past the
+; last byte copied: copy the rest from $D000 on, if any, set BASIC's pointers to its end, type RUN
+; or SYS for it unless it is only loaded, and leave through the real CHRIN.
 copied:
-        lda #$01
+        lda p_tail
+        ora p_tail+1
+        beq +
+        ldx #high_copy_end - high_copy - 1
+-       lda high_rom,x
+        sta high_copy,x
+        dex
+        bpl -
+        jsr high_copy
++       lda #$01
         sta $2b
         lda #$08
         sta $2c
@@ -703,6 +742,59 @@ copied:
         jsr make_keys
 +       stx $c6
         jmp basic_resume
+
+; Copy the p_tail bytes from $D000 on (D-056), run from the bottom of the stack page, where copied
+; puts it: with the character ROM at $D000, $DF00 isn't there to run from. Each byte is read with
+; I/O in ($01=$37), where the bank register and get_byte are, and written with I/O out ($01=$33), so
+; it lands in the RAM under I/O or the KERNAL. Interrupts are masked and the NMI goes to an RTI
+; meanwhile: the KERNAL's handlers would write their CIA registers into that RAM. The tool refuses a
+; program reaching $D000 that loads below high_copy_end, which would overwrite this.
+high_rom:
+        .logical $0100
+high_copy:
+        php
+        sei
+        lda $0318
+        pha
+        lda $0319
+        pha
+        lda #<high_rti
+        sta $0318
+        lda #>high_rti
+        sta $0319
+        lda p_cbank             ; the trap left bank 0 in
+        sta BANK
+_byte:
+        jsr get_byte            ; leaves Y at 0
+        ldx #$33
+        stx $01
+        sta (dst),y
+        ldx #$37
+        stx $01
+        inc dst
+        bne +
+        inc dst+1
++       lda p_tail
+        bne +
+        dec p_tail+1
++       dec p_tail
+        lda p_tail
+        ora p_tail+1
+        bne _byte
+        lda #0                  ; copied runs from bank 0
+        sta BANK
+        pla
+        sta $0319
+        pla
+        sta $0318
+        plp
+        rts
+high_rti:
+        rti
+high_copy_end:
+        .here
+
+        .cerror high_copy_end - high_copy > 128, "high_copy outgrows the loop that copies it"
 
 ; Where the copy source wraps to the next bank, by type: $01 interleaved ROML then ROMH, $02 ROML
 ; only, $03 ROMH only (format spec, "Bytes 19-20 for PRG entries").
