@@ -22,12 +22,12 @@
 
 Failing tests (one commit, phase 4):
 
-- [ ] **T1**: `AC-153 (none)`, `AC-154 (none)`, `AC-155 (none)` core tests in `crates/stidcart-core/tests/meta.rs`. They cover the round trip through load/save, remove, a re-order, rename and a menu switch; a no-metadata set byte-identical to today, and set-then-clear giving the original bytes; dropped records counted; an unknown version kept, described and its rewrites refused; the slot count; not listed; the 16 KB cap; field limits and mapping
-- [ ] **T2** [P]: `AC-155 (none)` VICE boots in `crates/stidcart-cli/tests/meta_boot.rs`: neither menu lists META
-- [ ] **T3** [P]: `AC-156 (CLI)`, `AC-157 (CLI)`, `AC-158 (RENDER)` in `crates/stidcart-cli/tests/meta_cli.rs`
-- [ ] **T4** [P]: `AC-158 (RENDER)` and `AC-159 (RENDER)` Rust side in `gui/src-tauri/tests/meta.rs`: DTO values, `SetMeta` as one undoable step, refusal unchanged, save equals `edit`
-- [ ] **T5** [P]: `AC-158 (RENDER)` in `gui/src/lib/Listing.test.ts`: the title under the name, the Group column only when used, selection
-- [ ] **T6** [P]: `AC-159 (RENDER)` in `gui/src/lib/MetaPanel.test.ts`: five fields, one `setMeta` per commit
+- [x] **T1**: `AC-153 (none)`, `AC-154 (none)`, `AC-155 (none)` core tests in `crates/stidcart-core/tests/meta.rs`. They cover the round trip through load/save, remove, a re-order, rename and a menu switch; a no-metadata set byte-identical to today, and set-then-clear giving the original bytes; dropped records counted; an unknown version kept, described and its rewrites refused; the slot count; not listed; the 16 KB cap; field limits and mapping
+- [x] **T2** [P]: `AC-155 (none)` VICE boots in `crates/stidcart-cli/tests/meta_boot.rs`: neither menu lists META
+- [x] **T3** [P]: `AC-156 (CLI)`, `AC-157 (CLI)`, `AC-158 (RENDER)` in `crates/stidcart-cli/tests/meta_cli.rs`
+- [x] **T4** [P]: `AC-158 (RENDER)` and `AC-159 (RENDER)` Rust side in `gui/src-tauri/tests/meta.rs`: DTO values, `SetMeta` as one undoable step, refusal unchanged, save equals `edit`
+- [x] **T5** [P]: `AC-158 (RENDER)` in `gui/src/lib/Listing.test.ts`: the title under the name, the Group column only when used, selection
+- [x] **T6** [P]: `AC-159 (RENDER)` in `gui/src/lib/MetaPanel.test.ts`: five fields, one `setMeta` per commit
 
 Implementation (red-green, phase 5):
 
@@ -45,7 +45,7 @@ Implementation (red-green, phase 5):
 - [ ] **T18**: `gui/src/lib/types.ts`: `Row`, `Listing`, `Edit` mirror the DTO (T5, T6)
 - [ ] **T19**: `gui/src/lib/MetaPanel.svelte`: the selected entry's fields (T6)
 - [ ] **T20**: `gui/src/lib/Listing.svelte`: the title line, the Group column, selection, the panel (T5)
-- [ ] **T21**: `gui/src-tauri/tests/parity.rs`: the metadata scenario (AC-80 harness, AC-159)
+- [x] **T21**: folded into T4: the save-equals-`edit` scenario sits in `gui/src-tauri/tests/meta.rs` (in the Test scope), on the AC-80 harness pattern
 - [ ] **T22**: `gui/src/lib/viewer.test.ts`: fixture-shape updates, only if svelte-check asks
 - [ ] **T23**: `README.md`: the new `edit` options and the import file
 - [ ] **T24**: `docs/lcd/MAP.md`: `meta.rs` in the core zone

@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Entries carry a title, year, author, note and group, stored in a hidden `STIDCART.META` entry, round-tripped, edited by `edit` flags, a TOML import and the window, and listed (D-054)
-- **Next action:** run /lcd:test-gen menu-meta (T1..T6)
+- **Next action:** lcd:redgreen-loop, core first (T7..T11)
 - **Branch:** feat/menu-meta · **Updated:** 2026-11-08
 
 ## STEPS
@@ -21,8 +21,8 @@
 - [x] S2 — plan.md (layout v1, D-055)
 - [x] S3 — format-doc section, its own commit (9d9eecf)
 - [x] S4 — tasks.md (T1..T24, T-audit, T-final)
-- [ ] S5 — failing tests T1..T6 ← next
-- [ ] S6a — core T7..T11
+- [x] S5 — failing tests T1..T6
+- [ ] S6a — core T7..T11 ← next
 - [ ] S6b — CLI T12..T13
 - [ ] S6c — GUI T14..T22
 - [ ] S6d — docs T23..T24, both gates, `STIDCART_REQUIRE_TOOLS=1` once
@@ -84,6 +84,6 @@ See `spec.md` (AC-153..AC-159).
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⏳  audit.md ⬜`
 
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->

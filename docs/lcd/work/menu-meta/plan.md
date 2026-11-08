@@ -143,7 +143,7 @@ Rejected alternatives, in one sentence each:
 What must agree across surfaces is this. The field rules and their refusal text come from
 `stidcart_core::meta` for `edit` and for the window. The listed values come from
 `listing::Listing` for `list` and for the window (D-032). The window's saves equal `edit`'s for
-the same values, held by the CLI-as-library oracle in `gui/src-tauri/tests/parity.rs` (D-035).
+the same values, held by the CLI-as-library oracle (D-035) in `gui/src-tauri/tests/meta.rs`, on the pattern of `parity.rs`.
 AC-158's `list` renderer is `render()` in `crates/stidcart-cli/src/lib.rs`, tested in
 `crates/stidcart-cli/tests/meta_cli.rs`. AC-153..AC-155 (`none`) are tested in
 `crates/stidcart-core/tests/meta.rs` and `crates/stidcart-cli/tests/meta_boot.rs`.
@@ -225,7 +225,6 @@ gui/src/lib/MetaPanel.test.ts             AC-159 (RENDER) frontend
 - `gui/src-tauri/src/lib.rs` adds the DTO fields
 - `gui/src-tauri/Cargo.lock` picks up `toml` through the CLI dev-dependency
 - `gui/src-tauri/tests/contract.rs` changes no code; the goldens are regenerated
-- `gui/src-tauri/tests/parity.rs` adds a metadata scenario (AC-159)
 - `gui/src/lib/types.ts` mirrors the DTO and `Edit`
 - `gui/src/lib/fixtures/two.json` is regenerated
 - `gui/src/lib/fixtures/document.json` is regenerated
