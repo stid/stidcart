@@ -149,5 +149,6 @@ A record whose stored name doesn't match its slot is ignored.
 - 2026-11-08 — S5: `menu/README.md`. The key table covers folders and title search, and a new
   "Titles and folders" section covers what shows, the folder keys and when metadata is ignored.
   "How it starts" covers the boot copy and its tables, and the state section covers the folder.
-  The F7 help went in with S4. Not measured: the boot copy of a full 16 KB, estimated at ~80
-  cycles a byte, about 1.3 s of blank screen on a PAL C64.
+  The F7 help went in with S4. Measured in VICE from `meta_load` to `irq_on` on AC-169's 16 KB
+  cart: 1,310,596 cycles, 1.33 s of blank screen on PAL. Untested: a META confined to one half
+  (0x02/0x03), and more than one candidate slot.

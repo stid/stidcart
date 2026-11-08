@@ -177,13 +177,15 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
 
 - The metadata entry is read once at boot, before the raster interrupt is on, so interrupts are
   still masked from `entry` (D-057). The menu takes the last hidden program slot named
-  `STIDCART.META` and reads its parameters as for a program, so all three program layouts work.
+  `STIDCART.META` and reads it through the program path (`prg_params`, `get_byte`), which follows
+  all three program layouts; the boot tests place it interleaved only.
   It needs the load address `$4000` and a payload of at most 16 KB, and copies the payload to
   `$4000-$7FFF` with `high_copy`. It then checks the magic and the version and walks the records,
   stepping by their length bytes. Each record whose name matches its slot is attached to it in
   tables at `$C600-$C9FF`: the record's address and group by slot, and each group's count of
   visible entries. `$4000-$7FFF` isn't shown by VIC bank 0, and a program the menu starts may load
-  over it. A full 16 KB takes about a second to copy, during which the screen stays blank.
+  over it. A full 16 KB takes 1.3 s to copy (1.31 million cycles in VICE, PAL), during which the
+  screen stays blank.
 
 - `$DFF6-$DFFF` holds the state a reset comes back to (D-053). The menu writes it when it starts an
   entry and on RUN/STOP: the magic "STID", the selected entry's directory slot, the order, the kind
