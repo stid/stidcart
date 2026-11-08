@@ -27,8 +27,12 @@
     returns, as any key does.
   - A move acts on the press, then repeats while held, after a first delay of about 0.4 s and then
     about ten a second, timed by the jiffy clock. Fire acts once per press and never repeats.
-  - Fire held when the menu starts is ignored until released, so a stick resting on fire doesn't
-    start the first entry.
+  - Fire or a direction held when the menu starts is ignored until released, so a stick resting
+    on fire doesn't start the first entry. A direction that closed the help screen doesn't repeat
+    until released.
+  - The stick is read once a jiffy, which also absorbs contact bounce, with `$FF` in `$DC00` under
+    `sei` and the KERNAL's `$7F` put back after, so two keys held in one row can't pull a stick
+    line low on real hardware.
   - The stick is read in the menu's own loop, not in the raster interrupt, masked to its five
     bits (the emulated device reads bits 5-7 as 0).
 - **Alternatives rejected:** port 1 as well (keyboard crosstalk); reading the stick inside the

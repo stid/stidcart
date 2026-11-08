@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu takes a joystick in port 2: moves, paging and fire act as the keys do, with repeat while held (D-052)
-- **Next action:** S6 — audit, reconcile into SPEC, closeout, PR
+- **Next action:** done; PR open, merge when gate, gui and claude-review are green (user authorised)
 - **Branch:** feat/menu-joystick · **Updated:** 2026-11-08
 
 ## STEPS
@@ -22,7 +22,7 @@
 - [x] S3 — `support/vice.rs` takes extra emulator arguments; failing boot tests in `menu_boot.rs` for AC-142..AC-146
 - [x] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [x] S5 — `menu/README.md`, gates with `STIDCART_REQUIRE_TOOLS=1`
-- [ ] S6 — audit, reconcile, closeout, PR
+- [x] S6 — audit, reconcile, closeout, PR
 
 ## DECISIONS (this work-item)
 
@@ -112,3 +112,7 @@ interrupts unmasked.
 - 2026-11-08 — S5. README: a stick table under the keys, the timing and the held-at-start rule, and
   how the stick is read and tested. The on-screen F7 help still names keys only. Adding the stick
   there would change `menu.bin` again, and no AC asks for it.
+- 2026-11-08 — audit: PASS (test-presence). `AC-142 (none)`..`AC-146 (none)` are in
+  `crates/stidcart-cli/tests/menu_boot.rs`, green at e65948e with `STIDCART_REQUIRE_TOOLS=1` (root
+  260/0, cargo 1.97.1). Closeout line appended. The refinements in this LOG are folded into D-052.
+- 2026-11-08 — reconciled: folded AC-142..AC-146 → SPEC.md/none (one new row).
