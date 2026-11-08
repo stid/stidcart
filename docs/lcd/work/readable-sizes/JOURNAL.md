@@ -11,8 +11,8 @@
 ## NOW
 
 - **Lane:** Standard
-- **Goal:** Sizes and the free figure read as KB (bytes under 1 KB, MB from 1024 KB) in `list` and the window, with exact bytes on hover and through `list --bytes` (D-044)
-- **Next action:** S6, the user's live check in the dev app, audit, reconcile, PR; deploy locally after merge
+- **Goal:** Sizes and the free figure read as KB in `list` and the window, exact bytes on hover and through `list --bytes` (D-044); type badges coloured like our menu's (D-045)
+- **Next action:** S7, the user's live check of the badge colours, audit, reconcile, PR; deploy locally after merge
 - **Branch:** feat/readable-sizes · **Updated:** 2026-11-08
 
 ## STEPS
@@ -22,7 +22,8 @@
 - [x] S3 — failing tests: core `readable_size` cases, `list` readable and `--bytes` (cmixed), the window's hover
 - [x] S4 — core `readable_size`, `Row.size_bytes`, `free_text`; `list --bytes`; DTO `sizeBytes`; hover titles
 - [x] S5 — regenerate `list` goldens and the GUI fixtures, reviewing the diff; AC-46 reads `--bytes`
-- [ ] S6 — README, both gates, deploy the app locally for the user, audit, reconcile, PR
+- [x] S6 — type badge colours (AC-118): `family` in the core row and the DTO, tokens for both themes
+- [ ] S7 — both gates, the user's live check, audit, reconcile, PR; deploy locally after merge
 
 ## DECISIONS (this work-item)
 
@@ -47,6 +48,9 @@
 - `gui/src/lib/Listing.svelte`
 - `gui/src/lib/Listing.test.ts`
 - `gui/src/lib/fixtures`
+- `gui/src/styles/tokens.css`
+- `gui/src-tauri/tests/sizes.rs`
+- `gui/src-tauri/tests/kinds.rs`
 - `README.md`
 - `Cargo.toml`
 - `Cargo.lock`
@@ -76,6 +80,11 @@ size and the free figure are the exact byte counts in decimal.
 **AC-117** (surfaces: RENDER): Given the window showing a cartridge, then each size and the free
 figure carry their exact byte count, shown on hover.
 
+**AC-118** (surfaces: RENDER): Given the window showing a cartridge, then each type badge is
+tinted by its kind's family, in the colours our menu gives that kind: programs light green, 8K
+yellow, 16K light red, Ultimax purple, multi-bank light blue, and anything else neutral. The family
+comes from the entry type, with a light-mode and a dark-mode colour pair for each.
+
 ## LOG (append-only; not read on resume)
 
 - 2026-11-08 — Triage: Standard (3 signals). The user found the hex sizes hard to read in the app.
@@ -89,4 +98,14 @@ figure carry their exact byte count, shown on hover.
   two.crt's 1,029,088 free bytes, as specified (MB from 1024 KB). Two snags: clippy wants
   `is_multiple_of`, and list.rs's AC-1 split columns on whitespace, which "102 bytes" now breaks,
   so it rejoins the size words. Root 229/0, GUI 35/0 cargo + 44/0 vitest.
+- 2026-11-08 — The user checked readable sizes in the dev app ("it's working") and asked for the
+  type badges in our menu's colours. Added to this branch, with no PR yet, to share one CI run →
+  D-045, AC-118 claimed, next free AC-119.
+- 2026-11-08 — AC-118 red: the core row had no `family`, and the badge had no attribute. Green
+  after `kind_family` in the core (from the entry type), the DTO field, `data-family` on the badge,
+  and colour tokens for both themes. Two test snags: cocean.crt's first row is a PRG, so the test
+  finds the OCEAN row by label; and vitest returns CSS empty through `?raw`, so the token and style
+  check moved to a Rust test that reads `tokens.css` and `Listing.svelte`. `family` is typed
+  `string`, like `kind`, because JSON fixtures can't satisfy a literal union. Root 230/0, GUI
+  37/0 cargo + 45/0 vitest; `list`'s goldens are unchanged.
 

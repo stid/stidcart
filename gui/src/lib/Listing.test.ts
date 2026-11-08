@@ -134,3 +134,13 @@ test('AC-117 (RENDER): every size and the free figure show their exact byte coun
   });
   expect(screen.getByText(listing.freeText)).toHaveAttribute('title', exact(listing.free));
 });
+
+test('AC-118 (RENDER): each type badge carries its family', () => {
+  const families = ['prg', '8k', '16k', 'ult', 'xb'];
+  const rows = listing.rows.map((r, i) => ({ ...r, family: families[i % families.length] }));
+  render(Listing, { props: { listing: { ...listing, rows }, file: 'two.crt' } });
+  const table = screen.getAllByRole('row').slice(1);
+  rows.forEach((r, i) => {
+    expect(within(table[i]).getByText(r.kind)).toHaveAttribute('data-family', r.family);
+  });
+});

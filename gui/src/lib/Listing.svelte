@@ -61,7 +61,7 @@
           title={f === 'H' ? 'Hidden' : f === 'A' ? '64 KB aligned' : 'Subdirectory'}>{f}</span
         >{/each}{/if}
   </td>
-  <td><span class="kind">{row.kind}</span></td>
+  <td><span class="kind" data-family={row.family}>{row.kind}</span></td>
   <td class="num mono">{row.bank}</td>
   <td class="mono muted">{row.layout}</td>
   <td class="num mono" title={exact(row.sizeBytes)}>{row.size}</td>
@@ -360,6 +360,32 @@
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     font-weight: 500;
+  }
+
+  /* The colours our C64 menu gives each kind's badge, tuned per theme for contrast (D-045). */
+  .kind[data-family='prg'] {
+    background: var(--kind-prg-bg);
+    color: var(--kind-prg-text);
+  }
+
+  .kind[data-family='8k'] {
+    background: var(--kind-8k-bg);
+    color: var(--kind-8k-text);
+  }
+
+  .kind[data-family='16k'] {
+    background: var(--kind-16k-bg);
+    color: var(--kind-16k-text);
+  }
+
+  .kind[data-family='ult'] {
+    background: var(--kind-ult-bg);
+    color: var(--kind-ult-text);
+  }
+
+  .kind[data-family='xb'] {
+    background: var(--kind-xb-bg);
+    color: var(--kind-xb-text);
   }
 
   .flag {

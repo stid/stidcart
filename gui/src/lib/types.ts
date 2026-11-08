@@ -14,6 +14,9 @@ export interface Row {
   size: string;
   /** The exact size in bytes, shown on hover. */
   sizeBytes: number;
+  /** The kind's family, which picks the type badge's colour as our menu does (D-045): `prg`,
+   * `8k`, `16k`, `ult`, `xb`, or `other`. */
+  family: string;
 }
 
 export interface Listing {

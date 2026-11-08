@@ -167,3 +167,40 @@ fn every_row_carries_its_exact_size() {
     let rows: Vec<usize> = l.rows.iter().map(|r| r.size_bytes).collect();
     assert_eq!(rows, exact);
 }
+
+/// Each row's family follows its entry type, grouping kinds the way our menu's badges do (D-045).
+#[test]
+fn every_row_carries_its_kind_family() {
+    let family_of = |label: &str| match label {
+        "PRG" | "PRG-L" | "PRG-H" => "prg",
+        "8K" => "8k",
+        "16K" => "16k",
+        "ULT8" | "ULT16" => "ult",
+        "XB8" | "XB16" | "XBULT" => "xb",
+        _ => "other",
+    };
+    let mut kinds = std::collections::BTreeSet::new();
+    for (name, bytes, code, _, _) in fixtures_with_goldens() {
+        if code != 0 {
+            continue;
+        }
+        for r in listing::describe(&bytes).unwrap().rows {
+            assert_eq!(
+                r.family,
+                family_of(r.kind),
+                "{name}: {} '{}'",
+                r.kind,
+                r.name
+            );
+            kinds.insert(r.kind);
+        }
+    }
+    for label in [
+        "PRG", "8K", "16K", "ULT8", "ULT16", "XB8", "XB16", "XBULT", "OCEAN",
+    ] {
+        assert!(
+            kinds.contains(label),
+            "no fixture lists a {label} entry, so it is untested"
+        );
+    }
+}

@@ -12,6 +12,7 @@
     "rows": [
       {
         "bank": "$05",
+        "family": "prg",
         "flags": "H",
         "index": 0,
         "kind": "PRG",
@@ -22,6 +23,7 @@
       },
       {
         "bank": "$01",
+        "family": "xb",
         "flags": "-",
         "index": 1,
         "kind": "XB16",

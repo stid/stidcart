@@ -32,6 +32,9 @@ pub struct Row {
     /// `H` hidden, `A` 64 KB aligned, `S` subdirectory bit, in that order; `-` when none is set.
     pub flags: String,
     pub kind: &'static str,
+    /// The kind's family, grouping kinds as our C64 menu's badges do (D-045): `prg`, `8k`, `16k`,
+    /// `ult`, `xb`, or `other` for the kinds our menu doesn't start.
+    pub family: &'static str,
     pub bank: String,
     pub layout: String,
     /// The size as the listing reads it ([`readable_size`]).
@@ -89,6 +92,7 @@ pub fn describe(bytes: &[u8]) -> Result<Listing, ReadError> {
             name: e.name.clone(),
             flags: flags(e),
             kind: kind_label(e.kind),
+            family: kind_family(e.kind),
             bank: format!("${:02x}", e.bank),
             layout: layout(e),
             size: readable_size(e.size as usize),
@@ -142,6 +146,18 @@ fn kind_label(kind: EntryType) -> &'static str {
         EntryType::XbankUltimax => "XBULT",
         // The walk never yields an end marker as an entry.
         EntryType::End => "END",
+    }
+}
+
+/// The family of a kind, as our menu groups kinds into its five badges (D-041, D-045).
+fn kind_family(kind: EntryType) -> &'static str {
+    match kind {
+        EntryType::Prg | EntryType::PrgRomL | EntryType::PrgRomH => "prg",
+        EntryType::K8 => "8k",
+        EntryType::K16 => "16k",
+        EntryType::Ultimax8 | EntryType::Ultimax16 => "ult",
+        EntryType::Xbank8 | EntryType::Xbank16 | EntryType::XbankUltimax => "xb",
+        EntryType::Ocean | EntryType::Ocean512 | EntryType::End => "other",
     }
 }
 

@@ -39,6 +39,8 @@ pub struct RowDto {
     pub name: String,
     pub flags: String,
     pub kind: String,
+    /// The kind's family, which picks the type badge's colour (D-045).
+    pub family: String,
     pub bank: String,
     pub layout: String,
     pub size: String,
@@ -66,6 +68,7 @@ impl From<&Row> for RowDto {
             name: r.name.clone(),
             flags: r.flags.clone(),
             kind: r.kind.to_string(),
+            family: r.family.to_string(),
             bank: r.bank.clone(),
             layout: r.layout.clone(),
             size: r.size.clone(),

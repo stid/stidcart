@@ -8,7 +8,24 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-045 -->
+<!-- Next id: D-046 -->
+
+---
+
+## D-045 · 2026-11-08 · The window colours each type badge like our menu's badge for that kind
+- **Context:** readable-sizes. With sizes readable, the user asked for the type column to carry
+  the colours our C64 menu gives each kind (D-041), so the app and the cart read the same way.
+- **Decision:** the core's listing gives each row a family next to its label: `prg` (PRG, PRG-L,
+  PRG-H), `8k`, `16k`, `ult` (ULT8, ULT16), `xb` (XB8, XB16, XBULT) and `other` (Ocean, which our
+  menu refuses). It's mapped from the entry type, never parsed from the label. The window tints the
+  badge in that family's colour: light green, yellow, light red, purple and light blue as on the C64,
+  and neutral for `other`. Each colour has a light-mode and a dark-mode pair, picked for contrast
+  rather than copied, since raw C64 yellow on white can't be read.
+- **Alternatives rejected:** the raw C64 palette, unreadable in light mode. Deriving the family
+  from the label in the window, which the types file rules out for decisions about a row. Colour in
+  `list`, where a terminal's palette is the user's own.
+- **Scope:** `stidcart-core` listing, the GUI listing and theme tokens
+- **Status:** active · refines D-044, follows D-041's colours
 
 ---
 
