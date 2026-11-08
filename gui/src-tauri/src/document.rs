@@ -44,6 +44,9 @@ pub struct DocumentDto {
     pub rows: Vec<RowActions>,
     /// Why the cart cannot be edited, in the words `edit` uses; `None` when it can.
     pub read_only: Option<String>,
+    /// The cart is view-only only because its loader slot holds no known menu, so choosing a menu
+    /// replaces it and makes the cart editable (D-050).
+    pub menu_replaceable: bool,
     pub dirty: bool,
     pub can_undo: bool,
     pub can_redo: bool,
@@ -60,9 +63,29 @@ struct Snapshot {
     bytes: Vec<u8>,
     listing: Listing,
     alignable: Vec<bool>,
+    /// Why this step cannot be edited, in `edit`'s words. Only an opened cart can be view-only, and
+    /// a menu switch from it makes a step that is not, so undoing the switch locks the cart again.
+    read_only: Option<String>,
+    menu_replaceable: bool,
 }
 
 impl Snapshot {
+    /// The step an opened file starts at: editable when `load` takes it, view-only with its reason
+    /// when not, and open to a menu switch when the loader slot is the only reason (D-050).
+    fn opened(bytes: Vec<u8>, listing: Listing) -> Snapshot {
+        match read::load(&bytes) {
+            Ok(builder) => Snapshot::new(bytes, listing, Some(&builder)),
+            Err(e) => {
+                let menu_replaceable = read::load_with_menu(&bytes, Menu::EasyLoader).is_ok();
+                Snapshot {
+                    read_only: Some(e.to_string()),
+                    menu_replaceable,
+                    ..Snapshot::new(bytes, listing, None)
+                }
+            }
+        }
+    }
+
     fn new(bytes: Vec<u8>, listing: Listing, builder: Option<&CartBuilder>) -> Snapshot {
         let alignable = match builder {
             Some(b) => b
@@ -76,6 +99,8 @@ impl Snapshot {
             bytes,
             listing,
             alignable,
+            read_only: None,
+            menu_replaceable: false,
         }
     }
 }
@@ -86,7 +111,6 @@ pub struct Document {
     at: usize,
     /// The step last saved, or opened; `None` once that step has been discarded by a new edit.
     saved: Option<usize>,
-    read_only: Option<String>,
 }
 
 impl Default for Document {
@@ -102,16 +126,11 @@ impl Document {
         let bytes =
             std::fs::read(path).map_err(|e| format!("reading '{}': {e}", path.display()))?;
         let listing = listing::describe(&bytes).map_err(|e| e.to_string())?;
-        let (snapshot, read_only) = match read::load(&bytes) {
-            Ok(builder) => (Snapshot::new(bytes, listing, Some(&builder)), None),
-            Err(e) => (Snapshot::new(bytes, listing, None), Some(e.to_string())),
-        };
         Ok(Document {
             path: Some(path.to_path_buf()),
-            history: vec![snapshot],
+            history: vec![Snapshot::opened(bytes, listing)],
             at: 0,
             saved: Some(0),
-            read_only,
         })
     }
 
@@ -125,7 +144,6 @@ impl Document {
             history: vec![Snapshot::new(bytes, listing, Some(&builder))],
             at: 0,
             saved: Some(0),
-            read_only: None,
         }
     }
 
@@ -148,7 +166,8 @@ impl Document {
                 .iter()
                 .map(|&alignable| RowActions { alignable })
                 .collect(),
-            read_only: self.read_only.clone(),
+            read_only: snap.read_only.clone(),
+            menu_replaceable: snap.menu_replaceable,
             dirty: self.is_dirty(),
             can_undo: self.at > 0,
             can_redo: self.at + 1 < self.history.len(),
@@ -158,10 +177,25 @@ impl Document {
     /// Apply one change. On success it becomes the next step and anything that could have been
     /// redone is gone; on failure the error is what `edit` says and nothing has changed.
     pub fn apply(&mut self, edit: Edit) -> Result<(), String> {
-        if let Some(reason) = &self.read_only {
-            return Err(reason.clone());
+        let chosen =
+            match &edit {
+                Edit::SetMenu { menu } => Some(Menu::from_name(menu).ok_or_else(|| {
+                    format!("no menu named '{menu}'; it is EasyLoader or stidcart")
+                })?),
+                _ => None,
+            };
+        let snap = self.current();
+        if let Some(reason) = &snap.read_only {
+            if !(snap.menu_replaceable && chosen.is_some()) {
+                return Err(reason.clone());
+            }
         }
-        let mut builder = read::load(self.bytes()).map_err(|e| e.to_string())?;
+        // A menu switch overwrites the loader slot, so it loads whatever the slot holds (D-050).
+        let loaded = match chosen {
+            Some(menu) => read::load_with_menu(self.bytes(), menu),
+            None => read::load(self.bytes()),
+        };
+        let mut builder = loaded.map_err(|e| e.to_string())?;
         match edit {
             Edit::Add { paths, aligned } => {
                 // Every file is read and classified before any is added: all of them or none.
@@ -205,14 +239,9 @@ impl Document {
             }
             Edit::SetCartName { name } => builder.set_ef_name(&name),
             Edit::SetHeaderName { name } => builder.set_header_name(&name),
-            Edit::SetMenu { menu } => {
-                let menu = Menu::from_name(&menu).ok_or_else(|| {
-                    format!("no menu named '{menu}'; it is EasyLoader or stidcart")
-                })?;
-                // The build below refuses a menu the cart can't carry, in the words `edit --menu`
-                // uses, before anything becomes a step.
-                builder.set_menu(menu);
-            }
+            // The menu is the builder's already. The build below refuses one the cart can't
+            // carry, in the words `edit --menu` uses, before anything becomes a step.
+            Edit::SetMenu { .. } => {}
         }
 
         let bytes = builder.build().map_err(|e| e.to_string())?;
@@ -249,7 +278,7 @@ impl Document {
     /// would re-place a cart another tool made without anyone asking — and an untitled one has
     /// nowhere to go, so the window asks for a path (Save As) instead.
     pub fn save(&mut self) -> Result<(), String> {
-        if let Some(reason) = &self.read_only {
+        if let Some(reason) = &self.current().read_only {
             return Err(reason.clone());
         }
         let Some(path) = self.path.clone() else {
@@ -266,7 +295,7 @@ impl Document {
     /// Write the cart to `path` and make that the cart's file from now on. The file it was opened
     /// from is not touched.
     pub fn save_as(&mut self, path: &Path) -> Result<(), String> {
-        if let Some(reason) = &self.read_only {
+        if let Some(reason) = &self.current().read_only {
             return Err(reason.clone());
         }
         write_replacing(path, self.bytes())?;

@@ -29,7 +29,7 @@
 use crate::cartridge::Cartridge;
 use crate::directory::{self, DirEntry, EntryType, Slot, ENTRY_LEN};
 use crate::image::{BANK_SIZE, N_BANKS};
-use crate::menu::Recognised;
+use crate::menu::{Menu, Recognised};
 use crate::place::Placer;
 use crate::reserved::Mode;
 use crate::{crt, reserved, CartBuilder, Program};
@@ -396,9 +396,23 @@ pub fn inspect(bytes: &[u8]) -> Result<CartInfo, ReadError> {
 /// the firmware this crate embeds — for the mode the directory implies, which is why the directory
 /// is walked first (D-024) — and no entry may carry a property `CartBuilder` cannot express.
 pub fn load(bytes: &[u8]) -> Result<CartBuilder, ReadError> {
+    load_inner(bytes, None)
+}
+
+/// [`load`] for a rebuild that switches the cart to `menu`: whatever the loader slot holds, even a
+/// menu this crate doesn't know, is not checked, because the rebuild overwrites it. Every other
+/// rebuild precondition holds as in [`load`] (D-050).
+pub fn load_with_menu(bytes: &[u8], menu: Menu) -> Result<CartBuilder, ReadError> {
+    load_inner(bytes, Some(menu))
+}
+
+fn load_inner(bytes: &[u8], replacing: Option<Menu>) -> Result<CartBuilder, ReadError> {
     let container = crt::parse(bytes)?;
     let info = read_directory(&container)?;
-    let menu = reserved::verify_regions(&container.image, info.mode())?;
+    let menu = match replacing {
+        Some(menu) => reserved::verify_regions_replacing(&container.image, info.mode(), menu)?,
+        None => reserved::verify_regions(&container.image, info.mode())?,
+    };
 
     let mut builder = CartBuilder::new()
         .with_header_name(&info.header_name)

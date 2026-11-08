@@ -18,6 +18,7 @@ function doc(overrides: Partial<Document> = {}): Document {
     listing,
     rows: listing.rows.map(() => ({ alignable: false })),
     readOnly: null,
+    menuReplaceable: false,
     dirty: false,
     canUndo: false,
     canRedo: false,
@@ -348,5 +349,27 @@ describe('editing (gui-edit)', () => {
     await w.drop(['/carts/two.crt']);
     expect(host.openDocument).toHaveBeenCalledWith('/carts/two.crt');
     expect(host.edit).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('a view-only cart whose loader is unknown (replace-loader)', () => {
+  test('AC-134 (RENDER): only a menu switch reaches the host', async () => {
+    const host = fakeHost();
+    const v = await opened(
+      host,
+      doc({ readOnly: 'reserved region menu loader differs from the embedded firmware', menuReplaceable: true }),
+    );
+    expect(v.editable).toBe(false);
+    await v.edit({ kind: 'rename', index: 0, name: 'x' });
+    expect(host.edit).not.toHaveBeenCalled();
+    await v.edit({ kind: 'setMenu', menu: 'stidcart' });
+    expect(host.edit).toHaveBeenCalledWith({ kind: 'setMenu', menu: 'stidcart' });
+  });
+
+  test('AC-135 (RENDER): a cart refused for another reason takes no menu switch', async () => {
+    const host = fakeHost();
+    const v = await opened(host, doc({ readOnly: 'reserved region EAPI differs from the embedded firmware' }));
+    await v.edit({ kind: 'setMenu', menu: 'stidcart' });
+    expect(host.edit).not.toHaveBeenCalled();
   });
 });
