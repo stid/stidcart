@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Entries carry a title, year, author, note and group, stored in a hidden `STIDCART.META` entry, round-tripped, edited by `edit` flags, a TOML import and the window, and listed (D-054)
-- **Next action:** user: GUI live check of row selection and the metadata panel, then reconcile, closeout, version bump, PR
+- **Next action:** done; PR open, merge when gate, gui and claude-review are green (user authorised). The GUI live check is left for the user (listed in the final summary)
 - **Branch:** feat/menu-meta · **Updated:** 2026-11-08
 
 ## STEPS
@@ -100,3 +100,13 @@ See `spec.md` (AC-153..AC-159).
 `spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`
 
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
+- 2026-11-08 — orchestrator: merged main (menu-resume) into the branch; DECISIONS, triage-log,
+  conventions and Cargo.lock conflicts resolved by keeping both sides. Fixed the selection risk the
+  build reported: the listing (and its selected row) survived opening another cart or New, so the
+  panel showed the entry at the same index of the next cart; the viewer now counts documents and
+  the window keys the listing on it (`viewer.test.ts`, AC-159). Selection after a remove stays on
+  the same row position, which then holds the next entry, as a list cursor does. Version
+  0.20.0 → 0.21.0.
+- 2026-11-08 — reconciled: folded AC-153..AC-155 → SPEC.md/none, AC-156..AC-157 → SPEC.md/CLI,
+  AC-158..AC-159 → SPEC.md/RENDER (three new rows). Closeout line appended. The GUI live check
+  (drive the app, select rows, edit fields) was not done by an agent; it is left for the user.
