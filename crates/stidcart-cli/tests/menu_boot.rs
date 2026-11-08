@@ -1938,26 +1938,30 @@ fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
         inputs.extend((0..3).map(|i| write(&dir, &format!("prog {i}.prg"), &hello)));
         let cart = build(&dir, "watch", &[], &inputs);
         let mut steps = vec![Step::Labels(vice::menu_labels()), idle(), Step::Keys(keys)];
-        steps.push(Step::Raw("watch store $de00\nwatch store $de02".into()));
+        // The monitor's own log: a headless VICE splits what it prints to the terminal into one
+        // "Monitor:" line per fragment, while this file reads the same in every build.
+        steps.push(Step::Raw(
+            "logname \"monlog.txt\"\nlog on\nwatch store $de00\nwatch store $de02".into(),
+        ));
         for _ in 0..STOPS {
             steps.push(Step::Raw("g\nr\nm $d01a $d01a".into()));
         }
         // The run ends at the cycle limit once the writes stop; only the log is read.
         let _ = vice::boot(&dir, &cart, &steps);
-        // The monitor's memory lines end in raw bytes, so the log is not UTF-8.
+        // The monitor's memory lines can end in raw bytes, so the log is not UTF-8.
         let log =
-            String::from_utf8_lossy(&std::fs::read(dir.join("vice.log")).unwrap()).into_owned();
+            String::from_utf8_lossy(&std::fs::read(dir.join("monlog.txt")).unwrap_or_default())
+                .into_owned();
         let writes = bank_writes(&log);
         if writes.is_empty() {
-            let internal = String::from_utf8_lossy(
-                &std::fs::read(dir.join("vice-internal.log")).unwrap_or_default(),
-            )
-            .into_owned();
+            let vice =
+                String::from_utf8_lossy(&std::fs::read(dir.join("vice.log")).unwrap_or_default())
+                    .into_owned();
             let tail = |t: &str| t.lines().rev().take(40).collect::<Vec<_>>().join("\n");
             panic!(
-                "{name}: no bank or mode write was seen\n-- vice.log, last lines reversed --\n{}\n-- vice-internal.log, last lines reversed --\n{}",
+                "{name}: no bank or mode write was seen\n-- monlog.txt, last lines reversed --\n{}\n-- vice.log, last lines reversed --\n{}",
                 tail(&log),
-                tail(&internal)
+                tail(&vice)
             );
         }
         for (i, (masked, live)) in writes.iter().enumerate() {
