@@ -386,3 +386,20 @@ describe('a view-only cart whose loader is unknown (replace-loader)', () => {
     expect(host.edit).not.toHaveBeenCalled();
   });
 });
+
+describe('the selected entry (menu-meta)', () => {
+  test('AC-159 (RENDER): opening another cart or New starts a new document generation; an edit does not', async () => {
+    const host = fakeHost({
+      pickFile: vi.fn(async () => '/carts/other.crt'),
+      confirmUnsaved: vi.fn(async () => 'discard' as const),
+    });
+    const v = await opened(host);
+    const first = v.generation;
+    await v.edit({ kind: 'remove', index: 0 });
+    expect(v.generation).toBe(first);
+    await v.pick();
+    expect(v.generation).toBe(first + 1);
+    await v.newCart();
+    expect(v.generation).toBe(first + 2);
+  });
+});

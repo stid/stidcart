@@ -1,6 +1,7 @@
 <script lang="ts">
   import EditableText from './EditableText.svelte';
   import EntryMenu from './EntryMenu.svelte';
+  import MetaPanel from './MetaPanel.svelte';
   import type { Edit, Listing, Row, RowActions } from './types';
 
   let {
@@ -35,6 +36,12 @@
   /** The row whose name is being edited, started from its menu's Rename. */
   let renaming = $state<number | null>(null);
 
+  /** The row whose metadata the panel shows, chosen by clicking it (D-054). */
+  let selected = $state<number | null>(null);
+  const selectedRow = $derived(listing.rows.find((r) => r.index === selected));
+  /** The Group column shows only when some entry has a group, so a cart without lists as before. */
+  const hasGroups = $derived(listing.rows.some((r) => r.group !== ''));
+
   /** An exact byte count, for the hover on a size the listing shows rounded (D-044). */
   function exact(bytes: number): string {
     return `${bytes.toLocaleString('en-US')} bytes`;
@@ -58,7 +65,9 @@
     {:else}
       {row.name}
     {/if}
+    {#if row.title !== ''}<span class="title">{row.title}</span>{/if}
   </td>
+  {#if hasGroups}<td class="muted">{row.group}</td>{/if}
   <td>
     {#if row.flags === '-'}<span class="faint">-</span>{:else}{#each row.flags.split('') as f (f)}<span
           class="flag"
@@ -123,6 +132,15 @@
       {:else}
         <p class="menu">menu <span>{listing.menu}</span></p>
       {/if}
+      {#if listing.metaDropped > 0}
+        <p class="meta-note">
+          {listing.metaDropped} metadata {listing.metaDropped === 1 ? 'record' : 'records'} dropped: no entry
+          matches {listing.metaDropped === 1 ? 'it' : 'them'} any more
+        </p>
+      {/if}
+      {#if listing.metaKept !== null}
+        <p class="meta-note">Metadata {listing.metaKept}</p>
+      {/if}
     </div>
     <dl class="stats">
       <div>
@@ -145,6 +163,7 @@
           <tr>
             <th class="num">#</th>
             <th>Name</th>
+            {#if hasGroups}<th>Group</th>{/if}
             <th>Flags</th>
             <th>Type</th>
             <th class="num">Bank</th>
@@ -159,7 +178,7 @@
               {@const actions = rows[i] ?? { alignable: false }}
               <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace}>
                 {#snippet children(props)}
-                  <tr {...props}>
+                  <tr {...props} aria-selected={selected === row.index} onclick={() => (selected = row.index)}>
                     {@render cells(row)}
                     <td class="more-col">
                       <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} />
@@ -168,12 +187,15 @@
                 {/snippet}
               </EntryMenu>
             {:else}
-              <tr>{@render cells(row)}</tr>
+              <tr aria-selected={selected === row.index} onclick={() => (selected = row.index)}>{@render cells(row)}</tr>
             {/if}
           {/each}
         </tbody>
       </table>
     </div>
+    {#if selectedRow}
+      <MetaPanel row={selectedRow} {editable} onedit={edit} />
+    {/if}
   {/if}
 </section>
 
@@ -406,6 +428,23 @@
     color: var(--accent);
     font-size: var(--text-xs);
     font-weight: 600;
+  }
+
+  .title {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+
+  .meta-note {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+  }
+
+  tbody tr[aria-selected='true'] {
+    background: var(--accent-soft);
   }
 
   .none {

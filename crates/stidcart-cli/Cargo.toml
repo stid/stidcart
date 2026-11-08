@@ -15,3 +15,4 @@ path = "src/main.rs"
 
 [dependencies]
 stidcart-core = { path = "../stidcart-core" }
+toml = { version = "1.2.1", default-features = false, features = ["std", "parse", "serde"] }

@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use stidcart_core::listing::{self, Listing};
 use stidcart_core::menu::Menu;
+use stidcart_core::meta::Field;
 use stidcart_core::{read, CartBuilder, Entry, InputError};
 
 use crate::ListingDto;
@@ -20,15 +21,45 @@ use crate::ListingDto;
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Edit {
-    Add { paths: Vec<String>, aligned: bool },
-    Remove { index: usize },
-    Rename { index: usize, name: String },
-    Replace { index: usize, path: String },
-    SetHidden { index: usize, hidden: bool },
-    SetAligned { index: usize, aligned: bool },
-    SetCartName { name: String },
-    SetHeaderName { name: String },
-    SetMenu { menu: String },
+    Add {
+        paths: Vec<String>,
+        aligned: bool,
+    },
+    Remove {
+        index: usize,
+    },
+    Rename {
+        index: usize,
+        name: String,
+    },
+    Replace {
+        index: usize,
+        path: String,
+    },
+    SetHidden {
+        index: usize,
+        hidden: bool,
+    },
+    SetAligned {
+        index: usize,
+        aligned: bool,
+    },
+    SetCartName {
+        name: String,
+    },
+    SetHeaderName {
+        name: String,
+    },
+    SetMenu {
+        menu: String,
+    },
+    /// One metadata field, by the name `edit` uses for its option (`title`, `year`, …); an empty
+    /// value clears it (D-054).
+    SetMeta {
+        index: usize,
+        field: String,
+        value: String,
+    },
 }
 
 /// What the window knows about the open cart. Mirrored by `Document` in `gui/src/lib/types.ts`
@@ -239,6 +270,19 @@ impl Document {
             }
             Edit::SetCartName { name } => builder.set_ef_name(&name),
             Edit::SetHeaderName { name } => builder.set_header_name(&name),
+            Edit::SetMeta {
+                index,
+                field,
+                value,
+            } => {
+                check_index(&builder, index)?;
+                let field = Field::from_name(&field).ok_or_else(|| {
+                    format!("no metadata field named '{field}'; it is title, year, author, note or group")
+                })?;
+                builder
+                    .set_meta(index, field, &value)
+                    .map_err(|e| e.to_string())?;
+            }
             // The menu is the builder's already. The build below refuses one the cart can't
             // carry, in the words `edit --menu` uses, before anything becomes a step.
             Edit::SetMenu { .. } => {}

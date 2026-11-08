@@ -43,15 +43,17 @@
 
   <main>
     {#if doc}
-      <Listing
-        listing={doc.listing}
-        file={doc.file}
-        readOnly={doc.readOnly}
-        menuReplaceable={doc.menuReplaceable}
-        rows={doc.rows}
-        onedit={(e) => void viewer.edit(e)}
-        onreplace={(index) => void viewer.replace(index)}
-      />
+      {#key viewer.generation}
+        <Listing
+          listing={doc.listing}
+          file={doc.file}
+          readOnly={doc.readOnly}
+          menuReplaceable={doc.menuReplaceable}
+          rows={doc.rows}
+          onedit={(e) => void viewer.edit(e)}
+          onreplace={(index) => void viewer.replace(index)}
+        />
+      {/key}
     {:else if viewer.state.kind === 'error'}
       <ErrorState file={viewer.state.file} message={viewer.state.message} />
     {:else}
