@@ -1,6 +1,7 @@
 //! custom-menu: our menu on the C64, proven by booting carts in VICE (AC-87..AC-92), and the CI
 //! requirement that these boots run rather than skip (AC-94). menu-search-sort adds its filter and
-//! sort toggle (AC-96..AC-101), and menu-look its colours and bars (AC-102..AC-104).
+//! sort toggle (AC-96..AC-101), and menu-look its colours and bars (AC-102..AC-104). menu-joystick
+//! drives a stick in port 2 through VICE's I/O simulation device (AC-142..AC-146).
 //!
 //! The reference tool knows nothing of this menu, so the oracle has decayed to the emulator (MAP
 //! invariant). Every wait is a `break exec` on the menu's `menu_idle` label or on a marker's fixed
@@ -13,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use support::markers::{self, CartKind, Marker};
-use support::vice::{self, key, Step, Target};
+use support::vice::{self, key, stick, Step, Target};
 
 const SCREEN: (u16, u16) = (0x0400, 0x07e7);
 
@@ -72,7 +73,11 @@ fn press_then_wait(keys: &[u8], spin: u16) -> Vec<Step> {
 }
 
 fn boot_or_panic(dir: &Path, cart: &Path, steps: &[Step]) -> Vec<Vec<u8>> {
-    vice::boot(dir, cart, steps).unwrap_or_else(|| {
+    boot_or_panic_with(dir, cart, &[], steps)
+}
+
+fn boot_or_panic_with(dir: &Path, cart: &Path, extra: &[&str], steps: &[Step]) -> Vec<Vec<u8>> {
+    vice::boot_with(dir, cart, extra, steps).unwrap_or_else(|| {
         panic!(
             "x64sc never reached the last breakpoint. Scratch dir left at {} — reproduce by hand \
              before suspecting the menu.",
@@ -452,6 +457,13 @@ fn typed(text: &str) -> Vec<u8> {
 /// empty group dumps the screen as it is.
 fn screens_after(dir: &Path, cart: &Path, groups: &[Vec<u8>]) -> Vec<Vec<u8>> {
     let mut steps = vec![Step::Labels(vice::menu_labels())];
+    steps.extend(group_steps(groups));
+    boot_or_panic(dir, cart, &steps)
+}
+
+/// The steps of [`screens_after`] after the labels.
+fn group_steps(groups: &[Vec<u8>]) -> Vec<Step> {
+    let mut steps = Vec::new();
     for group in groups {
         for chunk in group.chunks(10) {
             steps.push(idle());
@@ -460,7 +472,7 @@ fn screens_after(dir: &Path, cart: &Path, groups: &[Vec<u8>]) -> Vec<Vec<u8>> {
         steps.push(idle());
         steps.push(screen());
     }
-    boot_or_panic(dir, cart, &steps)
+    steps
 }
 
 /// `name.prg` in a directory of its own, so names equal but for case can share one cart on a
@@ -2553,5 +2565,310 @@ fn ac_141_f7_shows_help_and_any_key_returns() {
                 );
             }
         }
+    }
+}
+
+// --- menu-joystick: a stick in port 2 (AC-142..AC-146, D-052) ---------------------------------------
+//
+// The stick is VICE's "Joyport I/O simulation" device, set from the monitor with `jpdb`, which CIA1
+// reads as it reads a real stick. Its lines stay as set while warp runs any number of frames, so the
+// clock here is the frame: the raster interrupt enters `irq` once a frame (D-048), and `frames(n)`
+// stops at its n-th entry. The menu reaches `menu_idle` only with the keyboard buffer empty and the
+// stick seen at rest, so a release followed by `idle()` is a release the menu has read.
+
+/// Run `n` frames.
+fn frames(n: usize) -> Step {
+    Step::Raw(format!("break exec .irq\n{}del", "g\n".repeat(n)))
+}
+
+/// Press `lines` for `n` frames, release, and wait until the menu has seen the release.
+fn hold(lines: u8, n: usize) -> Vec<Step> {
+    vec![
+        Step::Stick(lines),
+        frames(n),
+        Step::Stick(stick::REST),
+        idle(),
+    ]
+}
+
+/// Boot with the stick device in port 2, its lines set to `first` before anything runs, then run
+/// `steps` with the menu's labels loaded.
+fn boot_stick(dir: &Path, cart: &Path, first: u8, steps: Vec<Step>) -> Vec<Vec<u8>> {
+    let mut all = vec![Step::Stick(first), Step::Labels(vice::menu_labels())];
+    all.extend(steps);
+    boot_or_panic_with(dir, cart, &vice::STICK_DEVICE, &all)
+}
+
+/// A cart of programs named e01, e02, … in that order.
+fn numbered_cart(dir: &Path, n: usize) -> PathBuf {
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs: Vec<PathBuf> = (1..=n)
+        .map(|i| write(dir, &format!("e{i:02}.prg"), &hello))
+        .collect();
+    build(dir, "stick", &[], &inputs)
+}
+
+/// The position row 22 starts with: the selection's number among those listed.
+fn position(screen: &[u8]) -> usize {
+    let digits: String = row(screen, STATUS_ROW)[1..]
+        .iter()
+        .take_while(|b| (0x30..=0x39).contains(*b))
+        .map(|&b| b as char)
+        .collect();
+    digits
+        .parse()
+        .unwrap_or_else(|_| panic!("row 22 does not start with a position"))
+}
+
+/// AC-142 (none): with the stick at rest, down moves the selection one entry down, up one back, and
+/// right and left a page, as CRSR → and CRSR ← do (D-051).
+#[test]
+fn ac_142_the_stick_moves_the_selection_as_the_cursor_keys_do() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-142: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac142");
+    let cart = numbered_cart(&dir, 40);
+    let mut steps = vec![idle()];
+    for lines in [
+        stick::DOWN,
+        stick::DOWN,
+        stick::UP,
+        stick::RIGHT,
+        stick::LEFT,
+    ] {
+        // Three frames: well inside the first delay, so one press is one move.
+        steps.extend(hold(lines, 3));
+        steps.push(screen());
+    }
+    let d = boot_stick(&dir, &cart, stick::REST, steps);
+    let (first, last) = (LIST_ROWS.start, LIST_ROWS.end - 1);
+    for (s, name, pos, what) in [
+        (&d[0], "e02", "2 of 40", "down"),
+        (&d[1], "e03", "3 of 40", "down again"),
+        (&d[2], "e02", "2 of 40", "up"),
+        (&d[3], "e18", "18 of 40", "right: a page down"),
+        (&d[4], "e02", "2 of 40", "left: a page up"),
+    ] {
+        assert_selected(s, name, what);
+        assert!(
+            row_shows(s, STATUS_ROW, pos),
+            "{what}: the position is not '{pos}'"
+        );
+    }
+    assert_eq!(assert_selected(&d[3], "e18", "right"), last, "right: row");
+    assert_eq!(assert_selected(&d[4], "e02", "left"), first, "left: row");
+}
+
+/// AC-143 (none): held down, the stick moves the selection more than one entry, about ten a second
+/// after a first delay of about 0.4 s (D-052), and the selection stops once the stick is released.
+#[test]
+fn ac_143_a_held_stick_repeats_and_stops_when_released() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-143: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac143");
+    let cart = numbered_cart(&dir, 40);
+    let mut steps = vec![idle()];
+    steps.extend(hold(stick::DOWN, 60));
+    steps.push(screen());
+    steps.push(frames(60));
+    steps.push(idle());
+    steps.push(screen());
+    let d = boot_stick(&dir, &cart, stick::REST, steps);
+
+    let at = position(&d[0]);
+    assert_selected(&d[0], &format!("e{at:02}"), "held for 60 frames");
+    // A press, then repeats from 20 frames on, one every 5: nine moves in 60 frames. A repeat every
+    // loop or every frame would reach the end; no repeat would leave one move.
+    let moves = at - 1;
+    assert!(
+        (5..=12).contains(&moves),
+        "held for 60 frames (1.2 s), the selection moved {moves} entries, not about nine"
+    );
+    assert_eq!(
+        d[0], d[1],
+        "the selection moved after the stick was released"
+    );
+}
+
+/// AC-144 (none): fire starts the selected program or cartridge as RETURN does, leaving AC-128's exit
+/// state (IRQ vector at $EA31, raster interrupt off). Fire held while the menu starts does nothing
+/// until it is released and pressed again.
+#[test]
+fn ac_144_fire_starts_the_selection_and_a_held_fire_waits_for_a_release() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-144: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac144");
+    let prg = markers::basic_prg("FIRE PROGRAM RAN");
+    let k8 = markers::cart(CartKind::K8, "FIRE CART RAN");
+    let cart = build(
+        &dir,
+        "fire",
+        &[],
+        &[
+            write(&dir, "a prog.prg", &prg.bytes),
+            write(&dir, "b cart.crt", &k8.bytes),
+        ],
+    );
+
+    // Fire held from power-on: 40 frames of the menu, then release, then press.
+    let d = boot_stick(
+        &dir,
+        &cart,
+        stick::FIRE,
+        vec![
+            Step::Break(Target::Label("loop")),
+            frames(40),
+            screen(),
+            Step::Stick(stick::REST),
+            idle(),
+            Step::Stick(stick::FIRE),
+            Step::Break(Target::Addr(prg.spin)),
+            screen(),
+            Step::Dump(0x0314, 0x0315),
+            Step::Dump(0xd01a, 0xd01a),
+        ],
+    );
+    assert!(
+        !shows(&d[0], &prg.text),
+        "fire held at start started the program"
+    );
+    assert_selected(&d[0], "a prog", "fire held at start");
+    assert_marker(&d[1], &prg);
+    assert_eq!(d[2], [0x31, 0xea], "fire on a program: the IRQ vector");
+    assert_eq!(d[3][0] & 0x0f, 0, "fire on a program: a VIC interrupt");
+
+    // A cartridge, reached with the stick too.
+    let mut steps = vec![idle()];
+    steps.extend(hold(stick::DOWN, 3));
+    steps.extend([
+        Step::Stick(stick::FIRE),
+        Step::Break(Target::Addr(k8.spin)),
+        screen(),
+        Step::Dump(0x0314, 0x0315),
+        Step::Dump(0xd01a, 0xd01a),
+    ]);
+    let d = boot_stick(&dir, &cart, stick::REST, steps);
+    assert_marker(&d[0], &k8);
+    assert_eq!(d[1], [0x31, 0xea], "fire on a cartridge: the IRQ vector");
+    assert_eq!(d[2][0] & 0x0f, 0, "fire on a cartridge: a VIC interrupt");
+}
+
+/// AC-145 (none): on the help screen (F7), a stick move or fire returns to the menu as it was, and
+/// that input does nothing else, however long it is held.
+#[test]
+fn ac_145_the_stick_leaves_the_help_and_does_nothing_else() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-145: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac145");
+    let cart = numbered_cart(&dir, 40);
+    let look = || [screen(), Step::Dump(COLOUR_RAM.0, COLOUR_RAM.1)];
+    let mut steps = vec![idle()];
+    steps.extend(hold(stick::DOWN, 3));
+    steps.extend(look());
+    let inputs = [stick::DOWN, stick::FIRE, stick::RIGHT, stick::UP];
+    for lines in inputs {
+        steps.push(Step::Keys(vec![key::F7]));
+        steps.push(idle());
+        steps.push(screen());
+        // 40 frames: past the first delay and several repeats.
+        steps.extend(hold(lines, 40));
+        steps.extend(look());
+    }
+    let d = boot_stick(&dir, &cart, stick::REST, steps);
+    let (before, colours) = (&d[0], &d[1]);
+    assert_selected(before, "e02", "the set-up");
+    for (i, lines) in inputs.iter().enumerate() {
+        let what = format!("stick {lines:02x} on the help");
+        let help = &d[2 + i * 3];
+        assert!(listed(help, "e02").is_none(), "{what}: F7 showed no help");
+        let (after, after_colours) = (&d[3 + i * 3], &d[4 + i * 3]);
+        assert!(
+            after == before,
+            "{what}: the menu did not come back as it was"
+        );
+        for c in 0..1000 {
+            if before[c] != 0x20 {
+                assert_eq!(
+                    after_colours[c], colours[c],
+                    "{what}: the colour of cell {c} changed"
+                );
+            }
+        }
+    }
+}
+
+/// AC-146 (none): with the stick at rest in port 2 the keyboard works as before, and AC-127 holds
+/// while the stick is used: no write to $DE00/$DE02 with the raster interrupt live and unmasked.
+#[test]
+fn ac_146_the_keyboard_works_beside_the_stick_and_no_bank_moves_under_the_interrupt() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-146: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac146");
+    let cart = numbered_cart(&dir, 40);
+    let groups = [
+        vec![key::DOWN, key::DOWN],
+        vec![key::RIGHT],
+        typed("e1"),
+        vec![key::F1],
+        vec![key::F7],
+        vec![key::RETURN],
+        vec![key::CLR],
+    ];
+    let without = screens_after(&dir, &cart, &groups);
+    let with = boot_stick(&dir, &cart, stick::REST, group_steps(&groups));
+    assert_selected(&with[0], "e03", "two DOWNs beside the stick");
+    assert_selected(&with[1], "e19", "CRSR right beside the stick");
+    assert_eq!(
+        with, without,
+        "the keyboard does not do with the stick at rest what it does without one"
+    );
+
+    // AC-127's watch, with the stick browsing onto programs (each one's pane maps its bank in) and
+    // fire starting one. A breakpoint step deletes every checkpoint, so after the watch only g, r, m
+    // and jpdb run: the first four bank writes are the press and the first repeat, then fire.
+    let dir = scratch("ac146-watch");
+    let k8 = markers::cart(CartKind::K8, "STICK WATCH CART");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let mut inputs = vec![write(&dir, "k8.crt", &k8.bytes)];
+    inputs.extend((0..5).map(|i| write(&dir, &format!("prog {i}.prg"), &hello)));
+    let cart = build(&dir, "watch", &[], &inputs);
+    let stop = || Step::Raw("g\nr\nm $d01a $d01a".into());
+    let mut steps = vec![
+        Step::Stick(stick::REST),
+        Step::Labels(vice::menu_labels()),
+        idle(),
+        Step::Stick(stick::DOWN),
+        Step::Raw("logname \"monlog.txt\"\nlog on\nwatch store $de00\nwatch store $de02".into()),
+    ];
+    steps.extend((0..4).map(|_| stop()));
+    steps.push(Step::Stick(stick::FIRE));
+    steps.extend((0..56).map(|_| stop()));
+    // The run ends at the cycle limit once the writes stop; only the log is read.
+    let _ = vice::boot_with(&dir, &cart, &vice::STICK_DEVICE, &steps);
+    let log = String::from_utf8_lossy(&std::fs::read(dir.join("monlog.txt")).unwrap_or_default())
+        .into_owned();
+    let writes = bank_writes(&log);
+    // The moves' four, then the start's: its load address read, the mode set for BASIC, the trap's
+    // copy and the hand-over.
+    assert!(
+        writes.len() >= 10,
+        "only {} bank or mode writes: the stick did not browse and start a program",
+        writes.len()
+    );
+    for (i, (masked, live)) in writes.iter().enumerate() {
+        assert!(
+            *masked || !*live,
+            "write {i} to $DE00/$DE02 with the raster interrupt live and unmasked"
+        );
     }
 }

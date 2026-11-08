@@ -12,14 +12,14 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu takes a joystick in port 2: moves, paging and fire act as the keys do, with repeat while held (D-052)
-- **Next action:** S3 — failing boot tests for AC-142..AC-146
+- **Next action:** S4 — the stick in `menu.s`, rebuild, fingerprint
 - **Branch:** feat/menu-joystick · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.18.0 → 0.19.0 (first commit on the branch)
 - [x] S2 — triage, D-052, AC-142..AC-146 claimed, this JOURNAL
-- [ ] S3 — `support/vice.rs` takes extra emulator arguments; failing boot tests in `menu_boot.rs` for AC-142..AC-146
+- [x] S3 — `support/vice.rs` takes extra emulator arguments; failing boot tests in `menu_boot.rs` for AC-142..AC-146
 - [ ] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
@@ -90,3 +90,11 @@ interrupts unmasked.
   fixed arguments, so it needs a way to add the device for these tests only. A recon script that
   worked is at the session scratchpad `recon-vice/work/joy/mon.txt`. AC-142..AC-146 claimed, next
   free AC-147.
+- 2026-11-08 — S3. `vice.rs`: `boot_with` (extra args), `Step::Stick` (`jpdb 1 xx`), `stick::*`,
+  `STICK_DEVICE`. Tests use frames as the clock (`break exec .irq` + n×`g`), not handler labels:
+  press, n frames, release, `menu_idle`. The menu will reach `menu_idle` only with the stick seen at
+  rest, so that idle proves the release was read. AC-146's watch scenario uses raw `g`/`jpdb` only
+  after the watches, since a `Step::Break` `del` clears them. Red run: AC-142 "down: e02 is not the
+  one selected" (still e01); AC-143 "moved 0 entries"; AC-144 held-fire screen dumped, then fire never
+  reached the program's spin; AC-145 set-up "e02 is not the one selected"; AC-146 keyboard half green
+  (same screens with the device at rest), watch half "only 0 bank or mode writes".
