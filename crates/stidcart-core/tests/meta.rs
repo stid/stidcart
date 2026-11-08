@@ -400,3 +400,17 @@ fn ac_155_metadata_over_16_kb_is_refused_naming_the_sizes() {
     );
     assert!(err.to_string().contains("16384"), "{err}");
 }
+
+// D-027 with metadata: the free figure counts the metadata entry, so a program of exactly that
+// size can be added and one byte more cannot.
+#[test]
+fn the_free_figure_counts_the_metadata_entry() {
+    let b = annotated();
+    let free = b.free_space();
+    assert!(free < three().free_space(), "the metadata takes room");
+    for (size, fits) in [(free, true), (free + 1, false)] {
+        let mut more = b.clone();
+        more.push(Program::new("probe", vec![0; size]));
+        assert_eq!(more.build().is_ok(), fits, "a program of {size} bytes");
+    }
+}
