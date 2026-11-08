@@ -7,7 +7,7 @@
 **Slug:** `menu-meta`
 **Spec:** [`spec.md`](./spec.md) • **Plan:** [`plan.md`](./plan.md) • **Journal:** [`JOURNAL.md`](./JOURNAL.md)
 **Created:** 2026-11-08
-**Status:** in_progress
+**Status:** completed
 
 ---
 
@@ -52,8 +52,8 @@ Implementation (red-green, phase 5):
 
 Close:
 
-- [ ] **T-audit**: `LCD_SPECS_DIR=docs/lcd/work docs/lcd/ci/audit-crosspath.sh menu-meta`, saved as `audit.md`, with zero MISSING/BLOCKED rows
-- [ ] **T-final**: `cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace` (once with `STIDCART_REQUIRE_TOOLS=1`) and `docs/lcd/ci/gui-gate.sh`, all green
+- [x] **T-audit**: `LCD_SPECS_DIR=docs/lcd/work docs/lcd/ci/audit-crosspath.sh menu-meta`, saved as `audit.md`, with zero MISSING/BLOCKED rows
+- [x] **T-final**: `cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace` (once with `STIDCART_REQUIRE_TOOLS=1`) and `docs/lcd/ci/gui-gate.sh`, all green
 
 ## Checkpoint validation
 
