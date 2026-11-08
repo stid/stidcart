@@ -52,6 +52,9 @@ pub enum Step {
     Dump(u16, u16),
     /// Monitor lines passed through unchanged, for a recipe the steps above don't express.
     Raw(String),
+    /// Save VICE's picture of the screen as a BMP; it becomes the next element of the result, read
+    /// it with [`Shot::parse`]. Screen RAM can't show what a raster interrupt does; this can.
+    Shot,
 }
 
 /// Whether `name` is on PATH. Absent, the caller skips — unless `STIDCART_REQUIRE_TOOLS=1`, as CI
@@ -110,6 +113,11 @@ fn script(steps: &[Step]) -> (String, Vec<String>) {
             Step::Dump(start, end) => {
                 let name = format!("dump{}.bin", dumps.len());
                 mon.push_str(&format!("bsave \"{name}\" 0 ${start:04x} ${end:04x}\n"));
+                dumps.push(name);
+            }
+            Step::Shot => {
+                let name = format!("dump{}.bmp", dumps.len());
+                mon.push_str(&format!("screenshot \"{name}\" 0\n"));
                 dumps.push(name);
             }
             Step::Raw(lines) => {
@@ -270,6 +278,58 @@ pub fn find(screen: &[u8], pattern: &[u8]) -> Option<usize> {
 /// Whether the `len` screen cells from `at` are all shown in reverse video.
 pub fn is_reversed(screen: &[u8], at: usize, len: usize) -> bool {
     screen[at..at + len].iter().all(|b| b & 0x80 != 0)
+}
+
+/// A VICE screenshot as VIC-II colour numbers, one a pixel. VICE saves a 4-bit BMP whose palette is
+/// in the VIC-II's order, so a pixel's palette index is its colour; `parse` checks that the palette
+/// starts black, white, as the VIC's does, rather than trusting it.
+pub struct Shot {
+    pub width: usize,
+    pub height: usize,
+    px: Vec<u8>,
+}
+
+impl Shot {
+    pub fn parse(bmp: &[u8]) -> Shot {
+        assert_eq!(&bmp[..2], b"BM", "the screenshot is not a BMP");
+        let word = |o: usize| u32::from_le_bytes(bmp[o..o + 4].try_into().unwrap());
+        let (data, header) = (word(10) as usize, word(14) as usize);
+        let width = word(18) as usize;
+        let height = word(22) as i32;
+        let bpp = u16::from_le_bytes(bmp[28..30].try_into().unwrap());
+        assert_eq!(
+            (bpp, word(30)),
+            (4, 0),
+            "want an uncompressed 4-bit BMP from VICE"
+        );
+        assert!(height > 0, "want VICE's bottom-up rows");
+        let palette = &bmp[14 + header..];
+        assert_eq!(
+            (&palette[0..3], &palette[4..7]),
+            (&[0u8, 0, 0][..], &[0xffu8, 0xff, 0xff][..]),
+            "the palette is not in the VIC-II's order"
+        );
+        let height = height as usize;
+        let stride = (width * 4).div_ceil(32) * 4;
+        let mut px = Vec::with_capacity(width * height);
+        for y in 0..height {
+            let line = &bmp[data + (height - 1 - y) * stride..];
+            px.extend((0..width).map(|x| {
+                let b = line[x / 2];
+                if x % 2 == 0 {
+                    b >> 4
+                } else {
+                    b & 0x0f
+                }
+            }));
+        }
+        Shot { width, height, px }
+    }
+
+    /// The colour at (x, y), y from the top.
+    pub fn at(&self, x: usize, y: usize) -> u8 {
+        self.px[y * self.width + x]
+    }
 }
 
 #[cfg(test)]

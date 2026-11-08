@@ -12,16 +12,16 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu wears the raster brand (D-048): white logo beside the multicolour cartridge mark, a five-scanline raster strip under the cart name, an orange selection bar, the raster interrupt safe on every path
-- **Next action:** S3, failing tests in `menu_boot.rs` for AC-123..AC-128, with a BMP screenshot step in `support/vice.rs`
+- **Next action:** S5, menu README, one NTSC run, then VICE live for the user
 - **Branch:** feat/menu-raster · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.15.0 → 0.16.0 (first commit on the branch)
 - [x] S2 — triage, D-048, AC-123..AC-128 claimed, this JOURNAL
-- [ ] S3 — failing tests: the look (AC-123, updating AC-105..AC-107's frame), the strip and the mark from screenshots (AC-124, AC-125), frames (AC-126), bank switches (AC-127), exits (AC-128) ← next
-- [ ] S4 — port the prototype into `menu/src/menu.s` (irq_off on every start, the late-entry guard), rebuild `menu.bin` and `menu.lbl`
-- [ ] S5 — README, one NTSC run, VICE live run for the user
+- [x] S3 — failing tests: the look (AC-123, updating AC-105..AC-107's frame), the strip and the mark from screenshots (AC-124, AC-125), frames (AC-126), bank switches (AC-127), exits (AC-128)
+- [x] S4 — port the prototype into `menu/src/menu.s` (irq_off on every start, the late-entry guard), rebuild `menu.bin` and `menu.lbl`
+- [ ] S5 — README, one NTSC run, VICE live run for the user  ← next
 - [ ] S6 — gates with STIDCART_REQUIRE_TOOLS=1, audit, reconcile, PR
 
 ## DECISIONS (this work-item)
@@ -85,3 +85,13 @@ menu left them.
   the load address (another bank) with the handler armed, and the cart start left `$0314` in menu
   ROM. Both close with `irq_off` before any start path maps a bank in. The canvas board's "masked
   around that read" was true for the pane only; it will be true for both reads after S4.
+- 2026-11-08 — S3 red as expected on the stock menu: AC-106/107/123..127 (AC-126 has no `irq`
+  label to break on). AC-127 and AC-128 pass on the stock menu, which has no raster interrupt, so
+  both were run against the option-3 prototype too: AC-128 caught its cart start leaving `$0314` in
+  menu ROM, and AC-127 caught its program start mapping a bank in with the handler live, once its
+  browse scenario was made to end on a program (F1 had put the cart first).
+- 2026-11-08 — S4: `irq_off` before each start maps a bank in, a `stop` routine for RUN/STOP, `sei`
+  around the pane's load-address read, a late-entry guard in the handler. 4040 of 8192 bytes.
+  Green: menu_boot 36/0, root gate 237/0 with STIDCART_REQUIRE_TOOLS=1. VICE's BMP screenshots are
+  4-bit with the palette in VIC-II order, so a pixel is its C64 colour number; `Shot::parse` checks
+  the palette starts black, white.
