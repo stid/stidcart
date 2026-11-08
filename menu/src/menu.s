@@ -50,6 +50,7 @@ RULE    = $6a
 TRACK   = $6b
 THUMB   = $6c
 QUARTER = $6d                   ; sixteen: the quarter-block cells of the logo
+FOLDER  = $7d                   ; two: the folder badge, left then right half (D-057)
 MARK    = $ea                   ; nine: the cartridge mark, 3x3 multicolour cells row by row. These are
                                 ; reversed codes of the glyphs above, which names never reach either
 
@@ -109,6 +110,8 @@ lead    = $fe
 tmp     = $02
 scr     = $22                   ; 2 bytes: a screen cell, while the menu draws (BASIC is not running)
 clr     = $24                   ; 2 bytes: the same cell's colour
+rp      = $26                   ; 2 bytes: a metadata record
+txt     = $28                   ; 2 bytes: before's second text
 
 ; The menu's own variables. Nothing here outlives the menu: a program it starts may load over them.
 visible = $c000                 ; slot numbers of the visible entries, in directory order
@@ -144,7 +147,23 @@ joy_jiffy = $c12c               ; the jiffy of that sample
 joy_due = $c12d                 ; the jiffy a held direction repeats at
 joy_dead = $c12e                ; non-zero: a held direction does nothing until released
 nslots  = $c12f                 ; the directory's entries, hidden ones too
-srow    = $c150                 ; the screen row a list row goes to
+folder  = $c130                 ; the open folder's group, 0 at the top level (D-057)
+nfold   = $c131                 ; how many of shown, from its start, are folder rows (their groups)
+ngroups = $c132                 ; the metadata's groups, 0 without metadata
+mslot   = $c133                 ; the metadata entry's slot
+pend    = $c134                 ; 2 bytes: one past the metadata payload
+rleft   = $c136                 ; records still to read
+mlen    = $c137                 ; how long a text find searches
+prow    = $c138                 ; the pane row drawn next
+dense   = $c139                 ; non-zero: the selection has a field set, so its facts take every row
+blen    = $c13a                 ; before's text lengths
+alen    = $c13b
+wlen    = $c13c                 ; what wrap has left to write
+fld     = $c13d                 ; the pane's field, 0 title to 3 note
+fy      = $c13e                 ; where the next field's length is in its record
+gno     = $c13f                 ; the folder row's group
+bcode   = $c140                 ; the row's badge code
+srow    = $c150                ; the screen row a list row goes to
 kind    = $c151                 ; the entry's kind: 0 program, 1 8K, 2 16K, 3 Ultimax, 4 multi-bank
 ipen    = $c152                 ; the icon's colour
 old     = $c153                 ; the selection before a move
@@ -162,6 +181,19 @@ sorted  = $c200                 ; the visible entries' slot numbers, A-Z
 shown   = $c300                 ; the ones listed: visible or sorted, filtered
 name_lo = $c400                 ; each directory slot's address, by slot number
 name_hi = $c500
+rec_lo  = $c600                 ; each slot's metadata record, by slot number; rec_hi 0 for none
+rec_hi  = $c700
+grp     = $c800                 ; each slot's group, 0 for none
+fcount  = $c900                 ; each group's visible entries, by group number
+
+; The metadata entry's payload, copied here at boot (D-057). VIC bank 0 doesn't show it, and a
+; program the menu starts may load over it.
+META      = $4000
+M_VERSION = META + 8
+M_GROUPS  = META + 9
+M_RECORDS = META + 10
+M_FIRST   = META + 11           ; 2 bytes, the first record's offset
+M_NAMES   = META + 13           ; 16 bytes a group, group 1 first
 
         * = $8000
         .word entry
@@ -178,6 +210,8 @@ entry:
 
 back_from_init:
         jsr charset_init        ; interrupts are still off, as it needs
+        jsr scan
+        jsr meta_load           ; still off: it maps other banks in (D-057)
         jsr irq_on
         cli
         lda #BLACK
@@ -193,10 +227,10 @@ back_from_init:
         sta sorted_ok
         sta kinds
         sta helping
+        sta folder
         lda #$1f                ; as if every line were held: what is held at the start waits for
         sta joy_last            ; a release, so a stick resting on fire starts nothing (D-052)
         sta joy_dead
-        jsr scan
         jsr draw_frame
         jsr restore
         bcs +
@@ -274,12 +308,16 @@ toggle:
         jsr sort_az             ; once: the directory never changes while the menu runs
         jmp refresh
 
+; DEL: the last character of the text; with none, out of the folder (D-057).
 erase:
         lda qlen
+        beq +
+        dec qlen
+        jmp refresh
++       lda folder
         bne +
         jmp loop
-+       dec qlen
-        jmp refresh
++       jmp back
 
 ; F3: all, programs, cartridges, then all again.
 kind_next:
@@ -444,6 +482,25 @@ show_help:
         jsr draw_help
         jmp loop
 
+; Out of the folder to the top level, with its row selected, and without the text (D-057). Its row
+; is listed: the folder was opened from it.
+back:
+        lda folder
+        sta cur
+        ldx #0
+        stx folder
+        stx qlen
+        jsr refilter
+        ldx #0
+-       lda shown,x
+        cmp cur
+        beq +
+        inx
+        bne -
++       jsr place
+        jsr vsync
+        jmp redraw
+
 leave_help:
         lda #0
         sta helping
@@ -531,9 +588,13 @@ stick_keys:
 
 ; --- starting the selected entry --------------------------------------------------------------
 
-; RUN/STOP: the interrupts as the KERNAL left them, then BASIC.
+; RUN/STOP: out of the folder, if in one (D-057); otherwise the interrupts as the KERNAL left them,
+; then BASIC.
 stop:
-        jsr save_state
+        lda folder
+        beq +
+        jmp back
++       jsr save_state
         jsr irq_off
         jmp leave
 
@@ -548,6 +609,15 @@ start:
         bne +
         jmp loop                ; nothing listed, nothing to start
 +       ldx sel
+        cpx nfold
+        bcs _entry
+        lda p_only              ; a folder row: RETURN or fire opens it, SHIFT+RETURN does nothing
+        beq +
+        jmp loop
++       lda shown,x
+        sta folder
+        jmp refresh
+_entry:
         lda shown,x
         jsr slot_ptr
         ldy #16
@@ -714,12 +784,7 @@ copied:
         lda p_tail
         ora p_tail+1
         beq +
-        ldx #high_copy_end - high_copy - 1
--       lda high_rom,x
-        sta high_copy,x
-        dex
-        bpl -
-        jsr high_copy
+        jsr run_high
 +       lda #$01
         sta $2b
         lda #$08
@@ -743,8 +808,18 @@ copied:
 +       stx $c6
         jmp basic_resume
 
-; Copy the p_tail bytes from $D000 on (D-056), run from the bottom of the stack page, where copied
-; puts it: with the character ROM at $D000, $DF00 isn't there to run from. Each byte is read with
+; Put high_copy at $0100 and run it.
+run_high:
+        ldx #high_copy_end - high_copy - 1
+-       lda high_rom,x
+        sta high_copy,x
+        dex
+        bpl -
+        jmp high_copy
+
+; Copy the p_tail bytes from $D000 on (D-056), run from the bottom of the stack page, where run_high
+; puts it: with the character ROM at $D000, $DF00 isn't there to run from. The boot uses it too, to
+; copy the metadata payload to $4000 (D-057). Each byte is read with
 ; I/O in ($01=$37), where the bank register and get_byte are, and written with I/O out ($01=$33), so
 ; it lands in the RAM under I/O or the KERNAL. Interrupts are masked and the NMI goes to an RTI
 ; meanwhile: the KERNAL's handlers would write their CIA registers into that RAM. The tool refuses a
@@ -885,16 +960,20 @@ pow_hi:
 
 ; --- the state a reset comes back to (D-053) ---------------------------------------------------
 
-; Leave the selection, the order and the kind filter for the next boot. With nothing listed there
-; is no selection, so the magic is spoiled and the next boot starts fresh. Moves ptr to the
-; selection's slot; keeps cur.
+; Leave the selection, the order and the kind filter for the next boot. With nothing listed, or a
+; folder row selected, there is no entry to come back to, so the magic is spoiled and the next boot
+; starts fresh. Moves ptr to the selection's slot; keeps cur.
 save_state:
         lda nshown
-        bne +
+        beq _spoil
+        ldx sel
+        cpx nfold
+        bcs +
+_spoil:
+        lda #0
         sta ST_MAGIC
         rts
-+       ldx sel
-        lda shown,x
++       lda shown,x
         sta ST_SLOT
         jsr name_sum
         sta ST_NAME
@@ -953,6 +1032,9 @@ restore:
         jsr sort_az
 +       lda ST_KINDS
         sta kinds
+        ldx ST_SLOT             ; inside the entry's folder, if it has one (D-057)
+        lda grp,x
+        sta folder
         jsr refilter
         jsr _find
         bcs _found
@@ -961,22 +1043,16 @@ restore:
         jsr refilter
         jsr _find
 _found:
-        stx sel
-        txa
-        sec
-        sbc #ROWS - 1           ; below the first page it goes on the last row
-        bcs +
-        lda #0
-+       sta top
+        jsr place
         sec
         rts
 _no:
         clc
         rts
 
-; X = where the state's slot is among those listed, with C set; C clear if it isn't listed.
+; X = where the state's slot is among the entries listed, with C set; C clear if it isn't listed.
 _find:
-        ldx #0
+        ldx nfold
 -       cpx nshown
         beq _miss
         lda shown,x
@@ -989,6 +1065,17 @@ _miss:
         rts
 _hit:
         sec
+        rts
+
+; Select listed row X, in view: below the first page it goes on the last row.
+place:
+        stx sel
+        txa
+        sec
+        sbc #ROWS - 1
+        bcs +
+        lda #0
++       sta top
         rts
 
 ; A = the 8-bit sum of the name in slot A. Moves ptr to the slot.
@@ -1106,12 +1193,32 @@ _no:
         clc
         rts
 
-; shown = the visible entries in the order in use, keeping those whose name contains the text and
-; whose kind the kind filter lets through.
+; shown = what the list shows, in the order in use (D-057). At the top level with no text: a folder
+; row per group with a visible entry (its group number), nfold of them, then the entries without a
+; group. Inside a folder: its entries. At the top level with text: every visible entry. Entries are
+; kept only if the text is in their name or title and the kind filter lets them through.
 refilter:
         lda #0
         sta nshown
         sta si
+        ldx folder
+        bne _rows
+        lda qlen
+        bne _rows
+_group:
+        cpx ngroups
+        bcs _rows
+        inx
+        lda fcount,x
+        beq _group
+        txa
+        ldy nshown
+        sta shown,y
+        inc nshown
+        bne _group
+_rows:
+        lda nshown
+        sta nfold
 _next:
         lda si
         cmp count
@@ -1125,10 +1232,17 @@ _dir:
         lda visible,x
 _have:
         sta skey
-        jsr match               ; leaves ptr at the entry's slot
-        bcc _skip
+        jsr slot_ptr            ; X = the slot
+        lda folder              ; a flat search lists every folder's entries
+        bne +
+        lda qlen
+        bne _kind
++       lda grp,x
+        cmp folder
+        bne _skip
+_kind:
         lda kinds
-        beq _keep
+        beq _match
         ldy #16
         lda (ptr),y
         and #$1f
@@ -1138,7 +1252,9 @@ _have:
         adc #1                  ; 1 a program, 2 a cartridge
         cmp kinds
         bne _skip
-_keep:
+_match:
+        jsr match
+        bcc _skip
         ldy nshown
         lda skey
         sta shown,y
@@ -1149,24 +1265,45 @@ _skip:
 _done:
         rts
 
-; C set if the name in slot A contains the text, comparing folded. The text is folded already.
+; C set if the text is in the name in the slot at ptr or in the title of slot skey, comparing folded.
+; The text is folded already.
 match:
-        jsr slot_ptr
         lda qlen
         beq _yes
+        lda ptr
+        sta dst
+        lda ptr+1
+        sta dst+1
+        lda #16
+        jsr find
+        bcs _yes
+        ldx skey
+        jsr title
+        beq _no
+        jmp find
+_yes:
+        sec
+        rts
+_no:
+        clc
+        rts
+
+; C set if the text is in the A bytes at dst, which a NUL may end sooner.
+find:
+        sta mlen
         lda #0
         sta mstart
 _try:
-        lda mstart
-        clc
-        adc qlen
-        cmp #QMAX + 1
-        bcs _no                 ; the text no longer fits in what is left of the name
+        lda mlen
+        sec
+        sbc mstart
+        cmp qlen
+        bcc _no                 ; the text no longer fits in what is left
         ldx #0
         ldy mstart
 _cmp:
-        lda (ptr),y
-        beq _no                 ; the name ends first, so no later start fits either
+        lda (dst),y
+        beq _no                 ; the text ends first, so no later start fits either
         jsr fold
         cmp query,x
         bne _again
@@ -1174,7 +1311,6 @@ _cmp:
         inx
         cpx qlen
         bne _cmp
-_yes:
         sec
         rts
 _again:
@@ -1182,6 +1318,65 @@ _again:
         jmp _try
 _no:
         clc
+        rts
+
+; dst = the title of slot X and A its length, Z set if it has none. Keeps X.
+title:
+        lda rec_hi,x
+        beq _none
+        sta dst+1
+        lda rec_lo,x
+        sta dst
+        ldy #19
+        lda (dst),y
+        pha
+        lda dst
+        clc
+        adc #20
+        sta dst
+        bcc +
+        inc dst+1
++       pla
+_none:
+        rts
+
+; dst = what the list shows for slot A, its title or else its name, and A how many bytes of it at
+; most: 16, the row's width. ptr = the slot.
+row_text:
+        jsr slot_ptr
+        jsr title
+        bne +
+        lda ptr
+        sta dst
+        lda ptr+1
+        sta dst+1
+        lda #16
+        rts
++       cmp #17
+        bcc +
+        lda #16
++       rts
+
+; dst = the name of group X: M_NAMES + 16 (X - 1). Keeps X.
+group_at:
+        lda #0
+        sta dst+1
+        txa
+        sec
+        sbc #1
+        asl a
+        rol dst+1
+        asl a
+        rol dst+1
+        asl a
+        rol dst+1
+        asl a
+        rol dst+1
+        adc #<M_NAMES           ; the carry is clear: the top bits were 0
+        sta dst
+        lda dst+1
+        adc #>M_NAMES
+        sta dst+1
         rts
 
 ; sorted = visible ordered A-Z by folded name. A binary insertion sort: each entry goes after every
@@ -1239,29 +1434,38 @@ _done:
         sta sorted_ok
         rts
 
-; C set if the name in slot skey sorts strictly before the name in slot A, comparing folded.
+; C set if what the list shows for slot skey sorts strictly before what it shows for slot A,
+; comparing folded (D-057).
 before:
-        tax
-        lda name_lo,x
-        sta dst
-        lda name_hi,x
-        sta dst+1
+        jsr row_text
+        sta blen
+        lda dst
+        sta txt
+        lda dst+1
+        sta txt+1
         lda skey
-        jsr slot_ptr
+        jsr row_text
+        sta alen
         ldy #0
 _cmp:
+        ldx #0                  ; past a text's end it reads as a NUL
+        cpy blen
+        bcs +
+        lda (txt),y
+        jsr fold
+        tax
++       stx fchar
+        lda #0
+        cpy alen
+        bcs +
         lda (dst),y
         jsr fold
-        sta fchar
-        lda (ptr),y
-        jsr fold
-        cmp fchar
++       cmp fchar
         bcc _yes
         bne _no
         ora #0
-        beq _no                 ; both names end here: equal
+        beq _no                 ; both texts end here: equal
         iny
-        cpy #16
         bne _cmp
 _no:
         clc
@@ -1269,6 +1473,199 @@ _no:
 _yes:
         sec
         rts
+
+; --- the metadata entry (D-057) ------------------------------------------------------------------
+;
+; Read once at boot, before the raster interrupt is on: the last hidden program slot named
+; STIDCART.META whose payload starts with the magic is copied to META by high_copy, which follows the
+; entry's banks as a program's copy does. Then each record that fits in the payload and names its
+; slot is attached to it. A payload of another version, over 16 KB, or with a record running past
+; its end leaves the menu as on a cart without metadata (format spec, "stidcart extension: entry
+; metadata (STIDCART.META)").
+
+meta_load:
+        jsr meta_clear
+        ldx nslots
+_slot:
+        txa
+        bne +
+        rts                     ; no slot holds it
++       dex
+        stx mslot
+        txa
+        jsr slot_ptr
+        ldy #16
+        lda (ptr),y
+        bpl _next               ; not hidden
+        and #$1f
+        beq _next
+        cmp #$04
+        bcs _next               ; not a program
+        sta cur
+        ldy #15
+-       lda (ptr),y
+        cmp meta_name,y
+        bne _next
+        dey
+        bpl -
+        jsr prg_params
+        jsr read_load           ; bank 0 back in, the source past the load address
+        lda p_load
+        bne _next
+        lda p_load+1
+        cmp #>META
+        bne _next
+        lda p_size+2
+        bne _next
+        sec                     ; p_tail = the payload's length, 13 to 16384
+        lda p_size
+        sbc #2
+        sta p_tail
+        sta pend
+        lda p_size+1
+        sbc #0
+        sta p_tail+1
+        cmp #>$4000
+        bcc +
+        bne _next
+        lda p_tail
+        bne _next
+        beq _copy
++       ora #0
+        bne _copy
+        lda p_tail
+        cmp #13
+        bcs _copy
+_next:
+        ldx mslot
+        jmp _slot
+_copy:
+        lda p_tail+1
+        clc
+        adc #>META
+        sta pend+1
+        lda #<META
+        sta dst
+        lda #>META
+        sta dst+1
+        jsr run_high
+        ldx #7
+-       lda META,x
+        cmp meta_magic,x
+        bne _next               ; without the magic it is an ordinary entry
+        dex
+        bpl -
+        lda M_VERSION
+        cmp #1
+        bne _done               ; the one, but in a layout this menu doesn't read
+        lda M_FIRST
+        sta rp
+        lda M_FIRST+1
+        clc
+        adc #>META
+        bcs _bad
+        sta rp+1
+        lda M_RECORDS
+        sta rleft
+_record:
+        lda rleft
+        beq _end
+        lda rp                  ; its length byte must be in the payload
+        cmp pend
+        lda rp+1
+        sbc pend+1
+        bcs _bad
+        jsr attach
+        ldy #0
+        lda (rp),y
+        clc
+        adc rp
+        sta rp
+        bcc +
+        inc rp+1
++       dec rleft
+        jmp _record
+_end:
+        lda pend                ; and the last record must end in it
+        cmp rp
+        lda pend+1
+        sbc rp+1
+        bcc _bad
+        lda M_GROUPS
+        sta ngroups
+        ldy #0                  ; each group's visible entries
+-       cpy count
+        beq _done
+        ldx visible,y
+        lda grp,x
+        tax
+        inc fcount,x
+        iny
+        bne -
+_done:
+        rts
+_bad:
+        jmp meta_clear
+
+; No metadata: no records, no groups.
+meta_clear:
+        ldx #0
+        txa
+        sta ngroups
+-       sta rec_hi,x
+        sta grp,x
+        sta fcount,x
+        inx
+        bne -
+        rts
+
+; Attach the record at rp to its slot, when its 16 name bytes are the slot's and no record is
+; attached there yet. Its index counts the slots other than the metadata entry's.
+attach:
+        ldy #1
+        lda (rp),y
+        cmp mslot
+        bcc +
+        adc #0                  ; at or past the metadata entry: one slot on (the carry is set)
+        bcs _no
++       cmp nslots
+        bcs _no
+        tax
+        lda rec_hi,x
+        bne _no
+        txa
+        jsr slot_ptr            ; X = the slot
+        lda ptr                 ; ptr - 2, so the slot's name lines up with the record's bytes 2-17
+        sec
+        sbc #2
+        sta ptr
+        bcs +
+        dec ptr+1
++       ldy #17
+-       lda (ptr),y
+        cmp (rp),y
+        bne _no
+        dey
+        cpy #2
+        bcs -
+        lda rp
+        sta rec_lo,x
+        lda rp+1
+        sta rec_hi,x
+        ldy #18                 ; its group, if the payload names one that far
+        lda (rp),y
+        cmp M_GROUPS
+        beq +
+        bcs _no
++       sta grp,x
+_no:
+        rts
+
+; In lower case: -a makes text PETSCII, which turns it into the bytes $53 $54 ... the format gives.
+meta_name:
+        .text "stidcart.meta", 0, 0, 0
+meta_magic:
+        .text "stidmeta"
 
 ; --- the raster interrupt (D-048) ---------------------------------------------------------------
 ;
@@ -1417,11 +1814,11 @@ charset_init:
         cpx #glyphs_end - glyphs
         bne -
         ldx #0
--       lda glyphs,x            ; the badges' inverses, for the selection bar
-        eor #$ff
+-       lda glyphs,x            ; the inverses, for the selection bar: the badges' are used, and the
+        eor #$ff                ; mark below overwrites those of the codes it takes
         sta CHAR_RAM + (ICON + $80) * 8,x
         inx
-        cpx #10 * 8
+        cpx #glyphs_end - glyphs
         bne -
         ldx #0
 -       lda mark_glyphs,x
@@ -1954,16 +2351,35 @@ _blank:
 _listed:
         sta cur
         tax
+        cpx nfold
+        bcs _item
+        lda shown,x             ; a folder row (D-057): its group, and how many entries it holds
+        sta gno
+        jsr begin
+        ldx gno
+        lda fcount,x
+        jsr decimal
+        lda #WHITE
+        sta ipen
+        lda #FOLDER
+        bne _badge
+_item:
         lda shown,x
-        jsr slot_ptr
+        jsr row_text            ; dst, and A how much of it
+        sta nlen
         jsr entry_kind
         ldx kind
         lda kind_colours,x
         sta ipen
+        lda kind
+        asl a
+        adc #ICON               ; the carry is clear: kind is 0-4
+_badge:
+        sta bcode
         lda cur
         cmp sel
         bne +
-        lda #$80                ; the selection: a cyan reverse bar over columns 1-20
+        lda #$80                ; the selection: a reverse bar over columns 1-20
         sta rvs
         lda #ORANGE             ; the selection bar: the brand's accent (D-048)
         sta pen
@@ -1971,14 +2387,12 @@ _listed:
 +       ldx srow
         lda #1
         jsr at
-        lda kind                ; columns 1-2, the badge
-        asl a
-        clc
-        adc #ICON
+        lda bcode               ; columns 1-2, the badge
         ora rvs
         ldy #0
         sta (scr),y
-        ora #1
+        clc
+        adc #1
         iny
         sta (scr),y
         lda ipen
@@ -1991,14 +2405,37 @@ _listed:
         ldx srow
         lda #4
         jsr at
-        lda ptr
-        sta dst
-        lda ptr+1
-        sta dst+1
-        ldx #16
-        jsr write_n             ; columns 4-19, the name
+        lda cur
+        cmp nfold
+        bcc _folder
+        ldx nlen
+        jsr write_n             ; columns 4-19, the title or the name
         lda #17
         jmp pad                 ; to column 20
+_folder:
+        ldx gno                 ; the name, cut to leave a space before the count at column 19
+        jsr group_at
+        lda #15
+        sec
+        sbc sx
+        tax
+        jsr write_n
+        lda #16
+        sec
+        sbc sx
+        jsr pad
+        ldx #0
+-       lda sbuf,x
+        ora rvs
+        sta (scr),y
+        lda pen
+        sta (clr),y
+        iny
+        inx
+        cpx sx
+        bne -
+        lda #17
+        jmp pad
 
 ; kind = the kind of the entry in the slot at ptr: 0 program ($01-$03), 1 8K ($10), 2 16K ($11),
 ; 3 Ultimax ($12, $13), 4 multi-bank ($1C-$1E).
@@ -2105,47 +2542,48 @@ _cell:
 
 ; --- the details pane --------------------------------------------------------------------------
 
-; Rows 6-14 of columns 23-38: the selection's name, then type, size, load address or bank, and
-; how it starts, on every other row (AC-108).
+; Columns 23-38 of rows 6-20, every cell written on every update (D-041): the selection's name in
+; row 6, then type, size, load address or bank, and how it starts, on every other row (AC-108). An
+; entry with metadata has them on every row instead, then a blank row and its title, year, author
+; and note, each wrapped from a row of its own (D-057). A folder row shows its group's name.
 draw_pane:
         lda #0
         sta rvs
-        lda nshown
-        bne _some
-        ldx #6
--       stx row
-        lda #PANE
-        jsr at
-        ldy #0
-        lda #16
-        jsr pad
-        ldx row
-        inx
-        inx
-        cpx #16
-        bne -
-        rts
-_some:
+        sta dense
+        lda #6
+        sta prow
         ldx sel
+        lda nshown
+        beq _rest
+        cpx nfold
+        bcs _entry
+        lda shown,x             ; a folder
+        tax
+        jsr group_at
+        jsr pane_name
+_rest:
+        jmp blank_rest
+_entry:
         lda shown,x
-        jsr slot_ptr
-        jsr entry_kind
-        lda #WHITE
-        sta pen
-        ldx #6
-        lda #PANE
-        jsr at
+        jsr slot_ptr            ; X = the slot
+        lda rec_hi,x
+        beq +
+        sta rp+1
+        lda rec_lo,x
+        sta rp
+        ldy #0
+        lda (rp),y
+        cmp #24                 ; longer than its fixed part: some field is set
+        rol dense
++       jsr entry_kind
         lda ptr
         sta dst
         lda ptr+1
         sta dst+1
-        ldx #16
-        jsr write_n
-        lda #16
-        jsr pad
+        jsr pane_name
+        jsr pane_gap
 
         ; type
-        ldx #8
         lda #<type_text
         ldy #>type_text
         jsr fact
@@ -2153,11 +2591,9 @@ _some:
         lda kind_lo,x
         ldy kind_hi,x
         jsr append
-        ldx #8
         jsr value
 
         ; size in KB, rounded up: (bytes + 1023) / 1024
-        ldx #10
         lda #<size_text
         ldy #>size_text
         jsr fact
@@ -2180,14 +2616,12 @@ _some:
         jsr dec16
         lda #"K"
         jsr emit
-        ldx #10
         jsr value
 
         lda kind
         beq _program
 
         ; a cartridge: its first bank, and a reset
-        ldx #12
         lda #<bank_text
         ldy #>bank_text
         jsr fact
@@ -2198,17 +2632,13 @@ _some:
         lda (ptr),y
         sta nhi
         jsr dec16
-        ldx #12
         jsr value
-        ldx #14
         lda #<start_text
         ldy #>start_text
         jsr fact
         lda #<reset_text
         ldy #>reset_text
-        jsr append
-        ldx #14
-        jmp value
+        jmp _say
 
         ; a program: its load address, and RUN or SYS as start uses them
 _program:
@@ -2220,7 +2650,6 @@ _program:
         sei                     ; the raster handler runs from bank 0, which read_load maps out
         jsr read_load           ; moves ptr: everything from the slot is read by now
         cli
-        ldx #12
         lda #<load_text
         ldy #>load_text
         jsr fact
@@ -2230,9 +2659,7 @@ _program:
         jsr hex2
         lda p_load
         jsr hex2
-        ldx #12
         jsr value
-        ldx #14
         lda #<start_text
         ldy #>start_text
         jsr fact
@@ -2252,51 +2679,152 @@ _sys:
         lda p_load+1
         sta nhi
         jsr dec16
-        ldx #14
-        jmp value
+        jmp _said
 _run:
         lda #<run_word
         ldy #>run_word
+_say:
         jsr append
-        ldx #14
-        jmp value
+_said:
+        jsr value
+        lda dense
+        beq blank_rest
 
-; Row X of the pane: the label at A (low), Y (high) in grey across columns 23-28, then start the
+        ; the metadata's fields, after a blank row; rp is the record still
+        jsr blank_row
+        ldy #19                 ; the title's length
+        ldx #0
+_field:
+        stx fld
+        lda (rp),y
+        sta wlen
+        iny
+        tya
+        clc
+        adc rp
+        sta dst
+        lda rp+1
+        adc #0
+        sta dst+1
+        tya
+        clc
+        adc wlen
+        sta fy
+        lda field_colours,x
+        sta pen
+        jsr wrap
+        ldy fy
+        ldx fld
+        inx
+        cpx #4
+        bne _field
+
+; Blank the pane from row prow to row 20.
+blank_rest:
+        lda prow
+        cmp #LIST + ROWS
+        bcs +
+        jsr blank_row
+        jmp blank_rest
++       rts
+
+; Row prow: the text at dst, 16 at most, in white. Then the next row.
+pane_name:
+        lda #WHITE
+        sta pen
+        ldx prow
+        lda #PANE
+        jsr at
+        ldx #16
+        jsr write_n
+        lda #16
+        jsr pad
+        inc prow
+        rts
+
+; Row prow blank, then the next row.
+blank_row:
+        ldx prow
+        lda #PANE
+        jsr at
+        ldy #0
+        lda #16
+        jsr pad
+        inc prow
+        rts
+
+; Without metadata, a blank row between two facts.
+pane_gap:
+        lda dense
+        bne +
+        jmp blank_row
++       rts
+
+; The wlen bytes at dst from row prow on, 16 a row, in colour pen, while rows are left.
+wrap:
+        lda wlen
+        beq _done
+        lda prow
+        cmp #LIST + ROWS
+        bcs _done
+        tax
+        lda #PANE
+        jsr at
+        ldx wlen
+        cpx #16
+        bcc +
+        ldx #16
++       jsr write_n
+        lda #16
+        jsr pad
+        inc prow
+        lda wlen
+        sec
+        sbc #16
+        bcc _done
+        sta wlen
+        lda dst
+        clc
+        adc #16
+        sta dst
+        bcc wrap
+        inc dst+1
+        jmp wrap
+_done:
+        rts
+
+; Row prow of the pane: the label at A (low), Y (high) in grey across columns 23-28, then start the
 ; value's text.
 fact:
         sta dst
         sty dst+1
-        lda dst
-        pha
-        lda dst+1
-        pha
         lda #GREY
         sta pen
+        ldx prow
         lda #PANE
         jsr at
-        pla
-        sta dst+1
-        pla
-        sta dst
         jsr write
         lda #6
         jsr pad
         jmp begin
 
-; Write the value's text in row X, columns 29-38, in the kind's colour.
+; Write the value's text in row prow, columns 29-38, in the kind's colour, and move on a fact.
 value:
         lda #0
         jsr emit
         ldy kind
         lda kind_colours,y
         sta pen
+        ldx prow
         lda #VALUE
         jsr at
         lda #<sbuf
         ldy #>sbuf
         jsr say
         lda #10
-        jmp pad
+        jsr pad
+        inc prow
+        jmp pane_gap
 
 ; --- the status and the filter text ------------------------------------------------------------
 
@@ -2424,7 +2952,11 @@ glyphs:
         .fill 4, ((q >> 3) & 1) * $f0 | ((q >> 2) & 1) * $0f
         .fill 4, ((q >> 1) & 1) * $f0 | (q & 1) * $0f
         .next
+        .byte %00000000, %01111000, %11111111, %11111111, %11111111, %11111111, %11111111, %01111111 ; folder, left
+        .byte %00000000, %00000000, %11111110, %11111111, %11111111, %11111111, %11111111, %11111110 ; folder, right
 glyphs_end:
+
+        .cerror glyphs - glyphs_end + 8 * (FOLDER + 2 - ICON) != 0, "FOLDER is not where its glyphs are"
 
 ; The cartridge mark (D-048) in multicolour pixels, two bits each: %01 the label ($D022, a band
 ; every three lines), %10 the shell ($D023, dark grey), %11 the pins (the cells' own colour, yellow).
@@ -2470,6 +3002,8 @@ kind_lo:
         .byte <kind_0, <kind_1, <kind_2, <kind_3, <kind_4
 kind_hi:
         .byte >kind_0, >kind_1, >kind_2, >kind_3, >kind_4
+field_colours:                  ; the pane's title, year, author and note (D-057)
+        .byte WHITE, LIGHT_GREY, LIGHT_GREY, GREY
 kind_0: .null "program"
 kind_1: .null "8K cart"
 kind_2: .null "16K cart"
@@ -2497,10 +3031,11 @@ cartridges:
 help_lines:
         .text "crsr up/down", 0, "move the selection", 0
         .text "crsr left/right", 0, "move a page", 0
-        .text "return", 0, "start the selection", 0
+        .text "return", 0, "start, or open folder", 0
         .text "shift+return", 0, "load, but not start", 0
-        .text "letters, digits", 0, "find by name", 0
+        .text "letters, digits", 0, "find name or title", 0
         .text "del", 0, "delete the last letter", 0
+        .text "del, run/stop", 0, "out of a folder", 0
         .text "home / clr", 0, "clear what you typed", 0
         .text " ", 0, "or go to first / last", 0
         .text "f1", 0, "cart order or a-z", 0

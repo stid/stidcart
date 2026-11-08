@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Our C64 menu reads the `STIDCART.META` entry once at boot and shows titles in the list, the full title, year, author and note in the pane, and groups as folders (D-057)
-- **Next action:** S4 — implement in `menu/src/menu.s`, rebuild, pin the new build
+- **Next action:** S5 — `menu/README.md`, then the gates
 - **Branch:** feat/menu-folders · **Updated:** 2026-11-08
 
 ## STEPS
@@ -20,7 +20,7 @@
 - [x] S1 — version 0.22.0 → 0.23.0 (first commit on the branch)
 - [x] S2 — triage, D-057, AC-166..AC-169 (from the approved menu-meta spec's M-8..M-11), this JOURNAL
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-166..AC-169 (carts built with `edit --title/--group/...` or the core API)
-- [ ] S4 — implement in `menu/src/menu.s` (and `launch.s` if the copy loop lives there), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
+- [x] S4 — implement in `menu/src/menu.s` (and `launch.s` if the copy loop lives there), rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, the F7 help (folder keys), gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR
 
@@ -122,3 +122,27 @@ A record whose stored name doesn't match its slot is ignored.
   `reset 0` that wants every bank write masked and one from `$0100`. AC-127 gains a fifth scenario
   on a grouped cart. Red run: all four fail on screen assertions (rows show names, not titles or
   folders); AC-127 passes.
+- 2026-11-08 — S4: built. The boot runs `scan`, then `meta_load`, before `irq_on`. It reuses
+  `prg_params`/`read_load` and the D-056 routine at `$0100` (factored into `run_high`) for the
+  copy, so all three program layouts are followed by `get_byte`. Its rules:
+  - A slot with the name but not the magic is skipped. With the magic, version ≠ 1 or a bad
+    record leaves no metadata, as the core reads it.
+  - The menu also requires load address `$4000` and a payload of 13 to 16384 bytes; a slot failing
+    either is skipped.
+  - RAM: tables `$C600-$C9FF` (record lo/hi, group by slot, count by group), scalars
+    `$C130-$C140`, zero page `$26-$29`.
+  - ROM: 1682 bytes free (1007 used).
+  - Gotcha: `-a` makes `.text` PETSCII, so the name and magic are written in lower case to get the
+    bytes `$53 $54 ...`.
+  - Choices to report:
+    - An entry with any field set shows its facts on every row (6-10), then a blank row, then the
+      fields from row 12 with a hard 16-character wrap. That is the only way 48+4+24+48 fits; an
+      entry without fields (no record, or group only) keeps AC-108's layout.
+    - Folder rows: the name cut to leave a space, then the count ending at column 19, a white
+      folder badge at `$7D/$7E`.
+    - Folder rows ignore F3 and stay in group order under F1.
+    - RUN/STOP inside a folder also clears the text.
+    - RUN/STOP at the top with a folder row selected spoils the resume state (no entry to restore).
+    - Resume derives the folder from the entry's group, so `$DFF5` stays free.
+  - AC-155's boot of our menu now opens the folder to find alpha.
+  - Gates: root 305 passed; GUI 46 cargo + 67 vitest.
