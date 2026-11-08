@@ -38,3 +38,4 @@
 2026-11-07 · raster-brand · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
 2026-11-07 · menu-raster · 4 signals · Standard · hard:no · risk:no
 2026-11-07 · menu-raster · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
+2026-11-07 · older-menus · 2 signals · Standard · hard:no · risk:no
