@@ -49,8 +49,8 @@ bar. When the list is longer than the screen, the divider to its right becomes a
 thumb's length is the share of the list in view, and its place is where the view is. The pane on the
 right describes the selection: its type, size, load address (program) or first bank (cartridge),
 and how it starts. Below the list are the position ("17 of 40"), the order in use and the kind
-listed, then the filter text in yellow with the number listed out of the visible entries, then a
-grey bar naming the keys, `return go  f1 sort  f7 help  run/stop`. Hidden entries are not listed.
+listed, then the filter text in yellow with the number listed out of the visible entries (inside a
+folder, out of the folder's), then a grey bar naming the keys, `return go  f1 sort  f7 help  run/stop`. Hidden entries are not listed.
 The filter and A-Z both ignore case. The filter takes up to 16 characters, any printable one except
 `"`. A boot starts in the cart's own order, which is the order they were built in (D-039), with all
 kinds listed, unless it comes back from a reset (below). The kind filter (F3) combines with the

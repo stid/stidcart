@@ -162,3 +162,6 @@ A record whose stored name doesn't match its slot is ignored.
   - Both pass on the menu as built, so no menu change for them.
   - AC-167 gains row 23 inside a folder, "1 of 2 match" (the folder's entries). Red run: it read
     "1 of 6 match", the whole cart.
+  - Fix: `draw_find` counts out of `fcount[folder]` inside a folder. The replaced build (4e8f451)
+    joins the earlier builds. ROM: 1674 bytes free. Gates: root 307 passed, 0 failed (36
+    targets); GUI 46 cargo + 67 vitest.

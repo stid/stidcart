@@ -2862,7 +2862,7 @@ draw_status:
         jmp finish
 
 ; Row 23: with text typed, a grey label, the text in yellow, and the matches out of the visible
-; entries at the right; without, nothing.
+; entries (the folder's, inside one) at the right; without, nothing.
 draw_find:
         lda #0
         sta rvs
@@ -2898,8 +2898,11 @@ draw_find:
         lda #<of_text
         ldy #>of_text
         jsr append
-        lda count
-        jsr decimal
+        lda count               ; out of the visible entries, or the folder's inside one (D-057)
+        ldx folder
+        beq +
+        lda fcount,x
++       jsr decimal
         lda #<match_text
         ldy #>match_text
         jsr append
