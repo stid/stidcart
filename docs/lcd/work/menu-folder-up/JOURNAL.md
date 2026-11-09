@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Inside a folder our menu lists a `..` row first; RETURN or fire on it goes back to the top level, so the joystick can leave a folder (D-058)
-- **Next action:** S4 — implement `..` in `menu/src/menu.s`, rebuild, re-pin the fingerprint
+- **Next action:** S5 — `menu/README.md`
 - **Branch:** feat/menu-folder-up · **Updated:** 2026-11-08
 
 ## STEPS
@@ -20,7 +20,7 @@
 - [x] S1 — version 0.23.0 → 0.24.0 (first commit on the branch)
 - [x] S2 — triage, D-058, AC-170..AC-172 claimed, this JOURNAL
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-170..AC-172
-- [ ] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
+- [x] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, the F7 help, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR (merge only on the user's yes)
 
@@ -83,3 +83,9 @@ CLR selects the last entry.
   on `..` row 22 does not read `0 of 2` (UP from the first entry stays put). AC-170: UP then
   RETURN starts "demo a", so the menu never idles again (no `..` to go back through). Row 22 on
   `..` reads `0 of N`: the position leaves `..` out, so it is before the first entry.
+- 2026-11-08 — S4: `..` is a folder row of group 0 at `shown[0]` inside a folder, so `nfold` is 1
+  there and every folder-row path (start, save_state, restore's `_find`) already skips it; `nup`
+  ($C141) takes it out of rows 22-23 and F5's range. "no matches" moves to the row under `..`.
+  F7 help gains a `..` line. 7a9a0c1's build joins `EARLIER_STIDCART_BUILDS`. AC-167's HOME now
+  lands on `..`, and its F5 step starts from the first entry so the pick stays determined. ROM free
+  1674 → 1484 bytes. AC-170..AC-172 green; gate 310 passed, GUI gate green.

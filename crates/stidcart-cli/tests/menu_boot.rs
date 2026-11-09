@@ -3937,8 +3937,8 @@ fn ac_167_groups_show_as_folders() {
             vec![key::F3, key::F3, key::DEL],        // 3: all kinds, back out
             vec![key::UP, key::RETURN, key::F1],     // 4: into games, A-Z
             vec![key::RIGHT],                        // 5: a page down
-            vec![key::HOME],                         // 6: the first
-            vec![key::F5],                           // 7: a random other one
+            vec![key::HOME],                         // 6: the first row, ".." (D-058)
+            vec![key::DOWN, key::F5],                // 7: from the first entry, a random other one
             typed("zu"),                             // 8: text
             vec![key::DEL, key::DEL],                // 9: text gone, still inside
             vec![key::DEL],                          // 10: back out
@@ -3984,7 +3984,11 @@ fn ac_167_groups_show_as_folders() {
         "games, A-Z",
     );
     assert_selected(&s[5], "zulu", "CRSR right inside");
-    assert_selected(&s[6], "p3", "HOME inside");
+    assert_eq!(
+        selected_rows(&s[6]),
+        vec![5],
+        "HOME inside: '..' is not selected"
+    );
     assert_selected(&s[7], "zulu", "F5 inside");
     inside(
         8,
