@@ -12,17 +12,23 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** run /lcd:tasks folder-editor
+- **Next action:** run /lcd:test-gen folder-editor
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
 
-- [x] S1 — triage (Deep) and spec.md
-- [x] S2 — plan.md
-- [ ] S3 — tasks.md ← next
-- [ ] S4 — failing tests (AC-173..AC-184)
-- [ ] S5 — red-green
-- [ ] S6 — live check of the window, audit, PR
+- [x] S1 — triage (Deep), spec.md, plan.md, tasks.md
+- [ ] S2 — T1 version 0.26.0 ← next (after /lcd:test-gen writes the failing tests)
+- [ ] S3 — T2–T19 rename group → folder (core, CLI, GUI; both gates green before commit)
+- [ ] S4 — T20–T23 `edit --move` and `move_entry`
+- [ ] S5 — T24–T29 `Edit::Arrange` in the Document
+- [ ] S6 — T30–T32 tree model (`tree.ts`)
+- [ ] S7 — T33–T34 pointer drag (`rowDrag.ts`)
+- [ ] S8 — T35–T38 EntryMenu moves, FolderMenu
+- [ ] S9 — T39–T41 viewer reports success
+- [ ] S10 — T42–T44 tree in the listing
+- [ ] S11 — T45–T46 README, conventions stem list
+- [ ] S12 — T-live, T-audit, T-final, T-close
 
 ## DECISIONS (this work-item)
 
@@ -100,10 +106,11 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
 - 2026-11-08 — Plan written (→ D-061). The user chose hand-rolled pointer drag over
   @dnd-kit/svelte. No native-menu twin of the move commands: the dropdown is keyboard reachable,
   so the recon's native-menu suggestion is dropped as extra scope.
+- 2026-11-08 — tasks.md written: 46 numbered tasks + T-live, T-audit, T-final, T-close.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ⬜  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
