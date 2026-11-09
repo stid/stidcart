@@ -18,6 +18,14 @@ export interface Tree {
  * top level. */
 export type EntryTarget = { before: number } | { after: number } | { into: string } | { end: true };
 
+/** A move picked from an entry's menu, the non-drag path to every drag (AC-182). */
+export type EntryMove =
+  | { kind: 'folder'; name: string }
+  | { kind: 'noFolder' }
+  | { kind: 'newFolder' }
+  | { kind: 'up' }
+  | { kind: 'down' };
+
 /** Where a folder is dropped: before or after another folder, or after the last one. */
 export type FolderTarget = { before: string } | { after: string } | { last: true };
 
