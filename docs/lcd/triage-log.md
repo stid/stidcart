@@ -59,3 +59,4 @@
 2026-11-08 · menu-cyan-bar · 1 signals · Quick · hard:no · risk:no
 2026-11-08 · folder-editor · 5 signals · Deep · hard:yes · risk:yes
 2026-11-08 · folder-editor · closeout · Deep · audit: PASS (first run) · re-routes: 0 · red-green iters: 16 · interventions: 0 (one self-refine: boundary +cartridge.rs)
+2026-11-08 · folder-browser · 6 signals · Deep · hard:yes · risk:yes

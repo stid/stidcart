@@ -372,8 +372,6 @@ impl Document {
     }
 }
 
-/// Bounds-check an index before it reaches the core, whose mutators panic on a bad one — and a
-/// panic inside a command would poison the lock every later command needs. The text is `edit`'s.
 /// Set every entry's folder from the tree, then move the entries into tree order with the moves
 /// `edit --move` makes, so a save equals that sequence of `edit` calls.
 fn arrange(
@@ -429,6 +427,8 @@ fn arrange(
     Ok(())
 }
 
+/// Bounds-check an index before it reaches the core, whose mutators panic on a bad one — and a
+/// panic inside a command would poison the lock every later command needs. The text is `edit`'s.
 fn check_index(builder: &CartBuilder, index: usize) -> Result<(), String> {
     let held = builder.entries().len();
     if index >= held {
