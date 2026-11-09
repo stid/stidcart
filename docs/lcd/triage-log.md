@@ -61,3 +61,4 @@
 2026-11-08 · folder-editor · closeout · Deep · audit: PASS (first run) · re-routes: 0 · red-green iters: 16 · interventions: 0 (one self-refine: boundary +cartridge.rs)
 2026-11-08 · folder-browser · 6 signals · Deep · hard:yes · risk:yes
 2026-11-08 · folder-browser · closeout · Deep · audit: PASS (run 2) · re-routes: 0 · interventions: 0 (two live-check fixes: menu id allowlist; default name fits 16 chars)
+2026-11-08 · empty-state New Cart · 1 signals · Quick · hard:no · risk:no
