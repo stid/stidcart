@@ -27,8 +27,9 @@ Editing saves through the same placement the build path uses, so an edited cart 
 build of the resulting entries would have produced, not a patch of the file that arrived: entries
 the request never mentioned can move.
 
-A cart boots into EasyLoader, the embedded third-party menu, unless `build` or `edit` is given
-`--menu stidcart`. That puts our own menu (`menu/`, GPL) in the same slot (D-037). It lists the
+A new cart boots into our own menu (`menu/`, GPL), whether `build` makes it or the app's New Cart
+does (D-064); `--menu easyloader` (or the app's menu picker) gives it EasyLoader, the embedded
+third-party menu, in the same slot instead (D-037). A cart that is opened keeps the menu it has. It lists the
 visible entries, scrolls, and starts programs and every cartridge kind except Ocean, including
 programs whose bytes run into `$D000-$FFFF`, which EasyLoader refuses (D-056). It is refused on
 carts it cannot run: one with an Ocean entry, or with a program that loads at `$D000` or above,
@@ -97,7 +98,7 @@ cargo run -p stidcart-cli -- build -e "name" -o out.crt some.prg
 cargo run -p stidcart-cli -- list out.crt          # sizes as "652 bytes", "10.0 KB", "1 MB"
 cargo run -p stidcart-cli -- list --bytes out.crt  # every size and the free space as exact bytes
 cargo run -p stidcart-cli -- edit out.crt --rename 0 "new name" --add another.prg
-cargo run -p stidcart-cli -- build --menu stidcart -e "name" -o ours.crt some.prg
+cargo run -p stidcart-cli -- build --menu easyloader -e "name" -o theirs.crt some.prg
 cargo run -p stidcart-cli -- edit out.crt --title 0 "Impossible Mission II" --folder 0 Games
 cargo run -p stidcart-cli -- edit out.crt --move 3 0   # entry 3 to the top, the rest in order
 cargo run -p stidcart-cli -- edit out.crt --new-folder Tools --move-folder Tools 0

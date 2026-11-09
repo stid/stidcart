@@ -111,6 +111,8 @@ fn ac_40_cli_build_accepts_a_cartridge_image_recognised_by_content() {
     // differs by design, D-006, so compare the images the containers describe).
     let out3 = dir.join("two.crt");
     let result = build([
+        "--menu".as_ref(),
+        "easyloader".as_ref(),
         "-e".as_ref(),
         "two entries".as_ref(),
         "-o".as_ref(),

@@ -268,10 +268,15 @@ fn write_prg(dir: &Path, name: &str, load: u16, len: usize) -> PathBuf {
     prg
 }
 
-/// A new document holding one program, added in the window.
+/// A new EasyLoader document holding one program, added in the window. New starts with our menu
+/// (D-064), so it switches to EasyLoader first, as these carts must hold what ours can't start.
 fn with_program(dir: &Path, name: &str, load: u16, len: usize) -> Document {
     let prg = write_prg(dir, name, load, len);
     let mut doc = Document::new();
+    doc.apply(Edit::SetMenu {
+        menu: "EasyLoader".into(),
+    })
+    .unwrap();
     doc.apply(Edit::Add {
         paths: vec![path(&prg)],
         aligned: false,
@@ -294,7 +299,14 @@ fn ac_164_render_only_what_our_menu_still_cannot_start_refuses_it() {
     ] {
         let prg = write_prg(&dir, name, load, len);
         let cart = dir.join(format!("{name}.crt"));
-        run(&[s("build"), s("-o"), path(&cart), path(&prg)]);
+        run(&[
+            s("build"),
+            s("--menu"),
+            s("easyloader"),
+            s("-o"),
+            path(&cart),
+            path(&prg),
+        ]);
         let cli = stidcart_cli::run(&[
             s("edit"),
             path(&cart),
