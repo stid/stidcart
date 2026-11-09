@@ -75,7 +75,9 @@ export type Edit =
   /** The C64-side menu, by the name the listing shows (D-042). */
   | { kind: 'setMenu'; menu: string }
   /** One metadata field, by its `edit` option name; an empty value clears it (D-054). */
-  | { kind: 'setMeta'; index: number; field: MetaField; value: string };
+  | { kind: 'setMeta'; index: number; field: MetaField; value: string }
+  /** The whole folder tree after a drag or a move command; saved in tree order (D-060, D-061). */
+  | { kind: 'arrange'; folders: { name: string; entries: number[] }[]; loose: number[] };
 
 /** The five metadata fields, as `edit` names them. */
 export type MetaField = 'title' | 'year' | 'author' | 'note' | 'folder';
