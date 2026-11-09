@@ -50,7 +50,7 @@
           readOnly={doc.readOnly}
           menuReplaceable={doc.menuReplaceable}
           rows={doc.rows}
-          onedit={(e) => void viewer.edit(e)}
+          onedit={(e) => viewer.edit(e)}
           onreplace={(index) => void viewer.replace(index)}
         />
       {/key}

@@ -167,6 +167,20 @@ describe('editing (gui-edit)', () => {
     expect(v.state).toEqual({ kind: 'document', doc: clean });
   });
 
+  test('edit reports whether the cart took it, so a moved selection can follow (folder-editor)', async () => {
+    const v = await opened(fakeHost());
+    expect(await v.edit({ kind: 'remove', index: 0 })).toBe(true);
+
+    const refusing = await opened(
+      fakeHost({
+        edit: vi.fn(async () => {
+          throw 'a folder named Games already exists';
+        }),
+      }),
+    );
+    expect(await refusing.edit({ kind: 'remove', index: 0 })).toBe(false);
+  });
+
   test('AC-73 (RENDER): undo and redo act on the cart, or on the text field being edited', async () => {
     const host = fakeHost();
     const v = await opened(host, dirty);

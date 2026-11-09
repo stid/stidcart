@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** T39–T41 viewer `edit` reports success, then block I: T44 tree in `Listing.svelte`
+- **Next action:** block I: T44 tree in `gui/src/lib/Listing.svelte` (Listing.test.ts AC-178/179/182/184)
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
@@ -25,8 +25,8 @@
 - [x] S6 — T30–T32 tree model (`tree.ts`)
 - [x] S7 — T33–T34 pointer drag (`rowDrag.ts`)
 - [x] S8 — T35–T38 EntryMenu moves, FolderMenu
-- [ ] S9 — T39–T41 viewer reports success ← next
-- [ ] S10 — T42–T44 tree in the listing
+- [x] S9 — T39–T41 viewer reports success
+- [ ] S10 — T42–T44 tree in the listing ← next
 - [ ] S11 — T45–T46 README, conventions stem list
 - [ ] S12 — T-live, T-audit, T-final, T-close
 

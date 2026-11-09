@@ -138,10 +138,12 @@ export function createViewer(host: Host) {
     newCart,
     save,
     saveAs,
-    async edit(e: Edit) {
+    /** Apply one edit; true when the cart took it. */
+    async edit(e: Edit): Promise<boolean> {
       // A view-only cart takes one edit: a menu switch, when only its loader is unknown (D-050).
       const menuSwitch = e.kind === 'setMenu' && doc !== null && doc.menuReplaceable;
-      if (editable || menuSwitch) await attempt(() => host.edit(e));
+      if (!editable && !menuSwitch) return false;
+      return attempt(() => host.edit(e));
     },
     async add(aligned: boolean) {
       if (!editable) return;
