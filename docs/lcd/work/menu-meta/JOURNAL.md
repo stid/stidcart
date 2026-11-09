@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Entries carry a title, year, author, note and group, stored in a hidden `STIDCART.META` entry, round-tripped, edited by `edit` flags, a TOML import and the window, and listed (D-054)
-- **Next action:** done; PR open, merge when gate, gui and claude-review are green (user authorised). The GUI live check is left for the user (listed in the final summary)
+- **Next action:** done
 - **Branch:** feat/menu-meta · **Updated:** 2026-11-08
 
 ## STEPS
@@ -110,3 +110,12 @@ See `spec.md` (AC-153..AC-159).
 - 2026-11-08 — reconciled: folded AC-153..AC-155 → SPEC.md/none, AC-156..AC-157 → SPEC.md/CLI,
   AC-158..AC-159 → SPEC.md/RENDER (three new rows). Closeout line appended. The GUI live check
   (drive the app, select rows, edit fields) was not done by an agent; it is left for the user.
+- 2026-11-08 — Live check in the dev app (0.23.0, after menu-folders merged), on scratch carts built
+  by `build` + `edit --title/--year/--author/--note/--group`. Results:
+  - Rows show each title under its name, and the Group column appears.
+  - Clicking a row opens the panel with all five fields.
+  - Editing the year to 1985 applied as one edit, and the window showed "Edited".
+  - An over-long year was refused in `edit`'s words ("the year is 5 characters long, and a year
+    holds at most 4"), and the field kept 1985.
+  - ⌘Z gave back 1984 and cleared "Edited".
+  - Opening a cart without metadata cleared the panel and dropped the Group column.
