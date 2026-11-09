@@ -24,7 +24,7 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   build           create a cartridge image from programs and cartridge images
   -e NAME         cartridge name shown by the menu (default: \"(no EF-Name)\")
   -o OUTPUT       where to write the image
-  --menu MENU     the menu the cart boots into: easyloader (default) or stidcart
+  --menu MENU     the menu the cart boots into: stidcart (default) or easyloader
   --hide INPUT    mark that input hidden in the built cartridge
   --align INPUT   request 64 KB alignment for that xbank cartridge input
   INPUT           a .prg, or a cartridge image (recognised by content: generic 8k/16k/Ultimax,
@@ -129,9 +129,9 @@ fn build(args: &[String]) -> Result<Option<String>, String> {
     if let Some(name) = &ef_name {
         builder = builder.with_ef_name(name);
     }
-    if let Some(menu) = menu {
-        builder = builder.with_menu(menu);
-    }
+    // Our menu unless told otherwise (D-064); the core's own default stays EasyLoader, which its
+    // ndeft parity proofs build with.
+    builder = builder.with_menu(menu.unwrap_or(Menu::Stidcart));
     for (i, path) in inputs.iter().enumerate() {
         builder = builder.with_entry(input_entry(path, align.contains(path))?);
         builder.set_hidden(i, hide.contains(path));

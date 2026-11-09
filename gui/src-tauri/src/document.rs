@@ -181,7 +181,8 @@ impl Document {
 
     /// An empty cart that has never been saved, with the names `build` gives one by default.
     pub fn new() -> Document {
-        let builder = CartBuilder::new();
+        // Our menu, as `build` gives a cart naming none (D-064).
+        let builder = CartBuilder::new().with_menu(Menu::Stidcart);
         let bytes = builder.build().expect("an empty cartridge always builds");
         let listing = listing::describe(&bytes).expect("a freshly built image describes");
         Document {

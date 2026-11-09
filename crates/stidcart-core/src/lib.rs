@@ -283,19 +283,19 @@ impl std::fmt::Display for BuildError {
             ),
             BuildError::MenuNeedsNormalMode { name } => write!(
                 f,
-                "'{name}' is an Ocean cartridge, and the stidcart menu cannot run on an Ocean cart"
+                "'{name}' is an Ocean cartridge, and the stidcart menu cannot run on an Ocean cart; EasyLoader can start it"
             ),
             BuildError::ProgramLoadsHigh { name, load } => write!(
                 f,
-                "'{name}' loads at ${load:04X}, and the stidcart menu starts only programs that load below $D000"
+                "'{name}' loads at ${load:04X}, and the stidcart menu starts only programs that load below $D000; EasyLoader can start it"
             ),
             BuildError::ProgramPastTop { name } => write!(
                 f,
-                "'{name}' runs past $FFFF, the end of the C64's memory, so the stidcart menu cannot start it"
+                "'{name}' runs past $FFFF, the end of the C64's memory, so the stidcart menu cannot start it; EasyLoader can start it"
             ),
             BuildError::ProgramOverHighCopy { name } => write!(
                 f,
-                "'{name}' reaches $D000 and loads below ${:04X}, over the routine at $0100 the stidcart menu copies that part with",
+                "'{name}' reaches $D000 and loads below ${:04X}, over the routine at $0100 the stidcart menu copies that part with; EasyLoader can start it",
                 menu::HIGH_COPY_END
             ),
         }
