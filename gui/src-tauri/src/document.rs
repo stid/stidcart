@@ -277,7 +277,7 @@ impl Document {
             } => {
                 check_index(&builder, index)?;
                 let field = Field::from_name(&field).ok_or_else(|| {
-                    format!("no metadata field named '{field}'; it is title, year, author, note or group")
+                    format!("no metadata field named '{field}'; it is title, year, author, note or folder")
                 })?;
                 builder
                     .set_meta(index, field, &value)

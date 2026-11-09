@@ -49,7 +49,7 @@ pub struct Program {
     /// survives a save and a reload — which is the whole reason [`read::load`] no longer refuses a
     /// cart that carries one (D-020).
     pub hidden: bool,
-    /// Title, year, author, note and group. Carried as `hidden` is, so remove, rename, replace and
+    /// Title, year, author, note and folder. Carried as `hidden` is, so remove, rename, replace and
     /// re-order keep it with its entry (D-054).
     pub meta: Meta,
 }

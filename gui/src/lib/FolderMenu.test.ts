@@ -1,13 +1,13 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/svelte";
-import { afterEach, expect, test, vi } from "vitest";
-import FolderMenu from "./FolderMenu.svelte";
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import { afterEach, expect, test, vi } from 'vitest';
+import FolderMenu from './FolderMenu.svelte';
 
 // Vitest runs without globals here, so testing-library cannot unmount between tests by itself.
 afterEach(cleanup);
 
 function setup(canUp: boolean, canDown: boolean) {
   const props = {
-    name: "Games",
+    name: 'Games',
     canUp,
     canDown,
     onrename: vi.fn(),
@@ -18,38 +18,30 @@ function setup(canUp: boolean, canDown: boolean) {
 }
 
 async function open() {
-  const trigger = screen.getByRole("button", {
+  const trigger = screen.getByRole('button', {
     name: /actions for folder games/i,
   });
   trigger.focus();
-  await fireEvent.keyDown(trigger, { key: "Enter" });
+  await fireEvent.keyDown(trigger, { key: 'Enter' });
 }
 
-test("AC-183 (RENDER): Rename on a folder row starts renaming that folder", async () => {
+test('AC-183 (RENDER): Rename on a folder row starts renaming that folder', async () => {
   const p = setup(true, true);
   await open();
-  await fireEvent.click(
-    await screen.findByRole("menuitem", { name: /rename/i }),
-  );
-  expect(p.onrename).toHaveBeenCalledExactlyOnceWith("Games");
+  await fireEvent.click(await screen.findByRole('menuitem', { name: /rename/i }));
+  expect(p.onrename).toHaveBeenCalledExactlyOnceWith('Games');
   expect(p.onmove).not.toHaveBeenCalled();
 });
 
-test("AC-181 (RENDER): Move up and Move down move the folder, disabled at the edges", async () => {
+test('AC-181 (RENDER): Move up and Move down move the folder, disabled at the edges', async () => {
   const p = setup(true, false);
   await open();
-  await fireEvent.click(
-    await screen.findByRole("menuitem", { name: /move up/i }),
-  );
-  expect(p.onmove).toHaveBeenCalledExactlyOnceWith("Games", -1);
+  await fireEvent.click(await screen.findByRole('menuitem', { name: /move up/i }));
+  expect(p.onmove).toHaveBeenCalledExactlyOnceWith('Games', -1);
 
   cleanup();
   setup(false, true);
   await open();
-  expect(
-    await screen.findByRole("menuitem", { name: /move up/i }),
-  ).toHaveAttribute("aria-disabled", "true");
-  expect(
-    screen.getByRole("menuitem", { name: /move down/i }),
-  ).not.toHaveAttribute("aria-disabled", "true");
+  expect(await screen.findByRole('menuitem', { name: /move up/i })).toHaveAttribute('aria-disabled', 'true');
+  expect(screen.getByRole('menuitem', { name: /move down/i })).not.toHaveAttribute('aria-disabled', 'true');
 });

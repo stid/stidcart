@@ -51,7 +51,7 @@ pub struct Row {
     pub year: String,
     pub author: String,
     pub note: String,
-    pub group: String,
+    pub folder: String,
 }
 
 impl Listing {
@@ -112,7 +112,7 @@ pub fn describe(bytes: &[u8]) -> Result<Listing, ReadError> {
             year: info.metas[index].get(Field::Year).to_string(),
             author: info.metas[index].get(Field::Author).to_string(),
             note: info.metas[index].get(Field::Note).to_string(),
-            group: info.metas[index].get(Field::Group).to_string(),
+            folder: info.metas[index].get(Field::Folder).to_string(),
         })
         .collect();
     // The cartridge name and every entry name arrive through the machine's own character mapping,

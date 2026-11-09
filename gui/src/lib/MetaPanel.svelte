@@ -19,7 +19,7 @@
     { field: 'year', label: 'Year' },
     { field: 'author', label: 'Author' },
     { field: 'note', label: 'Note' },
-    { field: 'group', label: 'Group' },
+    { field: 'folder', label: 'Folder' },
   ];
 </script>
 

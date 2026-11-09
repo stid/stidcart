@@ -55,7 +55,7 @@ pub struct RowDto {
     pub year: String,
     pub author: String,
     pub note: String,
-    pub group: String,
+    pub folder: String,
 }
 
 impl From<&Listing> for ListingDto {
@@ -89,7 +89,7 @@ impl From<&Row> for RowDto {
             year: r.year.clone(),
             author: r.author.clone(),
             note: r.note.clone(),
-            group: r.group.clone(),
+            folder: r.folder.clone(),
         }
     }
 }

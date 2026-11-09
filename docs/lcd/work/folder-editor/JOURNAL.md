@@ -12,15 +12,15 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** run lcd:redgreen-loop (start with T1 version bump, then block B)
+- **Next action:** redgreen block C: T22 `move_entry`, T23 `Op::Move` (AC-176, AC-177)
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — triage (Deep), spec.md, plan.md, tasks.md
-- [ ] S2 — T1 version 0.26.0 ← next
-- [ ] S3 — T2–T19 rename group → folder (core, CLI, GUI; both gates green before commit)
-- [ ] S4 — T20–T23 `edit --move` and `move_entry`
+- [x] S2 — T1 version 0.26.0
+- [x] S3 — T2–T19 rename group → folder (core, CLI, GUI; both gates green before commit)
+- [ ] S4 — T20–T23 `edit --move` and `move_entry` ← next
 - [ ] S5 — T24–T29 `Edit::Arrange` in the Document
 - [ ] S6 — T30–T32 tree model (`tree.ts`)
 - [ ] S7 — T33–T34 pointer drag (`rowDrag.ts`)
@@ -47,6 +47,7 @@
 - `crates/stidcart-core/src/meta.rs`
 - `crates/stidcart-core/src/lib.rs`
 - `crates/stidcart-core/src/listing.rs`
+- `crates/stidcart-core/src/cartridge.rs`
 - `crates/stidcart-core/tests/meta.rs`
 - `crates/stidcart-core/tests/listing.rs`
 - `crates/stidcart-cli/src/lib.rs`
@@ -108,6 +109,8 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
   so the recon's native-menu suggestion is dropped as extra scope.
 - 2026-11-08 — tasks.md written: 46 numbered tasks + T-live, T-audit, T-final, T-close.
 - 2026-11-08 — test-gen: 30 failing tests (5 in folder_cli.rs, 5 in GUI folders.rs, 20 in vitest across tree, rowDrag, FolderMenu, EntryMenu, MetaPanel, Listing), every AC × surface token present. Existing tests still pass; the AC-158 Listing tests that name "group" change in T12/T44. Test-defined contracts: EntryMenu `onmove` ({kind: folder|noFolder|newFolder|up|down}, props `folders`, `canUp`, `canDown`); FolderMenu props `name`, `canUp`, `canDown`, `onrename(name)`, `onmove(name, ±1)`, trigger "Actions for folder <name>"; rowDrag `dropTarget(kind, over, rect, y)` → {before|after|into|end|last}, `dragRow(source, ondrop)` attachment; rows carry `data-entry` (+ `data-folder`), folder rows `data-folder-row`; tree.ts exports buildTree, moveEntry, moveFolder, newFolder, renameFolder, stepEntry, stepFolder, sameTree, toArrange, indexAfter.
+- 2026-11-08 — refine: EDIT BOUNDARY gains `crates/stidcart-core/src/cartridge.rs` (one doc comment names the metadata fields; the plan's rename missed it).
+- 2026-11-08 — Block B green as one atomic commit (the rename can't compile one workspace at a time): AC-173..AC-175 (CLI), AC-175 (RENDER), and AC-184's Rust test. The global auto-format hook ran default Prettier on the new `.ts` tests (double quotes, 80 cols) because the repo has no Prettier config; the test files were restored to the repo style (single quotes, width 120), and `.ts` edits now go through the shell, which the hook doesn't watch.
 
 ## DEEP PIPELINE (Deep lane only)
 

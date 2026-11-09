@@ -39,8 +39,8 @@
   /** The row whose metadata the panel shows, chosen by clicking it (D-054). */
   let selected = $state<number | null>(null);
   const selectedRow = $derived(listing.rows.find((r) => r.index === selected));
-  /** The Group column shows only when some entry has a group, so a cart without lists as before. */
-  const hasGroups = $derived(listing.rows.some((r) => r.group !== ''));
+  /** The Folder column shows only when some entry has a folder, so a cart without lists as before. */
+  const hasFolders = $derived(listing.rows.some((r) => r.folder !== ''));
 
   /** An exact byte count, for the hover on a size the listing shows rounded (D-044). */
   function exact(bytes: number): string {
@@ -67,7 +67,7 @@
     {/if}
     {#if row.title !== ''}<span class="title">{row.title}</span>{/if}
   </td>
-  {#if hasGroups}<td class="muted">{row.group}</td>{/if}
+  {#if hasFolders}<td class="muted">{row.folder}</td>{/if}
   <td>
     {#if row.flags === '-'}<span class="faint">-</span>{:else}{#each row.flags.split('') as f (f)}<span
           class="flag"
@@ -163,7 +163,7 @@
           <tr>
             <th class="num">#</th>
             <th>Name</th>
-            {#if hasGroups}<th>Group</th>{/if}
+            {#if hasFolders}<th>Folder</th>{/if}
             <th>Flags</th>
             <th>Type</th>
             <th class="num">Bank</th>

@@ -18,7 +18,7 @@ use crate::read::ReadError;
 pub struct Cartridge {
     pub name: String,
     pub hidden: bool,
-    /// Title, year, author, note and group, carried as `hidden` is (D-054).
+    /// Title, year, author, note and folder, carried as `hidden` is (D-054).
     pub meta: crate::meta::Meta,
     /// Always one of [`EntryType::CARTRIDGES`]; [`Cartridge::from_crt`] is the only constructor.
     pub kind: EntryType,

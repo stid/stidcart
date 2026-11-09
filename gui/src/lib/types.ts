@@ -22,7 +22,7 @@ export interface Row {
   year: string;
   author: string;
   note: string;
-  group: string;
+  folder: string;
 }
 
 export interface Listing {
@@ -78,7 +78,7 @@ export type Edit =
   | { kind: 'setMeta'; index: number; field: MetaField; value: string };
 
 /** The five metadata fields, as `edit` names them. */
-export type MetaField = 'title' | 'year' | 'author' | 'note' | 'group';
+export type MetaField = 'title' | 'year' | 'author' | 'note' | 'folder';
 
 /** The answer to "save changes?". */
 export type Unsaved = 'save' | 'discard' | 'cancel';

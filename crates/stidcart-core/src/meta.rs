@@ -1,4 +1,4 @@
-//! Entry metadata: a title, year, author, note and group per entry, stored in one hidden program
+//! Entry metadata: a title, year, author, note and folder per entry, stored in one hidden program
 //! entry, `STIDCART.META` (D-054, D-055).
 //!
 //! This is a stidcart extension, not an EasyFlash or ndefpack fact. Its layout is the section
@@ -34,7 +34,7 @@ pub enum Field {
     Year,
     Author,
     Note,
-    Group,
+    Folder,
 }
 
 impl Field {
@@ -43,7 +43,7 @@ impl Field {
         Field::Year,
         Field::Author,
         Field::Note,
-        Field::Group,
+        Field::Folder,
     ];
 
     /// The name `edit`, the import file and the window use for it.
@@ -53,7 +53,7 @@ impl Field {
             Field::Year => "year",
             Field::Author => "author",
             Field::Note => "note",
-            Field::Group => "group",
+            Field::Folder => "folder",
         }
     }
 
@@ -63,12 +63,17 @@ impl Field {
             Field::Title | Field::Note => 48,
             Field::Year => 4,
             Field::Author => 24,
-            Field::Group => 16,
+            Field::Folder => 16,
         }
     }
 
+    /// The field a name means. `group` is the folder's name before D-060, still accepted so
+    /// `--group` and an import's `group` key keep working.
     pub fn from_name(name: &str) -> Option<Field> {
-        Field::ALL.into_iter().find(|f| f.name() == name)
+        match name {
+            "group" => Some(Field::Folder),
+            _ => Field::ALL.into_iter().find(|f| f.name() == name),
+        }
     }
 }
 
@@ -177,7 +182,7 @@ pub(crate) struct Record<'a> {
 pub(crate) fn encode(records: &[Record]) -> Vec<u8> {
     let mut groups: Vec<&str> = Vec::new();
     for r in records {
-        let g = r.meta.get(Field::Group);
+        let g = r.meta.get(Field::Folder);
         if !g.is_empty() && !groups.contains(&g) {
             groups.push(g);
         }
@@ -195,7 +200,7 @@ pub(crate) fn encode(records: &[Record]) -> Vec<u8> {
         out.extend_from_slice(&name);
     }
     for r in records {
-        let group = r.meta.get(Field::Group);
+        let group = r.meta.get(Field::Folder);
         let number = groups
             .iter()
             .position(|g| *g == group)
@@ -286,7 +291,8 @@ fn parse_v1(p: &[u8]) -> Result<Records, String> {
         let mut meta = Meta::default();
         if group > 0 {
             let g = groups.get(group - 1).ok_or_else(|| bad("names no group"))?;
-            meta.set(Field::Group, g).map_err(|e| bad(&e.to_string()))?;
+            meta.set(Field::Folder, g)
+                .map_err(|e| bad(&e.to_string()))?;
         }
         let mut pos = 3 + NAME_LEN;
         for f in [Field::Title, Field::Year, Field::Author, Field::Note] {
@@ -327,8 +333,8 @@ mod tests {
 
     #[test]
     fn the_layout_is_the_one_the_format_doc_gives() {
-        let a = meta(&[(Field::Title, "Ab"), (Field::Group, "Games")]);
-        let b = meta(&[(Field::Year, "1984"), (Field::Group, "Games")]);
+        let a = meta(&[(Field::Title, "Ab"), (Field::Folder, "Games")]);
+        let b = meta(&[(Field::Year, "1984"), (Field::Folder, "Games")]);
         let data = encode(&[
             Record {
                 index: 0,
@@ -383,11 +389,11 @@ mod tests {
     #[test]
     fn values_must_fit_and_map_to_petscii() {
         let mut m = Meta::default();
-        assert!(m.set(Field::Group, &"g".repeat(16)).is_ok());
+        assert!(m.set(Field::Folder, &"g".repeat(16)).is_ok());
         assert_eq!(
-            m.set(Field::Group, &"g".repeat(17)),
+            m.set(Field::Folder, &"g".repeat(17)),
             Err(MetaError::TooLong {
-                field: Field::Group,
+                field: Field::Folder,
                 len: 17,
                 max: 16
             })
@@ -401,7 +407,7 @@ mod tests {
         );
         assert!(m.set(Field::Note, "tab\there").is_err());
         assert_eq!(
-            m.get(Field::Group),
+            m.get(Field::Folder),
             "g".repeat(16),
             "a refusal leaves the field"
         );

@@ -53,10 +53,11 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   --year N TEXT   set its year (at most 4)
   --author N TEXT set its author (at most 24)
   --note N TEXT   set its note (at most 48)
-  --group N TEXT  put it in a group (at most 16); an empty TEXT clears any of these
+  --folder N TEXT put it in a folder (at most 16; --group N TEXT also works); an
+                  empty TEXT clears any of these
   --import FILE   set metadata from a TOML file of [[entry]] tables, each naming an
                   entry by its stored name (case ignored) with any of title, year,
-                  author, note and group; any problem refuses the whole file
+                  author, note and folder; any problem refuses the whole file
 
   Indices are the ones `list` prints, and every index in one invocation refers
   to the image as it was given, not to the state a previous operation left.
@@ -186,7 +187,7 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
                 it.next().ok_or("--add-aligned needs a file")?.clone(),
                 true,
             )),
-            "--title" | "--year" | "--author" | "--note" | "--group" => {
+            "--title" | "--year" | "--author" | "--note" | "--folder" | "--group" => {
                 let field = Field::from_name(&arg[2..]).expect("the five field options");
                 let at = index(it.next(), arg)?;
                 let value = it.next().ok_or_else(|| format!("{arg} needs a value"))?;
@@ -387,9 +388,19 @@ fn import(path: &str, builder: &CartBuilder) -> Result<Vec<Op>, String> {
             let field = Field::from_name(key).ok_or_else(|| {
                 at(format!(
                     "entry '{name}' has an unknown key '{key}'; the fields are title, year, \
-                     author, note and group"
+                     author, note and folder"
                 ))
             })?;
+            // `group` is the folder's old name (D-060), so a table may not set both.
+            if ops
+                .iter()
+                .any(|op| matches!(op, Op::Meta(i, f, _) if *i == index && *f == field))
+            {
+                return Err(at(format!(
+                    "entry '{name}' sets the {} twice",
+                    field.name()
+                )));
+            }
             let value = match value {
                 Value::String(s) => s.clone(),
                 Value::Integer(i) if field == Field::Year => i.to_string(),
@@ -502,7 +513,7 @@ fn render(l: &Listing, exact: bool) -> String {
                 ("year", &r.year),
                 ("author", &r.author),
                 ("note", &r.note),
-                ("group", &r.group),
+                ("folder", &r.folder),
             ]
             .iter()
             .filter(|(_, v)| !v.is_empty())
