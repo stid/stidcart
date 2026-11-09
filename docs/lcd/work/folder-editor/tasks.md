@@ -97,7 +97,7 @@
 
 ### K. Verify and close
 
-- [x] **T-live**: Live check in the running app (memory `gui-live-check`): open a cart, see the tree, drag an entry into and out of a folder, move a folder, rename one, check a Finder drop still adds; save and `list` the result. Drags may need the user's hand
+- [ ] **T-live**: Live check in the running app (memory `gui-live-check`): open a cart, see the tree, drag an entry into and out of a folder, move a folder, rename one, check a Finder drop still adds; save and `list` the result. Drags may need the user's hand — done except the Finder drop, which the user checks by hand before the PR
 - [x] **T-audit**: Run `/lcd:audit folder-editor`; resulting `audit.md` has zero MISSING/BLOCKED rows
 - [x] **T-final**: `cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace && docs/lcd/ci/gui-gate.sh`, all green
 - [x] **T-close**: Closeout: `lcd:reconcile` folds AC-173..AC-184 into `docs/lcd/SPEC.md`; `docs/lcd/MAP.md` gets the core's `move_entry` and the GUI's tree/drag modules if its zone text needs them; JOURNAL marked done

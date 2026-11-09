@@ -359,6 +359,23 @@ test('AC-182 (RENDER): New folder… asks for a name inline, and committing move
   });
 });
 
+test('AC-182 (RENDER): the right-click menu offers the same moves, and its other items still work', async () => {
+  const { onedit } = editable({ listing: foldered() });
+  const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  await fireEvent.contextMenu(ramp);
+  // Found by text: jsdom hides menus opened inside the scrolling table (see the test above).
+  expect(await screen.findByText('Move to folder')).toBeInTheDocument();
+  await fireEvent.click(screen.getByText('Hide'));
+  expect(onedit).toHaveBeenCalledExactlyOnceWith({ kind: 'setHidden', index: 1, hidden: true });
+
+  await fireEvent.contextMenu(ramp);
+  const sub = await screen.findByText('Move to folder');
+  sub.focus();
+  await fireEvent.keyDown(sub, { key: 'ArrowRight' });
+  await fireEvent.click(await screen.findByText('New folder…'));
+  expect(await screen.findByRole('textbox', { name: /new folder/i })).toBeInTheDocument();
+});
+
 test('AC-184 (RENDER): after a folder field change the entry is listed under its new folder', () => {
   render(Listing, {
     props: { listing: foldered(['Games', 'Games']), file: 'two.crt' },

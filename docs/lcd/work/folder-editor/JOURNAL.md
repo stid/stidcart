@@ -116,6 +116,7 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
 - 2026-11-08 — T-live in the running app (CGEvent drags through a small Swift tool): the tree renders as the menu does; real drags move an entry into a folder and a folder above another; Rename from the folder menu and New folder… from the entry menu (keyboard) work, and the selection follows its entry; ⌘S then `list` shows the cart in tree order. Two bugs found and fixed: the drop hit-tested after clearing the drag state, so the end strip (shown only while dragging) was gone and an entry could not leave its folder (regression test added to rowDrag.test.ts, red on the old code); and a drag left a native text selection on the rows (cleared at drag start and drop). Not checked: a Finder drop of a .prg (can't be scripted; left for the user).
 - 2026-11-08 — audit: PASS (first run), audit.md written; closeout line appended.
 - 2026-11-08 — reconciled: folded AC-173..AC-177 → SPEC.md/CLI (metadata row rewritten, `--move` row new), AC-175, AC-178..AC-184 → SPEC.md/RENDER (metadata row rewritten, folder-tree row new), the Internal metadata row's field list; MAP gui zone notes tree.ts and rowDrag.ts.
+- 2026-11-08 — Added a Listing test for the right-click menu (it shares EntryMenu's item list with the new submenu, and nothing had opened it): Hide still works there and New folder… opens its field.
 
 ## DEEP PIPELINE (Deep lane only)
 
