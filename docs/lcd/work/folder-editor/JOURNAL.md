@@ -12,13 +12,13 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** run /lcd:test-gen folder-editor
+- **Next action:** run lcd:redgreen-loop (start with T1 version bump, then block B)
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — triage (Deep), spec.md, plan.md, tasks.md
-- [ ] S2 — T1 version 0.26.0 ← next (after /lcd:test-gen writes the failing tests)
+- [ ] S2 — T1 version 0.26.0 ← next
 - [ ] S3 — T2–T19 rename group → folder (core, CLI, GUI; both gates green before commit)
 - [ ] S4 — T20–T23 `edit --move` and `move_entry`
 - [ ] S5 — T24–T29 `Edit::Arrange` in the Document
@@ -107,10 +107,11 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
   @dnd-kit/svelte. No native-menu twin of the move commands: the dropdown is keyboard reachable,
   so the recon's native-menu suggestion is dropped as extra scope.
 - 2026-11-08 — tasks.md written: 46 numbered tasks + T-live, T-audit, T-final, T-close.
+- 2026-11-08 — test-gen: 26 failing tests (5 in folder_cli.rs, 5 in GUI folders.rs, 16 in vitest across tree, rowDrag, FolderMenu, EntryMenu, MetaPanel, Listing), every AC × surface token present. Existing tests still pass; the AC-158 Listing tests that name "group" change in T12/T44. Test-defined contracts: EntryMenu `onmove` ({kind: folder|noFolder|newFolder|up|down}, props `folders`, `canUp`, `canDown`); FolderMenu props `name`, `canUp`, `canDown`, `onrename(name)`, `onmove(name, ±1)`, trigger "Actions for folder <name>"; rowDrag `dropTarget(kind, over, rect, y)` → {before|after|into|end|last}, `dragRow(source, ondrop)` attachment; rows carry `data-entry` (+ `data-folder`), folder rows `data-folder-row`; tree.ts exports buildTree, moveEntry, moveFolder, newFolder, renameFolder, stepEntry, stepFolder, sameTree, toArrange, indexAfter.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
