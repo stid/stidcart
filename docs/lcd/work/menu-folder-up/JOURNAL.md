@@ -12,14 +12,14 @@
 
 - **Lane:** Standard
 - **Goal:** Inside a folder our menu lists a `..` row first; RETURN or fire on it goes back to the top level, so the joystick can leave a folder (D-058)
-- **Next action:** S3 — failing boot tests for AC-170..AC-172
+- **Next action:** S4 — implement `..` in `menu/src/menu.s`, rebuild, re-pin the fingerprint
 - **Branch:** feat/menu-folder-up · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — version 0.23.0 → 0.24.0 (first commit on the branch)
 - [x] S2 — triage, D-058, AC-170..AC-172 claimed, this JOURNAL
-- [ ] S3 — failing boot tests in `menu_boot.rs` for AC-170..AC-172
+- [x] S3 — failing boot tests in `menu_boot.rs` for AC-170..AC-172
 - [ ] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [ ] S5 — `menu/README.md`, the F7 help, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR (merge only on the user's yes)
@@ -79,3 +79,7 @@ CLR selects the last entry.
   and found no way back up with a joystick, then asked for a top item that goes up a level. ESC in
   VICE is RUN/STOP, which at the top level leaves to BASIC as designed. That stays, since the user
   asked only about going up. AC-170..AC-172 claimed, next free AC-173.
+- 2026-11-08 — S3: AC-170..AC-172 in `menu_boot.rs`, red. AC-171: row 5 is not `..`. AC-172:
+  on `..` row 22 does not read `0 of 2` (UP from the first entry stays put). AC-170: UP then
+  RETURN starts "demo a", so the menu never idles again (no `..` to go back through). Row 22 on
+  `..` reads `0 of N`: the position leaves `..` out, so it is before the first entry.
