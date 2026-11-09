@@ -196,7 +196,8 @@ function annotated(): ListingData {
 test('AC-158 (RENDER): each entry shows its title under its name and its folder in a column', () => {
   render(Listing, { props: { listing: annotated(), file: 'two.crt' } });
   expect(screen.getByRole('columnheader', { name: /folder/i })).toBeInTheDocument();
-  const rows = screen.getAllByRole('row').slice(1);
+  // A folder row comes first now (AC-178); the entries follow it.
+  const rows = screen.getAllByRole('row').filter((r) => r.hasAttribute('data-entry'));
   expect(within(rows[0]).getByText('Hello There')).toBeInTheDocument();
   expect(within(rows[0]).getByText('Games')).toBeInTheDocument();
   expect(within(rows[1]).queryByText('Hello There')).toBeNull();
@@ -228,7 +229,7 @@ test('AC-158 (RENDER): the window says how many records were dropped, and a kept
 
 test('AC-159 (RENDER): selecting an entry offers its five fields, each change a setMeta edit', async () => {
   const { onedit } = editable({ listing: annotated() });
-  const rows = screen.getAllByRole('row').slice(1);
+  const rows = screen.getAllByRole('row').filter((r) => r.hasAttribute('data-entry'));
   expect(screen.queryByRole('button', { name: /edit title/i })).toBeNull();
 
   await fireEvent.click(within(rows[1]).getByText(listing.rows[1].kind));
@@ -302,16 +303,19 @@ function pointer(type: string, el: Element, y: number) {
   el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: 10, clientY: y, button: 0 }));
 }
 
-/** Drag `from` and release over `over`, with layout faked: jsdom has none. */
+/** Drag `from` and release over `over`, with layout faked: jsdom has none. The fakes are taken
+ * back after, since the menus also measure and hit-test. */
 async function drag(from: Element, over: Element) {
-  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
-    top: 0,
-    height: 20,
-  } as DOMRect);
+  const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ top: 0, height: 20 } as DOMRect);
+  const hitTest = document.elementFromPoint;
   document.elementFromPoint = vi.fn(() => over);
   pointer('pointerdown', from, 5);
   pointer('pointermove', from, 15);
   pointer('pointerup', from, 15);
+  document.elementFromPoint = hitTest;
+  rect.mockRestore();
+  // A drop swallows the click that ends it until the next task; let that pass before going on.
+  await new Promise((r) => setTimeout(r, 0));
 }
 
 test('AC-179 (RENDER): dropping an entry on a folder row sends one arrange; a drop that changes nothing sends none', async () => {
@@ -337,7 +341,10 @@ test('AC-182 (RENDER): New folder… asks for a name inline, and committing move
   const sub = await screen.findByRole('menuitem', { name: /move to folder/i });
   sub.focus();
   await fireEvent.keyDown(sub, { key: 'ArrowRight' });
-  await fireEvent.click(await screen.findByRole('menuitem', { name: /new folder/i }));
+  // jsdom has no layout, so the menu's positioning takes the trigger inside the scrolling table as
+  // clipped and hides the open menus with visibility: hidden, which also blanks their accessible
+  // names. They are open all the same, so the item is found by its text.
+  await fireEvent.click(await screen.findByText('New folder…'));
 
   const input = await screen.findByRole('textbox', { name: /new folder/i });
   await fireEvent.input(input, { target: { value: 'Tools' } });

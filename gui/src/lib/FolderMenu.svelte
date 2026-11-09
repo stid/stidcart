@@ -16,13 +16,26 @@
     onrename: (name: string) => void;
     onmove: (name: string, dir: -1 | 1) => void;
   } = $props();
+
+  // Rename opens a text field on the folder row; focus going back to the trigger would end it.
+  let toField = false;
+  function closeFocus(e: Event) {
+    if (toField) e.preventDefault();
+    toField = false;
+  }
 </script>
 
 <DropdownMenu.Root>
   <DropdownMenu.Trigger class="more" aria-label={`Actions for folder ${name}`}>⋯</DropdownMenu.Trigger>
   <DropdownMenu.Portal>
-    <DropdownMenu.Content class="menu" align="end" sideOffset={4}>
-      <DropdownMenu.Item class="menu-item" onSelect={() => onrename(name)}>Rename</DropdownMenu.Item>
+    <DropdownMenu.Content class="menu" align="end" sideOffset={4} onCloseAutoFocus={closeFocus}>
+      <DropdownMenu.Item
+        class="menu-item"
+        onSelect={() => {
+          toField = true;
+          onrename(name);
+        }}>Rename</DropdownMenu.Item
+      >
       <DropdownMenu.Item class="menu-item" disabled={!canUp} onSelect={() => onmove(name, -1)}>Move up</DropdownMenu.Item>
       <DropdownMenu.Item class="menu-item" disabled={!canDown} onSelect={() => onmove(name, 1)}
         >Move down</DropdownMenu.Item

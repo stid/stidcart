@@ -1,7 +1,26 @@
 <script lang="ts">
   import EditableText from './EditableText.svelte';
   import EntryMenu from './EntryMenu.svelte';
+  import FolderMenu from './FolderMenu.svelte';
   import MetaPanel from './MetaPanel.svelte';
+  import { dragRow, type DragSource, type Drop } from './rowDrag';
+  import {
+    buildTree,
+    canStep,
+    indexAfter,
+    moveEntry,
+    moveFolder,
+    newFolder,
+    renameFolder,
+    sameTree,
+    stepEntry,
+    stepFolder,
+    toArrange,
+    type EntryMove,
+    type EntryTarget,
+    type FolderTarget,
+    type Tree,
+  } from './tree';
   import type { Edit, Listing, Row, RowActions } from './types';
 
   let {
@@ -22,7 +41,7 @@
     /** What each row may offer, from the Rust side. */
     rows?: RowActions[];
     /** Given (with `onreplace`), the listing offers edits. Without it, it only shows. */
-    onedit?: (e: Edit) => void;
+    onedit?: (e: Edit) => void | Promise<boolean>;
     onreplace?: (index: number) => void;
   } = $props();
 
@@ -49,6 +68,48 @@
 
   function edit(e: Edit) {
     onedit?.(e);
+  }
+
+  /** The cart as our menu shows it: folders first, then the loose entries (D-057, D-060). */
+  const tree = $derived(buildTree(listing.rows));
+  const folderNames = $derived(tree.folders.map((f) => f.name));
+  /** Each row by its entry index, with its position in `listing.rows` (for `rows[i]`). */
+  const rowAt = $derived(new Map(listing.rows.map((r, i) => [r.index, { row: r, i }])));
+  /** The total column count, for the rows that span the table. */
+  const columns = $derived(7 + (hasFolders ? 1 : 0) + (editable ? 1 : 0));
+
+  /** Folders whose entries are hidden; every folder opens expanded. */
+  let collapsed = $state<string[]>([]);
+  /** The folder whose name is being edited, started from its menu's Rename. */
+  let renamingFolder = $state<string | null>(null);
+  /** The entry waiting for the name of the new folder it goes into ("New folder…"). */
+  let naming = $state<number | null>(null);
+  /** The same entry, kept past the field's close: it ends its edit (clearing `naming`) before it
+   * commits. */
+  let namingFor = -1;
+
+  function toggle(name: string) {
+    collapsed = collapsed.includes(name) ? collapsed.filter((n) => n !== name) : [...collapsed, name];
+  }
+
+  /** Send the tree as one edit, unless it is the tree already; the selection follows its entry. */
+  async function arrange(next: Tree) {
+    if (sameTree(next, tree)) return;
+    const was = selected;
+    const took = await onedit?.(toArrange(next));
+    if (took !== false && was !== null) selected = indexAfter(next, was);
+  }
+
+  function dropped(source: DragSource, drop: Drop) {
+    if (source.kind === 'entry') void arrange(moveEntry(tree, source.index, drop as EntryTarget));
+    else void arrange(moveFolder(tree, source.name, drop as FolderTarget));
+  }
+
+  function moved(index: number, move: EntryMove) {
+    if (move.kind === 'folder') void arrange(moveEntry(tree, index, { into: move.name }));
+    else if (move.kind === 'noFolder') void arrange(moveEntry(tree, index, { end: true }));
+    else if (move.kind === 'newFolder') naming = namingFor = index;
+    else void arrange(stepEntry(tree, index, move.kind === 'up' ? -1 : 1));
   }
 </script>
 
@@ -78,6 +139,50 @@
   <td class="num mono">{row.bank}</td>
   <td class="mono muted">{row.layout}</td>
   <td class="num mono" title={exact(row.sizeBytes)}>{row.size}</td>
+{/snippet}
+
+{#snippet entry(index: number)}
+  {@const at = rowAt.get(index)}
+  {#if at}
+    {@const row = at.row}
+    {#if editable && onreplace}
+      {@const actions = rows[at.i] ?? { alignable: false }}
+      {@const menu = {
+        folders: folderNames,
+        canUp: canStep(tree, index, -1),
+        canDown: canStep(tree, index, 1),
+        onmove: (m: EntryMove) => moved(index, m),
+      }}
+      <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} {...menu}>
+        {#snippet children(props)}
+          <tr
+            {...props}
+            class:in-folder={row.folder !== ''}
+            data-entry={row.index}
+            data-folder={row.folder || undefined}
+            aria-selected={selected === row.index}
+            onclick={() => (selected = row.index)}
+            {@attach dragRow({ kind: 'entry', index: row.index }, dropped)}
+          >
+            {@render cells(row)}
+            <td class="more-col">
+              <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} {...menu} />
+            </td>
+          </tr>
+        {/snippet}
+      </EntryMenu>
+    {:else}
+      <tr
+        class:in-folder={row.folder !== ''}
+        data-entry={row.index}
+        data-folder={row.folder || undefined}
+        aria-selected={selected === row.index}
+        onclick={() => (selected = row.index)}
+      >
+        {@render cells(row)}
+      </tr>
+    {/if}
+  {/if}
 {/snippet}
 
 <section class="listing">
@@ -173,23 +278,75 @@
           </tr>
         </thead>
         <tbody>
-          {#each listing.rows as row, i (row.index)}
-            {#if editable && onreplace}
-              {@const actions = rows[i] ?? { alignable: false }}
-              <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace}>
-                {#snippet children(props)}
-                  <tr {...props} aria-selected={selected === row.index} onclick={() => (selected = row.index)}>
-                    {@render cells(row)}
-                    <td class="more-col">
-                      <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} />
-                    </td>
-                  </tr>
-                {/snippet}
-              </EntryMenu>
-            {:else}
-              <tr aria-selected={selected === row.index} onclick={() => (selected = row.index)}>{@render cells(row)}</tr>
+          {#each tree.folders as folder, f (folder.name)}
+            {@const open = !collapsed.includes(folder.name)}
+            <tr
+              class="folder-row"
+              data-folder-row={folder.name}
+              {@attach editable && dragRow({ kind: 'folder', name: folder.name }, dropped)}
+            >
+              <td class="num faint"></td>
+              <td class="name" colspan={columns - (editable ? 2 : 1)}>
+                <button
+                  class="toggle"
+                  aria-expanded={open}
+                  aria-label={`Folder ${folder.name}`}
+                  onclick={() => toggle(folder.name)}>{open ? '▾' : '▸'}</button
+                >
+                {#if editable}
+                  <EditableText
+                    value={folder.name}
+                    label={`Name of folder ${folder.name}`}
+                    bind:editing={
+                      () => renamingFolder === folder.name, (on) => (renamingFolder = on ? folder.name : null)
+                    }
+                    oncommit={(name) => void arrange(renameFolder(tree, folder.name, name))}
+                  />
+                {:else}
+                  <span>{folder.name}</span>
+                {/if}
+                <span class="count">{folder.entries.length}</span>
+              </td>
+              {#if editable}
+                <td class="more-col">
+                  <FolderMenu
+                    name={folder.name}
+                    canUp={f > 0}
+                    canDown={f < tree.folders.length - 1}
+                    onrename={(name) => (renamingFolder = name)}
+                    onmove={(name, dir) => void arrange(stepFolder(tree, name, dir))}
+                  />
+                </td>
+              {/if}
+            </tr>
+            {#if open}
+              {#each folder.entries as index (index)}
+                {@render entry(index)}
+              {/each}
             {/if}
           {/each}
+          {#if naming !== null}
+            <tr class="folder-row">
+              <td class="num faint"></td>
+              <td class="name" colspan={columns - 1}>
+                <EditableText
+                  value=""
+                  label="New folder name"
+                  bind:editing={() => naming !== null, (on) => !on && (naming = null)}
+                  oncommit={(name) => void arrange(newFolder(tree, namingFor, name))}
+                />
+              </td>
+            </tr>
+          {/if}
+          {#each tree.loose as index (index)}
+            {@render entry(index)}
+          {/each}
+          {#if editable && tree.folders.length > 0}
+            <!-- Shown only while dragging: the top level, after the last row. -->
+            <tr class="drop-end" data-drop-end aria-hidden="true">
+              <td colspan={columns}>Drop here for no folder</td>
+            </tr>
+          {/if}
         </tbody>
       </table>
     </div>
@@ -441,6 +598,66 @@
     margin: var(--space-1) 0 0;
     font-size: var(--text-sm);
     color: var(--text-muted);
+  }
+
+  .folder-row td {
+    font-weight: 500;
+  }
+
+  .toggle {
+    all: unset;
+    cursor: default;
+    width: 16px;
+    margin-right: var(--space-1);
+    color: var(--text-faint);
+  }
+
+  .toggle:focus-visible {
+    outline: 2px solid var(--accent);
+  }
+
+  .count {
+    margin-left: var(--space-2);
+    font-weight: 400;
+    color: var(--text-faint);
+  }
+
+  tr.in-folder td.name {
+    padding-left: var(--space-6);
+  }
+
+  tr.in-folder td:first-child {
+    color: var(--text-faint);
+  }
+
+  .drop-end {
+    display: none;
+  }
+
+  .drop-end td {
+    color: var(--text-faint);
+    font-size: var(--text-sm);
+  }
+
+  :global(body[data-dragging]) {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  :global(body[data-dragging='entry']) .drop-end {
+    display: table-row;
+  }
+
+  tr[data-drop='before'] td {
+    box-shadow: inset 0 2px 0 var(--accent);
+  }
+
+  tr[data-drop='after'] td {
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  tr[data-drop='into'] td {
+    background: var(--accent-soft);
   }
 
   tbody tr[aria-selected='true'] {

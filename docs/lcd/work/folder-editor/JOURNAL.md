@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** block I: T44 tree in `gui/src/lib/Listing.svelte` (Listing.test.ts AC-178/179/182/184)
+- **Next action:** T45 README, T46 conventions stem list; then T-live (live check), T-audit, T-final, T-close
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
@@ -26,8 +26,8 @@
 - [x] S7 — T33–T34 pointer drag (`rowDrag.ts`)
 - [x] S8 — T35–T38 EntryMenu moves, FolderMenu
 - [x] S9 — T39–T41 viewer reports success
-- [ ] S10 — T42–T44 tree in the listing ← next
-- [ ] S11 — T45–T46 README, conventions stem list
+- [x] S10 — T42–T44 tree in the listing
+- [ ] S11 — T45–T46 README, conventions stem list ← next
 - [ ] S12 — T-live, T-audit, T-final, T-close
 
 ## DECISIONS (this work-item)
@@ -111,6 +111,7 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
 - 2026-11-08 — test-gen: 30 failing tests (5 in folder_cli.rs, 5 in GUI folders.rs, 20 in vitest across tree, rowDrag, FolderMenu, EntryMenu, MetaPanel, Listing), every AC × surface token present. Existing tests still pass; the AC-158 Listing tests that name "group" change in T12/T44. Test-defined contracts: EntryMenu `onmove` ({kind: folder|noFolder|newFolder|up|down}, props `folders`, `canUp`, `canDown`); FolderMenu props `name`, `canUp`, `canDown`, `onrename(name)`, `onmove(name, ±1)`, trigger "Actions for folder <name>"; rowDrag `dropTarget(kind, over, rect, y)` → {before|after|into|end|last}, `dragRow(source, ondrop)` attachment; rows carry `data-entry` (+ `data-folder`), folder rows `data-folder-row`; tree.ts exports buildTree, moveEntry, moveFolder, newFolder, renameFolder, stepEntry, stepFolder, sameTree, toArrange, indexAfter.
 - 2026-11-08 — refine: EDIT BOUNDARY gains `crates/stidcart-core/src/cartridge.rs` (one doc comment names the metadata fields; the plan's rename missed it).
 - 2026-11-08 — Block B green as one atomic commit (the rename can't compile one workspace at a time): AC-173..AC-175 (CLI), AC-175 (RENDER), and AC-184's Rust test. The global auto-format hook ran default Prettier on the new `.ts` tests (double quotes, 80 cols) because the repo has no Prettier config; the test files were restored to the repo style (single quotes, width 120), and `.ts` edits now go through the shell, which the hook doesn't watch.
+- 2026-11-08 — Block I green. Found on the way: (1) a menu item that opens an inline field (Rename, New folder…) lost it at once, because the menu returns focus to its trigger as it closes and the blur ends the edit; EntryMenu and FolderMenu now prevent that focus return for those items (`onCloseAutoFocus`). (2) EditableText ends the edit before calling oncommit, so the new-folder entry is kept in a plain variable. (3) jsdom: an open menu inside the scrolling table gets `visibility: hidden` from the positioning (no layout), which blanks accessible names, so the Listing test finds the submenu item by text; the drag helper restores its fakes and waits out the drop's click swallow.
 
 ## DEEP PIPELINE (Deep lane only)
 
