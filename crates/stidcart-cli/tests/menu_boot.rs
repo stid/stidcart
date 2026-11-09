@@ -813,6 +813,7 @@ const OWN_CODES: std::ops::Range<usize> = 0x60..0x80;
 mod colour {
     pub const BLACK: u8 = 0;
     pub const WHITE: u8 = 1;
+    pub const CYAN: u8 = 3;
     pub const PURPLE: u8 = 4;
     pub const BLUE: u8 = 6;
     pub const YELLOW: u8 = 7;
@@ -1300,8 +1301,8 @@ fn ac_107_entries_carry_their_kind_icon() {
                 for c in SELECTION_BAR {
                     let cell = n * COLS + c;
                     assert!(
-                        l.screen[cell] & 0x80 != 0 && l.colour[cell] == colour::ORANGE,
-                        "{what}: '{name}': column {c} is not in the orange bar"
+                        l.screen[cell] & 0x80 != 0 && l.colour[cell] == colour::CYAN,
+                        "{what}: '{name}': column {c} is not in the cyan bar"
                     );
                 }
             } else {
@@ -1724,9 +1725,10 @@ fn shot_after_boot(dir: &Path, cart: &Path) -> vice::Shot {
     shot
 }
 
-// AC-123: the logo is white from column 7, the selection bar orange, and row 4 clear for the strip
+// AC-123: the logo is white from column 7, the selection bar cyan (D-059; orange until then), and
+// row 4 clear for the strip
 #[test]
-fn ac_123_the_logo_is_white_the_bar_orange_and_row_4_clear() {
+fn ac_123_the_logo_is_white_the_bar_cyan_and_row_4_clear() {
     if !vice::require_tool("x64sc") {
         eprintln!("AC-123: skipping — x64sc is not installed");
         return;
@@ -1739,8 +1741,8 @@ fn ac_123_the_logo_is_white_the_bar_orange_and_row_4_clear() {
     for c in SELECTION_BAR {
         assert_eq!(
             l.colour[first * COLS + c],
-            colour::ORANGE,
-            "column {c} of the selection is not orange"
+            colour::CYAN,
+            "column {c} of the selection is not cyan"
         );
     }
 }

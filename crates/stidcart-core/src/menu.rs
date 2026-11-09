@@ -29,6 +29,7 @@ pub const EARLIER_STIDCART_BUILDS: &[u64] = &[
     0xbe42_a63d_5738_a710, // 3aa1b39
     0x7716_0576_a849_b6c4, // 4e8f451
     0x866f_3dcc_8415_53c1, // 7a9a0c1
+    0xb8b7_0e40_1467_ea23, // 8b1f570
 ];
 
 /// One past the last byte of the routine our menu runs at `$0100` to copy a program's bytes from

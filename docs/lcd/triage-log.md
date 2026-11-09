@@ -56,3 +56,4 @@
 2026-11-08 · menu-folders · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 1 (two test gaps sent back)
 2026-11-08 · menu-folder-up · 2 signals · Standard · hard:no · risk:no
 2026-11-08 · menu-folder-up · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
+2026-11-08 · menu-cyan-bar · 1 signals · Quick · hard:no · risk:no
