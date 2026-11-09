@@ -38,9 +38,10 @@ current one (D-049). A loader slot holding no menu the tool knows is replaced on
 chosen, with `edit --menu` or the app's picker (D-050). The reference tool knows nothing of this menu, so its evidence is VICE: boot tests start carts and read the
 screen back (`menu/README.md`).
 
-Each entry can carry a title (up to 48 characters), year (4), author (24), note (48) and group
+Each entry can carry a title (up to 48 characters), year (4), author (24), note (48) and folder
 (16), set with `edit --title N TEXT` and its siblings, or for many entries at once with
-`edit --import FILE.toml`. They are stored in one hidden `STIDCART.META` entry that both menus skip,
+`edit --import FILE.toml`. Our menu shows folders as folders; the field was called group before
+D-060, and `--group` and the import key `group` still work. They are stored in one hidden `STIDCART.META` entry that both menus skip,
 written only when some entry has metadata, so a cart without any is unchanged (D-054). `list`
 prints them under the entry. Records that another tool's re-order or rename left pointing at the
 wrong entry are dropped and counted, and a layout from a later stidcart is kept as stored (D-055).
@@ -93,7 +94,8 @@ cargo run -p stidcart-cli -- list out.crt          # sizes as "652 bytes", "10.0
 cargo run -p stidcart-cli -- list --bytes out.crt  # every size and the free space as exact bytes
 cargo run -p stidcart-cli -- edit out.crt --rename 0 "new name" --add another.prg
 cargo run -p stidcart-cli -- build --menu stidcart -e "name" -o ours.crt some.prg
-cargo run -p stidcart-cli -- edit out.crt --title 0 "Impossible Mission II" --group 0 Games
+cargo run -p stidcart-cli -- edit out.crt --title 0 "Impossible Mission II" --folder 0 Games
+cargo run -p stidcart-cli -- edit out.crt --move 3 0   # entry 3 to the top, the rest in order
 cargo run -p stidcart-cli -- edit out.crt --import meta.toml   # [[entry]] tables, below
 menu/build.sh menu/      # reassemble the menu after changing menu/src (64tass)
 ```
@@ -108,7 +110,7 @@ name = "impossible missi"   # as `list` shows it: a 16-character name
 title = "Impossible Mission II"
 year = 1988
 author = "Epyx"
-group = "Games"
+folder = "Games"
 ```
 
 The parity test needs only the checked-in fixtures; `ndeft` does not have to be installed. The
@@ -127,8 +129,14 @@ The window edits what `edit` edits:
 - Rename an entry by clicking its name. Its "⋯" or right-click menu replaces, hides or shows,
   aligns or removes it.
 - Click the cart name or the header name to change either one.
-- Click an entry to show its title, year, author, note and group below the list, and click a
+- Click an entry to show its title, year, author, note and folder below the list, and click a
   field to change it. Each change is one undoable edit, refused in `edit`'s words when invalid.
+- With any folder, the list shows the cart as our menu does: folder rows, each with its entries,
+  then the entries in no folder. Drag an entry onto a folder, between rows, or to the strip at the
+  bottom to take it out of its folder; drag a folder row to move the whole folder. The entry menu
+  has Move to folder (including New folder…), Move up and Move down, and a folder's menu renames
+  or moves it. After any of these the cart is saved in that order, so EasyLoader's flat list
+  follows it too (D-060, D-061).
 - Choose the menu the cart boots into, EasyLoader or stidcart, from the menu picker under the
   names. A cart our menu can't run (an Ocean entry, or one of the programs above) refuses stidcart
   and names the entry, as `edit --menu` does (D-042).

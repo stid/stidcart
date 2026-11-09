@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** T45 README, T46 conventions stem list; then T-live (live check), T-audit, T-final, T-close
+- **Next action:** T-live: live check in the running app (memory gui-live-check; drags may need the user), then /lcd:audit folder-editor
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
@@ -27,8 +27,8 @@
 - [x] S8 — T35–T38 EntryMenu moves, FolderMenu
 - [x] S9 — T39–T41 viewer reports success
 - [x] S10 — T42–T44 tree in the listing
-- [ ] S11 — T45–T46 README, conventions stem list ← next
-- [ ] S12 — T-live, T-audit, T-final, T-close
+- [x] S11 — T45–T46 README, conventions stem list
+- [ ] S12 — T-live, T-audit, T-final, T-close ← next
 
 ## DECISIONS (this work-item)
 
@@ -112,10 +112,11 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
 - 2026-11-08 — refine: EDIT BOUNDARY gains `crates/stidcart-core/src/cartridge.rs` (one doc comment names the metadata fields; the plan's rename missed it).
 - 2026-11-08 — Block B green as one atomic commit (the rename can't compile one workspace at a time): AC-173..AC-175 (CLI), AC-175 (RENDER), and AC-184's Rust test. The global auto-format hook ran default Prettier on the new `.ts` tests (double quotes, 80 cols) because the repo has no Prettier config; the test files were restored to the repo style (single quotes, width 120), and `.ts` edits now go through the shell, which the hook doesn't watch.
 - 2026-11-08 — Block I green. Found on the way: (1) a menu item that opens an inline field (Rename, New folder…) lost it at once, because the menu returns focus to its trigger as it closes and the blur ends the edit; EntryMenu and FolderMenu now prevent that focus return for those items (`onCloseAutoFocus`). (2) EditableText ends the edit before calling oncommit, so the new-folder entry is kept in a plain variable. (3) jsdom: an open menu inside the scrolling table gets `visibility: hidden` from the positioning (no layout), which blanks accessible names, so the Listing test finds the submenu item by text; the drag helper restores its fakes and waits out the drop's click swallow.
+- 2026-11-08 — red-green: green in 9 commits (T1 bump + 8 flips) over about 16 iterations, 0 reverts, no STUCK. All 30 work-item tests pass, both gates green.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
