@@ -8,9 +8,29 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-065 -->
+<!-- Next id: D-066 -->
 
 ---
+
+## D-065 · 2026-11-08 · The Claude workflows leave before the repo goes public
+
+- **Context:** the repo is being prepared to go public. `claude-review` (D-012) and the `@claude`
+  workflow ran on the maintainer's own Claude subscription token, and a hobby project can't pay for
+  usage on a public repo. Fork PRs never get the secret either, so a required `claude-review` could
+  never pass for an outside contributor.
+- **Decision:** (user's choice) `.github/workflows/claude.yml` and `claude-review.yml` are deleted,
+  `claude-review` leaves the required checks on `main`, and the `CLAUDE_CODE_OAUTH_TOKEN` secret
+  goes. Required checks are `gate` and `gui`. `lcd-audit` stays: it is a shell script and calls no
+  model. Development stays AI-assisted and says so openly; `CLAUDE.md`, `.claude/` and `docs/lcd/`
+  stay public. A review can still be run locally before opening a PR.
+- **Supersedes:** D-012 (a Claude review gates `main`). D-016 no longer applies.
+- **Alternatives rejected:** keep the review for the maintainer's PRs but unrequired: it still
+  spends the token on every PR. Restrict it to forks or label triggers: same cost question, more
+  workflow to maintain.
+- **Honest counterweight:** the review did find real defects early (PR #18's `audit-crosspath.sh`
+  path bug; seven defects in the list command, D-013), so this trades a check that has paid for
+  itself for a cost the project can't carry.
+- **Scope:** `.github/workflows/`, `CLAUDE.md`, `.claude/rules/lcd-conventions.md`
 
 ## D-064 · 2026-11-08 · A new cart gets our menu unless told otherwise
 
@@ -1411,6 +1431,8 @@
 - **Status:** superseded by D-014
 
 ## D-012 · 2026-08-11 · A Claude review gates `main`, and it blocks only on high-severity findings
+
+_Superseded by D-065: the Claude workflows were removed before the repo went public._
 
 - **Context:** `gate` and `audit` check that the suite is green and that every AC has a test. Neither
   reads the code. The list-command work-item made the gap concrete: the audit passed, and a review of

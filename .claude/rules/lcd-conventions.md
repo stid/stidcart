@@ -94,7 +94,7 @@ The rest are process constraints from `CLAUDE.md` with no home in the MAP:
   rustup's shims — a Homebrew `cargo` ignores the file silently. Verify with `cargo --version`
   before trusting a green or red gate.
 - **Never commit to `main`.** Branch, PR, conventional commits. Required checks: `gate` and
-  `claude-review`.
+  `gui` (D-065).
 - **Tests first**, and the gate above is green before every commit.
 
 <!--
