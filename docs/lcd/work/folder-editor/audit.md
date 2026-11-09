@@ -4,7 +4,7 @@
 
 **Slug:** `folder-editor`
 **Spec:** [`spec.md`](./spec.md) • **Plan:** [`plan.md`](./plan.md) • **Tasks:** [`tasks.md`](./tasks.md)
-**Run:** 2026-11-08 19:17
+**Run:** 2026-11-08 19:52 (re-run after D-062 amended AC-175 and AC-178; first run PASS too)
 **Result:** PASS <!-- PASS | BLOCKED -->
 
 ---
