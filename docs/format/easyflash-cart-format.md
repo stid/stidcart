@@ -344,8 +344,9 @@ listing them is that the choice should be deliberate.
 > (D-054, D-055), and its evidence is stidcart's own round-trip tests and VICE boots, not
 > citations. Every other tool sees an ordinary hidden program entry.
 
-A cart may carry a title, year, author, note and group per entry in one extra directory entry.
-It is written only when at least one entry has metadata, so a cart without any is unchanged.
+A cart may carry a title, year, author, note and group per entry, and an ordered list of groups
+(folders), in one extra directory entry. It is written only when at least one entry has metadata or
+the cart has a group, so a cart without either is unchanged.
 
 **The entry.** It is an ordinary program entry: interleaved type `0x01`, or `0x02`/`0x03` if
 placement confines it to a gap, so a reader must follow all three program kinds. It has the
@@ -373,8 +374,10 @@ converted the way names are (see "Names and PETSCII").
 | `13`   | 16·G | group names, 16 bytes each, NUL-padded; group n is at `13 + 16(n-1)` |
 | …      | …    | R records, one after another                                         |
 
-Groups are numbered from 1, in the order entries first use them. A record exists only for an
-entry with some metadata, and records run in ascending entry index:
+Groups are numbered from 1, in the cart's own group order, which a writer keeps as the cart's folder
+order (D-063). The table may hold a group no record names: an empty folder. A reader takes the table
+as written. A record exists only for an entry with some metadata, and records run in ascending entry
+index:
 
 | Offset | Size | Field                                                    |
 | ------ | ---- | -------------------------------------------------------- |
