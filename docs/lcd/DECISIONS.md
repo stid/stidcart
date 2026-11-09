@@ -8,7 +8,32 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-058 -->
+<!-- Next id: D-059 -->
+
+---
+
+## D-058 · 2026-11-08 · Inside a folder the list starts with a ".." row that goes back up
+
+- **Context:** menu-folder-up. Trying the folders in VICE, the user found no way back up with a
+  joystick: going up was DEL with no filter text or RUN/STOP (D-057), both keyboard-only. They
+  asked for an item at the top of a folder that goes one level up when selected, so the joystick
+  works too (2026-11-08).
+- **Decision:**
+  - Inside a folder the first row is `..` with the folder badge. RETURN or fire on it goes back to
+    the top level with that folder selected, as DEL and RUN/STOP still do.
+  - It is always the first row and always listed: A-Z, the text filter and the kind filter leave it
+    in place, so there is always a way out, even when nothing matches.
+  - It is not an entry. The position and match counts on rows 22-23 leave it out, F5 never picks
+    it, and the resume state never names it.
+  - Opening a folder selects the first entry, not `..`, so the joystick lands on something to
+    start; `..` is one row up. HOME selects `..` (the first row); CLR the last entry.
+  - The details pane on `..` says it goes back to the top level.
+- **Alternatives rejected:** a joystick gesture for going up, such as left at the first row or a
+  held fire (invisible, and left is already page-up, D-052); a `..` row that only appears when the
+  filter is empty (no way out with the stick while a filter is set); landing on `..` when a folder
+  opens (one more move before every start).
+- **Scope:** `menu/src/menu.s`, the boot tests
+- **Status:** active · refines D-057
 
 ---
 
