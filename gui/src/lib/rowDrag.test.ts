@@ -88,3 +88,20 @@ test('AC-179 (RENDER): the end strip, shown only while dragging, takes the drop'
   pointer('pointerup', a, 10, 50);
   expect(ondrop).toHaveBeenCalledExactlyOnceWith({ kind: 'entry', index: 0 }, { end: true });
 });
+
+test('AC-179 (RENDER): while dragging, the source row is marked and a lifted copy follows the pointer', () => {
+  const { a, b } = table();
+  document.elementFromPoint = vi.fn(() => b.firstElementChild);
+  dragRow({ kind: 'entry', index: 0 }, vi.fn(), '⠿  0  a')(a);
+
+  pointer('pointerdown', a, 10, 10);
+  pointer('pointermove', a, 10, 30);
+  const ghost = document.querySelector<HTMLElement>('.drag-ghost');
+  expect(ghost?.textContent).toBe('⠿  0  a');
+  expect(ghost?.style.top).toBe('12px');
+  expect(a.hasAttribute('data-drag-source')).toBe(true);
+
+  pointer('pointerup', a, 10, 30);
+  expect(document.querySelector('.drag-ghost')).toBeNull();
+  expect(a.hasAttribute('data-drag-source')).toBe(false);
+});

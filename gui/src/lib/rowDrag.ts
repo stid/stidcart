@@ -57,11 +57,22 @@ function mark(row: Element | null, drop: Drop | null) {
   row.setAttribute('data-drop', 'into' in drop ? 'into' : 'before' in drop ? 'before' : 'after');
 }
 
-/** An attachment making a row draggable: `ondrop` gets the source and where it landed. */
-export function dragRow(source: DragSource, ondrop: (source: DragSource, drop: Drop) => void) {
+/**
+ * An attachment making a row draggable: `ondrop` gets the source and where it landed. While a drag
+ * is on, the row carries `data-drag-source` (the listing fades it) and, given a `label`, a lifted
+ * copy reading `label` follows the pointer (D-062).
+ */
+export function dragRow(source: DragSource, ondrop: (source: DragSource, drop: Drop) => void, label?: string) {
   return (node: HTMLElement) => {
     let start: { x: number; y: number } | null = null;
     let dragging = false;
+    let ghost: HTMLElement | null = null;
+
+    const place = (e: MouseEvent) => {
+      if (ghost === null) return;
+      ghost.style.left = `${e.clientX + 12}px`;
+      ghost.style.top = `${e.clientY - 18}px`;
+    };
 
     const at = (e: MouseEvent) => {
       const hit = overOf(document.elementFromPoint(e.clientX, e.clientY));
@@ -83,7 +94,15 @@ export function dragRow(source: DragSource, ondrop: (source: DragSource, drop: D
         document.body.dataset.dragging = source.kind;
         // The press may have started selecting the row's text; a drag selects nothing.
         window.getSelection()?.removeAllRanges();
+        node.setAttribute('data-drag-source', '');
+        if (label !== undefined) {
+          ghost = document.createElement('div');
+          ghost.className = 'drag-ghost';
+          ghost.textContent = label;
+          document.body.append(ghost);
+        }
       }
+      place(e);
       const hit = at(e);
       mark(hit?.row ?? null, hit?.drop ?? null);
     };
@@ -95,6 +114,9 @@ export function dragRow(source: DragSource, ondrop: (source: DragSource, drop: D
       start = null;
       dragging = false;
       delete document.body.dataset.dragging;
+      node.removeAttribute('data-drag-source');
+      ghost?.remove();
+      ghost = null;
       mark(null, null);
       if (!dropped) return;
       window.getSelection()?.removeAllRanges();

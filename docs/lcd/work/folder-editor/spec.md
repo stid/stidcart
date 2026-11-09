@@ -44,9 +44,11 @@ for the same values. `--group` is still accepted and the usage text names `--fol
 the entry gets that folder, byte-identical to the same table setting `group`, which is still
 accepted. A table setting both is refused naming the entry, and nothing is written.
 
-**AC-175** (surfaces: CLI, RENDER): `list`'s metadata line labels the field `folder`, the window's
-column is headed "Folder", and the entry panel's field is labelled "Folder". No stored byte
-changes: a load and save of a cart whose entries have groups is byte-identical to the input.
+**AC-175** (surfaces: CLI, RENDER): `list`'s metadata line labels the field `folder`, the window
+lists no Group or Folder column (the tree shows the folder, AC-178), and the entry panel's field is
+labelled "Folder". No stored byte changes: a load and save of a cart whose entries have groups is
+byte-identical to the input. *(Amended 2026-11-08, D-062: was "the window's column is headed
+Folder".)*
 
 **AC-176** (surfaces: CLI): Given a cart `edit` accepts, when `edit --move FROM TO` runs, then the
 entry at index FROM of the cart as given sits at index TO of the result, every other entry keeps
@@ -59,10 +61,12 @@ exits non-zero and leaves every file byte-identical. Any other operation in the 
 names entries by their index in the cart as given.
 
 **AC-178** (surfaces: RENDER): Given a cart where at least one entry has a folder, whichever menu it
-carries, the window lists one folder row per folder (its name and how many entries it holds) in the
-order our menu lists folders, each followed by its entries in directory order, then the entries
-with no folder. Each entry row shows the same values as before. A folder row collapses and expands
+carries, the window lists one folder card per folder (a header with its name and how many entries
+it holds) in the order our menu lists folders, each holding its entries in directory order, then
+the entries with no folder under a "not in a folder" label. Each entry row shows the same values
+as before, its number inside the indent with its name. A folder's header collapses and expands
 its entries, and folders open expanded. A cart with no folder shows the flat list as before.
+*(Amended 2026-11-08, D-062: was "one folder row per folder", the number in its own column.)*
 
 **AC-179** (surfaces: RENDER): Given an editable cart, dragging an entry onto a folder row puts it
 in that folder, dragging it to the top level clears its folder, and dragging it between rows moves

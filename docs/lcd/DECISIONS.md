@@ -8,7 +8,34 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-062 -->
+<!-- Next id: D-063 -->
+
+---
+
+## D-062 · 2026-11-08 · The folder tree is drawn as grouped cards, with no Folder column
+
+- **Context:** folder-editor, after the user tried the tree in the app: folder rows looked like
+  entry rows, and an entry's number sat in the left column, outside its folder's indent, so the
+  nesting didn't read. Three directions were drawn on a design canvas in the stid design system
+  (directory listing, section bands, grouped cards), plus drag states; the user chose grouped
+  cards, asked for the numbers to move inside the indent, and approved dropping the Folder column
+  (2026-11-08).
+- **Decision:**
+  - With any folder, each folder is a stid card (hairline border, `--radius-lg`, the mantle
+    surface) whose header holds the chevron, the name and a count pill; its entries sit inside,
+    indented under the name. Entries in no folder follow under a `// not in a folder` label.
+  - In the tree an entry's number moves into the name cell, inside the indent, and there is no
+    `#` or Folder column. The entry panel still shows and edits the folder. A cart with no folder
+    keeps the flat list as before.
+  - Dragging: a lifted copy of the row or folder header follows the pointer, and the source fades.
+    Dropping into a folder lights its whole card. A folder's insertion line runs above or below
+    the whole card. The end strip for no folder is dashed. The drop rules stay as D-061 has them.
+- **Alternatives rejected:** a directory listing (mono `name/` folder bands with `├─` guides) and
+  section bands (mono caps headings): the user preferred the cards' grouping. Keeping the Folder
+  column: in the tree it only repeats what the card shows.
+- **Scope:** `gui/src/lib/Listing.svelte`, `gui/src/lib/rowDrag.ts`, their tests; spec AC-175,
+  AC-178 amended
+- **Status:** active · refines D-060, D-061; canvas https://claude.ai/artifact/21eX5WRUmSu77f8zxzMmjY
 
 ---
 

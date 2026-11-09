@@ -193,13 +193,12 @@ function annotated(): ListingData {
   };
 }
 
-test('AC-158 (RENDER): each entry shows its title under its name and its folder in a column', () => {
+test('AC-158 (RENDER): each entry shows its title under its name, and sits in its folder', () => {
   render(Listing, { props: { listing: annotated(), file: 'two.crt' } });
-  expect(screen.getByRole('columnheader', { name: /folder/i })).toBeInTheDocument();
-  // A folder row comes first now (AC-178); the entries follow it.
+  // The folder shows as the card the entry sits in (AC-178, D-062), not a column.
   const rows = screen.getAllByRole('row').filter((r) => r.hasAttribute('data-entry'));
   expect(within(rows[0]).getByText('Hello There')).toBeInTheDocument();
-  expect(within(rows[0]).getByText('Games')).toBeInTheDocument();
+  expect(rows[0].closest('tbody')?.querySelector('[data-folder-row]')?.getAttribute('data-folder-row')).toBe('Games');
   expect(within(rows[1]).queryByText('Hello There')).toBeNull();
 });
 
@@ -259,10 +258,28 @@ function foldered(folders: string[] = ['Games', '']): ListingData {
 const folderRows = () => screen.getAllByRole('row').filter((r) => r.hasAttribute('data-folder-row'));
 const entryRows = () => screen.getAllByRole('row').filter((r) => r.hasAttribute('data-entry'));
 
-test('AC-175 (RENDER): the folder column is headed Folder', () => {
+test('AC-175 (RENDER): the listing has no Group or Folder column; the tree shows the folder', () => {
   render(Listing, { props: { listing: foldered(), file: 'two.crt' } });
-  expect(screen.getByRole('columnheader', { name: /^folder$/i })).toBeInTheDocument();
+  expect(screen.queryByRole('columnheader', { name: /folder/i })).toBeNull();
   expect(screen.queryByRole('columnheader', { name: /group/i })).toBeNull();
+  expect(within(folderRows()[0]).getByText('Games')).toBeInTheDocument();
+});
+
+test('AC-178 (RENDER): each folder is a card holding its entries, each number inside the indent', () => {
+  render(Listing, { props: { listing: foldered(), file: 'two.crt' } });
+  const hello = entryRows().find((r) => r.getAttribute('data-entry') === '0')!;
+  const card = hello.closest('tbody')!;
+  expect(card).toHaveClass('card');
+  expect(card.querySelector('[data-folder-row]')).toHaveAttribute('data-folder-row', 'Games');
+  // No number column: the number shares the name's cell, indented under the folder.
+  expect(screen.queryByRole('columnheader', { name: /^#$/ })).toBeNull();
+  const name = within(hello).getByText('0').closest('td')!;
+  expect(name).toHaveClass('nested');
+  expect(within(name).getByText('hello')).toBeInTheDocument();
+  // The loose entry follows under its label, outside every card.
+  const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  expect(ramp.closest('tbody')).not.toHaveClass('card');
+  expect(screen.getByText('// not in a folder')).toBeInTheDocument();
 });
 
 test('AC-178 (RENDER): a cart with folders lists folder rows with their count, then the loose entries', async () => {
@@ -291,7 +308,7 @@ test('AC-178 (RENDER): a cart with folders lists folder rows with their count, t
   expect(
     screen
       .getAllByRole('row')
-      .slice(1)
+      .filter((r) => r.hasAttribute('data-folder-row') || r.hasAttribute('data-entry'))
       .map((r) => r.getAttribute('data-folder-row') ?? r.getAttribute('data-entry')),
   ).toEqual(['Games', '1', '0']);
   cleanup();
@@ -385,7 +402,7 @@ test('AC-184 (RENDER): after a folder field change the entry is listed under its
   expect(
     screen
       .getAllByRole('row')
-      .slice(1)
+      .filter((r) => r.hasAttribute('data-folder-row') || r.hasAttribute('data-entry'))
       .map((r) => r.getAttribute('data-folder-row') ?? r.getAttribute('data-entry')),
   ).toEqual(['Games', '0', '1']);
 });

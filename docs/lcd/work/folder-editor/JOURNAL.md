@@ -117,6 +117,7 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
 - 2026-11-08 — audit: PASS (first run), audit.md written; closeout line appended.
 - 2026-11-08 — reconciled: folded AC-173..AC-177 → SPEC.md/CLI (metadata row rewritten, `--move` row new), AC-175, AC-178..AC-184 → SPEC.md/RENDER (metadata row rewritten, folder-tree row new), the Internal metadata row's field list; MAP gui zone notes tree.ts and rowDrag.ts.
 - 2026-11-08 — Added a Listing test for the right-click menu (it shares EntryMenu's item list with the new submenu, and nothing had opened it): Hide still works there and New folder… opens its field.
+- 2026-11-08 — Design pass (D-062): the user found the tree hard to read (folder rows looked like entries; numbers sat outside the indent). Three directions drawn on a design canvas in the stid design system (https://claude.ai/artifact/21eX5WRUmSu77f8zxzMmjY); the user chose grouped cards with the numbers inside the indent and approved dropping the Folder column (AC-175, AC-178 amended). Built: folder cards as one `<tbody>` each with edge columns for the inset, the number in the name cell, a lifted copy and source fade from rowDrag (`data-drag-source`, `.drag-ghost`), the whole card lighting up for "into", a card-edge line for folder moves. Static look checked in the running app; the mid-drag capture waits for the display (it locked).
 
 ## DEEP PIPELINE (Deep lane only)
 
