@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** /lcd:audit folder-editor; the user still checks a Finder drop by hand
+- **Next action:** done; open the PR once the user has checked a Finder drop by hand
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
@@ -28,7 +28,7 @@
 - [x] S9 — T39–T41 viewer reports success
 - [x] S10 — T42–T44 tree in the listing
 - [x] S11 — T45–T46 README, conventions stem list
-- [ ] S12 — T-live, T-audit, T-final, T-close ← next
+- [x] S12 — T-live, T-audit, T-final, T-close
 
 ## DECISIONS (this work-item)
 
@@ -114,10 +114,12 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
 - 2026-11-08 — Block I green. Found on the way: (1) a menu item that opens an inline field (Rename, New folder…) lost it at once, because the menu returns focus to its trigger as it closes and the blur ends the edit; EntryMenu and FolderMenu now prevent that focus return for those items (`onCloseAutoFocus`). (2) EditableText ends the edit before calling oncommit, so the new-folder entry is kept in a plain variable. (3) jsdom: an open menu inside the scrolling table gets `visibility: hidden` from the positioning (no layout), which blanks accessible names, so the Listing test finds the submenu item by text; the drag helper restores its fakes and waits out the drop's click swallow.
 - 2026-11-08 — red-green: green in 9 commits (T1 bump + 8 flips) over about 16 iterations, 0 reverts, no STUCK. All 30 work-item tests pass, both gates green.
 - 2026-11-08 — T-live in the running app (CGEvent drags through a small Swift tool): the tree renders as the menu does; real drags move an entry into a folder and a folder above another; Rename from the folder menu and New folder… from the entry menu (keyboard) work, and the selection follows its entry; ⌘S then `list` shows the cart in tree order. Two bugs found and fixed: the drop hit-tested after clearing the drag state, so the end strip (shown only while dragging) was gone and an entry could not leave its folder (regression test added to rowDrag.test.ts, red on the old code); and a drag left a native text selection on the rows (cleared at drag start and drop). Not checked: a Finder drop of a .prg (can't be scripted; left for the user).
+- 2026-11-08 — audit: PASS (first run), audit.md written; closeout line appended.
+- 2026-11-08 — reconciled: folded AC-173..AC-177 → SPEC.md/CLI (metadata row rewritten, `--move` row new), AC-175, AC-178..AC-184 → SPEC.md/RENDER (metadata row rewritten, folder-tree row new), the Internal metadata row's field list; MAP gui zone notes tree.ts and rowDrag.ts.
 
 ## DEEP PIPELINE (Deep lane only)
 
 > Phase tracker for the Deep-lane pipeline. Files live beside this JOURNAL.
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`
 <!-- mark ✅ done · ⏳ in progress · ⬜ not started -->
