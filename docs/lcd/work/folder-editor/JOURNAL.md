@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** redgreen block C: T22 `move_entry`, T23 `Op::Move` (AC-176, AC-177)
+- **Next action:** redgreen block D: T29 `Edit::Arrange` in `gui/src-tauri/src/document.rs` (AC-179, AC-180, AC-182, AC-183 Rust tests)
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
@@ -20,8 +20,8 @@
 - [x] S1 — triage (Deep), spec.md, plan.md, tasks.md
 - [x] S2 — T1 version 0.26.0
 - [x] S3 — T2–T19 rename group → folder (core, CLI, GUI; both gates green before commit)
-- [ ] S4 — T20–T23 `edit --move` and `move_entry` ← next
-- [ ] S5 — T24–T29 `Edit::Arrange` in the Document
+- [x] S4 — T20–T23 `edit --move` and `move_entry`
+- [ ] S5 — T24–T29 `Edit::Arrange` in the Document ← next
 - [ ] S6 — T30–T32 tree model (`tree.ts`)
 - [ ] S7 — T33–T34 pointer drag (`rowDrag.ts`)
 - [ ] S8 — T35–T38 EntryMenu moves, FolderMenu

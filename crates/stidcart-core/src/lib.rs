@@ -396,6 +396,13 @@ impl CartBuilder {
         self.entries.remove(index)
     }
 
+    /// Move the entry at `from` so it sits at `to`, the others keeping their order. Its name,
+    /// flags, data and metadata travel with it (D-061).
+    pub fn move_entry(&mut self, from: usize, to: usize) {
+        let entry = self.entries.remove(from);
+        self.entries.insert(to, entry);
+    }
+
     pub fn set_name(&mut self, index: usize, name: &str) {
         self.entries[index].set_name(name);
     }

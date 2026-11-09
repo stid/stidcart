@@ -40,6 +40,8 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   --add-aligned FILE  append an xbank cartridge image with 64 KB alignment requested
   --remove N      drop the entry at index N
   --rename N NAME rename the entry at index N
+  --move N TO     move the entry at index N so it sits at index TO; once per call,
+                  and not with --add, --add-aligned or --remove
   --replace N FILE swap the data at index N, keeping its name and place; the kind follows the file
   --hide N        hide the entry at index N
   --show N        stop hiding the entry at index N
@@ -145,6 +147,8 @@ enum Op {
     Add(String, bool),
     Remove(usize),
     Rename(usize, String),
+    /// The entry at the first index, moved to sit at the second in the result (D-060).
+    Move(usize, usize),
     Replace(usize, String),
     Hidden(usize, bool),
     Align(usize, bool),
@@ -199,6 +203,10 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             "--align" => ops.push(Op::Align(index(it.next(), "--align")?, true)),
             "--unalign" => ops.push(Op::Align(index(it.next(), "--unalign")?, false)),
             "--remove" => ops.push(Op::Remove(index(it.next(), "--remove")?)),
+            "--move" => {
+                let from = index(it.next(), "--move")?;
+                ops.push(Op::Move(from, index(it.next(), "--move")?));
+            }
             "--hide" => ops.push(Op::Hidden(index(it.next(), "--hide")?, true)),
             "--show" => ops.push(Op::Hidden(index(it.next(), "--show")?, false)),
             "--rename" => {
@@ -222,6 +230,23 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
         }
     }
     let cart = cart.ok_or_else(|| format!("no cartridge image given\n{USAGE}"))?;
+
+    // A move's TO is an index in the result, so it is defined only while nothing else in the call
+    // shifts the entries: one move, and no addition or removal beside it (D-060).
+    if ops.iter().any(|op| matches!(op, Op::Move(..))) {
+        if ops.iter().filter(|op| matches!(op, Op::Move(..))).count() > 1 {
+            return Err("--move can be given once per call".into());
+        }
+        let shifting = ops.iter().find_map(|op| match op {
+            Op::Add(_, false) => Some("--add"),
+            Op::Add(_, true) => Some("--add-aligned"),
+            Op::Remove(_) => Some("--remove"),
+            _ => None,
+        });
+        if let Some(other) = shifting {
+            return Err(format!("--move can't be combined with {other}"));
+        }
+    }
 
     let bytes = std::fs::read(&cart).map_err(|e| format!("reading '{cart}': {e}"))?;
     // An explicit menu overwrites the loader slot, so a slot holding no known menu is no reason to
@@ -251,6 +276,15 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     let held = builder.entries().len();
     for op in &ops {
         let at = match op {
+            Op::Move(from, to) => {
+                if *to >= held {
+                    return Err(format!(
+                        "--move can't place an entry at index {to}; the cartridge holds {held} {}",
+                        if held == 1 { "entry" } else { "entries" }
+                    ));
+                }
+                *from
+            }
             Op::Remove(at)
             | Op::Rename(at, _)
             | Op::Replace(at, _)
@@ -287,7 +321,15 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             Op::Meta(at, field, value) => builder
                 .set_meta(*at, *field, value)
                 .map_err(|e| e.to_string())?,
-            Op::Add(..) | Op::Remove(_) | Op::Import(_) => {}
+            Op::Add(..) | Op::Remove(_) | Op::Move(..) | Op::Import(_) => {}
+        }
+    }
+
+    // A move after the in-place changes, which name entries as given; never beside a removal or
+    // an addition, so its TO is an index in the result.
+    for op in &ops {
+        if let Op::Move(from, to) = op {
+            builder.move_entry(*from, *to);
         }
     }
 
