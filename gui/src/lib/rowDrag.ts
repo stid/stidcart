@@ -92,8 +92,6 @@ export function dragRow(source: DragSource, ondrop: (source: DragSource, drop: D
         dragging = true;
         node.setPointerCapture?.(e.pointerId);
         document.body.dataset.dragging = source.kind;
-        // The press may have started selecting the row's text; a drag selects nothing.
-        window.getSelection()?.removeAllRanges();
         node.setAttribute('data-drag-source', '');
         if (label !== undefined) {
           ghost = document.createElement('div');
@@ -102,6 +100,9 @@ export function dragRow(source: DragSource, ondrop: (source: DragSource, drop: D
           document.body.append(ghost);
         }
       }
+      // The press began a text selection that the browser keeps extending while the button is held;
+      // a drag selects nothing, so it is cleared on every move, not only when the drag starts.
+      window.getSelection()?.removeAllRanges();
       place(e);
       const hit = at(e);
       mark(hit?.row ?? null, hit?.drop ?? null);

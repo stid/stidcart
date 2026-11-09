@@ -105,3 +105,26 @@ test('AC-179 (RENDER): while dragging, the source row is marked and a lifted cop
   expect(document.querySelector('.drag-ghost')).toBeNull();
   expect(a.hasAttribute('data-drag-source')).toBe(false);
 });
+
+test('AC-179 (RENDER): a drag keeps the text unselected all the way, not only when it starts', () => {
+  const { a, b } = table();
+  document.elementFromPoint = vi.fn(() => b.firstElementChild);
+  dragRow({ kind: 'entry', index: 0 }, vi.fn())(a);
+  const selectText = () => {
+    const range = document.createRange();
+    range.selectNodeContents(b);
+    window.getSelection()!.removeAllRanges();
+    window.getSelection()!.addRange(range);
+  };
+
+  pointer('pointerdown', a, 10, 10);
+  pointer('pointermove', a, 10, 30);
+  // The press goes on extending the browser's selection as the pointer moves.
+  selectText();
+  pointer('pointermove', a, 10, 32);
+  expect(window.getSelection()!.rangeCount).toBe(0);
+
+  selectText();
+  pointer('pointerup', a, 10, 32);
+  expect(window.getSelection()!.rangeCount).toBe(0);
+});
