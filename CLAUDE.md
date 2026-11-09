@@ -49,7 +49,7 @@ frontend first because Tauri embeds `gui/dist` at compile time, so a bare `cargo
   automatically; nothing needs registering. (Not true of ndefpack, where a test missing from
   `NDEFPACK_UNIT_TESTS` compiles into nothing and reports a false green — don't carry that habit over.)
 - **Never commit to `main`.** Branch, PR, conventional commits (`feat:`/`fix:`/`refactor:`/`chore:`/
-  `test:`/`docs:`). Required checks: `gate`, `gui` and `claude-review`.
+  `test:`/`docs:`). Required checks: `gate` and `gui` (D-065).
 - **Log a decision when a real fork gets decided** — append to `docs/lcd/DECISIONS.md`, newest at top,
   including the alternatives rejected and why. Write it when the decision is made, not at the end.
   This is the one durable artifact; keep entries tight.
