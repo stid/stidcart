@@ -63,7 +63,7 @@
     {:else if viewer.state.kind === 'error'}
       <ErrorState file={viewer.state.file} message={viewer.state.message} />
     {:else}
-      <EmptyState onopen={() => void viewer.pick()} />
+      <EmptyState onopen={() => void viewer.pick()} onnew={() => void viewer.newCart()} />
     {/if}
   </main>
 
