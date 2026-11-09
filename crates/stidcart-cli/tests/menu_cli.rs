@@ -140,7 +140,7 @@ fn ac_81_cli_build_with_our_menu_changes_only_the_loader_slot() {
     let with = dir.join("with.crt");
     let without = dir.join("without.crt");
     ok(&build(&with, &["--menu", "stidcart"], &inputs));
-    ok(&build(&without, &[], &inputs));
+    ok(&build(&without, &["--menu", "easyloader"], &inputs));
 
     let (a, b) = (image(&with), image(&without));
     assert_eq!(a.len(), b.len());
@@ -157,15 +157,18 @@ fn ac_81_cli_build_with_our_menu_changes_only_the_loader_slot() {
     assert_eq!(header(&with), header(&without));
 }
 
-// AC-82 (CLI): no request means EasyLoader and unchanged bytes; edit keeps either menu
+// AC-82 (CLI): an EasyLoader build keeps the reference's bytes; edit keeps either menu. Since D-064
+// a build naming no menu gets ours, so the reference case names EasyLoader.
 #[test]
-fn ac_82_cli_no_request_keeps_easyloader_and_edit_keeps_the_menu() {
+fn ac_82_cli_easyloader_build_matches_the_reference_and_edit_keeps_the_menu() {
     let dir = scratch("ac82");
 
-    // A build without --menu still matches the frozen reference image.
+    // A build with --menu easyloader still matches the frozen reference image.
     let out = dir.join("two.crt");
     ok(&stidcart([
         s("build"),
+        s("--menu"),
+        s("easyloader"),
         s("-e"),
         s("two entries"),
         s("-o"),
@@ -304,7 +307,11 @@ fn ac_95_cli_our_menu_with_a_program_in_the_io_area_is_refused() {
 
     // edit --menu on an EasyLoader cart that holds such a program
     let theirs = dir.join("theirs.crt");
-    ok(&build(&theirs, &[], &[fx("hello.prg"), io.clone()]));
+    ok(&build(
+        &theirs,
+        &["--menu", "easyloader"],
+        &[fx("hello.prg"), io.clone()],
+    ));
     let before = std::fs::read(&theirs).unwrap();
     let err = refused(&edit(&theirs, &[s("--menu"), s("stidcart")]));
     assert!(
@@ -403,7 +410,11 @@ fn ac_163_cli_our_menu_refuses_only_what_it_still_cannot_start() {
 
         // EasyLoader: nothing about it changes.
         let theirs = dir.join("theirs.crt");
-        ok(&build(&theirs, &[], &[fx("hello.prg"), p.clone()]));
+        ok(&build(
+            &theirs,
+            &["--menu", "easyloader"],
+            &[fx("hello.prg"), p.clone()],
+        ));
 
         // edit --menu on that EasyLoader cart
         let before = std::fs::read(&theirs).unwrap();

@@ -8,7 +8,32 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-064 -->
+<!-- Next id: D-065 -->
+
+---
+
+## D-064 · 2026-11-08 · A new cart gets our menu unless told otherwise
+
+- **Context:** default-stidcart-menu. With folders, titles and the inspector, our menu is the one
+  the tool is built around, yet `build` and the window's New Cart gave EasyLoader. The user asked
+  for stidcart as the default, in both (Claude's recommendation, 2026-11-08).
+- **Decision:**
+  - `build` naming no menu writes our menu; `--menu easyloader` gives EasyLoader, byte for byte what
+    `ndeft` wrote. The window's New Cart starts with our menu. A cart that is opened keeps the menu
+    it has.
+  - The core's `Menu::default()` stays EasyLoader: the core's own parity proofs against `ndeft`
+    build with it, and the library has no product default to state. The default lives at the
+    product surfaces.
+  - Content our menu can't run is refused, as before, and the refusal now ends "EasyLoader can
+    start it". No silent fallback: a cart's menu never depends on what was added to it.
+  - Tests that assert EasyLoader or `ndeft` behaviour name `--menu easyloader`; AC-82's "no request
+    means EasyLoader" is superseded (its edit half stands).
+- **Alternatives rejected:** changing only the window (two defaults to remember); falling back to
+  EasyLoader when content needs it (a menu chosen by accident); changing the core default (rewrites
+  the core's parity proofs for no product gain).
+- **Scope:** `crates/stidcart-cli/src/lib.rs` (`build`), `gui/src-tauri/src/document.rs`
+  (`Document::new`), the four menu refusals in `crates/stidcart-core/src/lib.rs`, tests
+- **Status:** active · supersedes D-037's "EasyLoader by default" for new carts
 
 ---
 
@@ -797,7 +822,7 @@
   pinned Java jar, and 64tass is a native binary that is already installed. acme is not installed.
   Building every feature in one item would spread it across too many sessions to resume cheaply.
 - **Scope:** `menu/` (new), `stidcart-core` firmware embedding and verification, `build`/`edit`, GUI
-- **Status:** active · refines D-005
+- **Status:** active · refines D-005 · its EasyLoader default for new carts superseded by D-064
 
 ---
 

@@ -158,7 +158,11 @@ fn ac_77_render_new_is_an_untitled_clean_empty_cart() {
     assert_eq!(dto.file, "Untitled");
     assert_eq!(dto.read_only, None);
     assert!(dto.listing.rows.is_empty());
-    let empty = CartBuilder::new().build().unwrap();
+    // `build` naming no menu gives ours (D-064), and so does New.
+    let empty = CartBuilder::new()
+        .with_menu(stidcart_core::menu::Menu::Stidcart)
+        .build()
+        .unwrap();
     assert_eq!(doc.bytes(), empty.as_slice());
     assert_eq!(
         json(&dto.listing),

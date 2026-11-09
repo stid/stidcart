@@ -6,7 +6,7 @@
 
 - **Lane:** Standard
 - **Goal:** A new cart gets our stidcart menu unless told otherwise, from `build` and from the window's New Cart; content our menu can't run is refused with a pointer to EasyLoader.
-- **Next action:** S4: fix 8 older CLI tests that assumed EasyLoader as build's default: boot ac_4, carts ac_40, cli ac_5, edit ac_28, menu_cli ac_81/82/95/163 (add `--menu easyloader` where the test is about EasyLoader/ndeft; re-read ac_82/ac_95/ac_163, whose intent changes); then run gui tests, D-064, SPEC, README, version 0.29.0, gates, PR
+- **Next action:** done; PR open, merge and deploy when the user says
 - **Branch:** feat/default-stidcart-menu · **Updated:** 2026-11-08
 
 ## STEPS
@@ -14,8 +14,8 @@
 - [x] S1 — failing tests for AC-197..AC-199
 - [x] S2 — `build` defaults to stidcart; window New Cart starts with stidcart
 - [x] S3 — refusal text points to EasyLoader
-- [ ] S4 — tests that assert EasyLoader/ndeft behaviour name `--menu easyloader` ← next
-- [ ] S5 — version, SPEC, README, D-064, gates, PR
+- [x] S4 — tests that assert EasyLoader/ndeft behaviour name `--menu easyloader`
+- [x] S5 — version, SPEC, README, D-064, gates, PR
 
 ## DECISIONS (this work-item)
 
@@ -57,6 +57,8 @@
 
 - 2026-11-08 — Triage Standard. The user asked for stidcart as the default menu, in both `build` and New Cart (Claude's recommendation). Folder carts stay EasyLoader-compatible (META hidden, AC-155).
 - 2026-11-08 — AC-197..AC-199 green (build and New Cart default to stidcart; refusals say EasyLoader can start it). Root suite: 8 older CLI tests fail because they assumed EasyLoader as build's default. Session paused at the user's usage limit.
+- 2026-11-08 — Resumed. Fixed the eight CLI tests (EasyLoader/ndeft cases name `--menu easyloader`; AC-82 renamed: its "no request means EasyLoader" is superseded by D-064, its edit half stands; AC-28 compares the default build with a core build under our menu) and three GUI tests (AC-77's empty cart has our menu; menu tests' EasyLoader carts are set up as EasyLoader). Both gates green with VICE required. D-064 logged, D-037 marked; SPEC rows, README updated; 0.29.0.
+- audit: PASS (test-presence) — AC-197 (CLI), AC-198 (CLI) in `crates/stidcart-cli/tests/default_menu.rs`, AC-199 (RENDER) in `gui/src-tauri/tests/default_menu.rs`; full suites green.
 
 ## DEEP PIPELINE (Deep lane only)
 

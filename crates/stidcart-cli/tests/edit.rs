@@ -419,7 +419,9 @@ fn ac_28_cli_build_marks_an_input_hidden_and_changes_nothing_otherwise() {
         stderr(&out)
     );
 
+    // `build` naming no menu gives ours (D-064).
     let unmarked = CartBuilder::new()
+        .with_menu(stidcart_core::menu::Menu::Stidcart)
         .with_ef_name("marked")
         .with_program(stidcart_core::Program::new(
             "hello",

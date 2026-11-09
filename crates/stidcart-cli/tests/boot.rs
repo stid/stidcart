@@ -62,7 +62,7 @@ fn ac_4_cli_produced_image_boots_and_menu_lists_entries() {
     let cart = dir.join("boot.crt");
 
     assert!(Command::new(env!("CARGO_BIN_EXE_stidcart"))
-        .args(["build", "-e", "boot test", "-o"])
+        .args(["build", "--menu", "easyloader", "-e", "boot test", "-o"])
         .arg(&cart)
         .arg(&src)
         .status()

@@ -76,8 +76,9 @@ fn ac_5_cli_oversized_input_fails_without_writing_an_image() {
     let huge = dir.join("huge.prg");
     std::fs::write(&huge, vec![0x42; 1024 * 1024 + 16]).unwrap();
 
+    // EasyLoader: under our menu a program this long is refused first for running past $FFFF.
     let result = stidcart()
-        .args(["build", "-o"])
+        .args(["build", "--menu", "easyloader", "-o"])
         .arg(&out)
         .arg(&huge)
         .output()
