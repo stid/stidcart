@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** redgreen block F: T34 `gui/src/lib/rowDrag.ts` (rowDrag.test.ts); write `.ts` through the shell (auto-format hook)
+- **Next action:** redgreen block G: T36 EntryMenu move items (bits-ui Sub), T38 new `FolderMenu.svelte`
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
@@ -23,8 +23,8 @@
 - [x] S4 — T20–T23 `edit --move` and `move_entry`
 - [x] S5 — T24–T29 `Edit::Arrange` in the Document
 - [x] S6 — T30–T32 tree model (`tree.ts`)
-- [ ] S7 — T33–T34 pointer drag (`rowDrag.ts`) ← next
-- [ ] S8 — T35–T38 EntryMenu moves, FolderMenu
+- [x] S7 — T33–T34 pointer drag (`rowDrag.ts`)
+- [ ] S8 — T35–T38 EntryMenu moves, FolderMenu ← next
 - [ ] S9 — T39–T41 viewer reports success
 - [ ] S10 — T42–T44 tree in the listing
 - [ ] S11 — T45–T46 README, conventions stem list
