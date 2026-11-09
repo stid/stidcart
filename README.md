@@ -41,7 +41,11 @@ screen back (`menu/README.md`).
 Each entry can carry a title (up to 48 characters), year (4), author (24), note (48) and folder
 (16), set with `edit --title N TEXT` and its siblings, or for many entries at once with
 `edit --import FILE.toml`. Our menu shows folders as folders; the field was called group before
-D-060, and `--group` and the import key `group` still work. They are stored in one hidden `STIDCART.META` entry that both menus skip,
+D-060, and `--group` and the import key `group` still work. The cart keeps its own ordered list of
+folders, which may be empty: `edit --new-folder NAME`, `--remove-folder NAME` (its entries stay, in
+no folder) and `--move-folder NAME TO`; a folder stays when its last entry leaves, and `list`
+prints the folders with their counts. Our menu lists them in that order and hides an empty one
+(D-063). They are stored in one hidden `STIDCART.META` entry that both menus skip,
 written only when some entry has metadata, so a cart without any is unchanged (D-054). `list`
 prints them under the entry. Records that another tool's re-order or rename left pointing at the
 wrong entry are dropped and counted, and a layout from a later stidcart is kept as stored (D-055).
@@ -96,6 +100,7 @@ cargo run -p stidcart-cli -- edit out.crt --rename 0 "new name" --add another.pr
 cargo run -p stidcart-cli -- build --menu stidcart -e "name" -o ours.crt some.prg
 cargo run -p stidcart-cli -- edit out.crt --title 0 "Impossible Mission II" --folder 0 Games
 cargo run -p stidcart-cli -- edit out.crt --move 3 0   # entry 3 to the top, the rest in order
+cargo run -p stidcart-cli -- edit out.crt --new-folder Tools --move-folder Tools 0
 cargo run -p stidcart-cli -- edit out.crt --import meta.toml   # [[entry]] tables, below
 menu/build.sh menu/      # reassemble the menu after changing menu/src (64tass)
 ```
@@ -129,13 +134,17 @@ The window edits what `edit` edits:
 - Rename an entry by clicking its name. Its "⋯" or right-click menu replaces, hides or shows,
   aligns or removes it.
 - Click the cart name or the header name to change either one.
-- Click an entry to show its title, year, author, note and folder below the list, and click a
-  field to change it. Each change is one undoable edit, refused in `edit`'s words when invalid.
+- Click an entry to show it in the inspector beside the list: its number, name, kind and size, and
+  its title, year, author, note and folder. Click a field to change it, or pick its folder. Each
+  change is one undoable edit, refused in `edit`'s words when invalid.
+- New Folder (in the title bar, File ▸ New Folder ⇧⌘N, or a right-click on the list's empty space)
+  adds an empty folder and opens its name. A folder's menu renames, moves or deletes it; deleting
+  moves its entries out, never removes them.
 - With any folder, the list shows the cart as our menu does: folder rows, each with its entries,
   then the entries in no folder. Drag an entry onto a folder, between rows, or to the strip at the
-  bottom to take it out of its folder; drag a folder row to move the whole folder. The entry menu
-  has Move to folder (including New folder…), Move up and Move down, and a folder's menu renames
-  or moves it. After any of these the cart is saved in that order, so EasyLoader's flat list
+  bottom to take it out of its folder; drag a folder row to move the whole folder. An empty folder
+  takes a drop too. The entry menu has Move to (every folder, the current one checked, Not in a
+  folder, New Folder with Entry), Move up and Move down. After any of these the cart is saved in that order, so EasyLoader's flat list
   follows it too (D-060, D-061).
 - Choose the menu the cart boots into, EasyLoader or stidcart, from the menu picker under the
   names. A cart our menu can't run (an Ocean entry, or one of the programs above) refuses stidcart
