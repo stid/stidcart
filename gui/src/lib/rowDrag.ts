@@ -81,6 +81,8 @@ export function dragRow(source: DragSource, ondrop: (source: DragSource, drop: D
         dragging = true;
         node.setPointerCapture?.(e.pointerId);
         document.body.dataset.dragging = source.kind;
+        // The press may have started selecting the row's text; a drag selects nothing.
+        window.getSelection()?.removeAllRanges();
       }
       const hit = at(e);
       mark(hit?.row ?? null, hit?.drop ?? null);
@@ -88,16 +90,18 @@ export function dragRow(source: DragSource, ondrop: (source: DragSource, drop: D
     const up = (e: PointerEvent) => {
       if (start === null) return;
       const dropped = dragging;
+      // Hit-test before the drag state goes: the end strip shows only while dragging.
+      const hit = dropped ? at(e) : null;
       start = null;
       dragging = false;
       delete document.body.dataset.dragging;
       mark(null, null);
       if (!dropped) return;
+      window.getSelection()?.removeAllRanges();
       // The click that ends a drag must not also select the row it started on.
       const swallow = (c: Event) => c.stopPropagation();
       window.addEventListener('click', swallow, { capture: true, once: true });
       setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
-      const hit = at(e);
       if (hit !== null) ondrop(source, hit.drop);
     };
     // WKWebView starts a native drag from selected text, links or images, which Tauri would take.

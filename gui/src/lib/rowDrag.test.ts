@@ -71,3 +71,20 @@ test('AC-179 (RENDER): a short press stays a click, a drag past the threshold dr
 
   detach?.();
 });
+
+test('AC-179 (RENDER): the end strip, shown only while dragging, takes the drop', () => {
+  const { a } = table();
+  const strip = document.createElement('tr');
+  strip.setAttribute('data-drop-end', '');
+  document.querySelector('tbody')!.append(strip);
+  strip.getBoundingClientRect = () => ({ top: 40, height: 20 }) as DOMRect;
+  // Like the real strip, it is under the pointer only while a drag is on.
+  document.elementFromPoint = vi.fn(() => (document.body.dataset.dragging ? strip : null));
+  const ondrop = vi.fn();
+  dragRow({ kind: 'entry', index: 0 }, ondrop)(a);
+
+  pointer('pointerdown', a, 10, 10);
+  pointer('pointermove', a, 10, 50);
+  pointer('pointerup', a, 10, 50);
+  expect(ondrop).toHaveBeenCalledExactlyOnceWith({ kind: 'entry', index: 0 }, { end: true });
+});

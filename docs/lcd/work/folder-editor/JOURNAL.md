@@ -12,7 +12,7 @@
 
 - **Lane:** Deep
 - **Goal:** Folders replace groups: rename Group → Folder (window, CLI `--folder`, import key), add entry re-order (`edit --move`, window), and a folder tree in the window with drag and drop.
-- **Next action:** T-live: live check in the running app (memory gui-live-check; drags may need the user), then /lcd:audit folder-editor
+- **Next action:** /lcd:audit folder-editor; the user still checks a Finder drop by hand
 - **Branch:** feat/folder-editor · **Updated:** 2026-11-08
 
 ## STEPS
@@ -113,6 +113,7 @@ none` and preventDefault on dragstart, or WKWebView starts a native drag Tauri s
 - 2026-11-08 — Block B green as one atomic commit (the rename can't compile one workspace at a time): AC-173..AC-175 (CLI), AC-175 (RENDER), and AC-184's Rust test. The global auto-format hook ran default Prettier on the new `.ts` tests (double quotes, 80 cols) because the repo has no Prettier config; the test files were restored to the repo style (single quotes, width 120), and `.ts` edits now go through the shell, which the hook doesn't watch.
 - 2026-11-08 — Block I green. Found on the way: (1) a menu item that opens an inline field (Rename, New folder…) lost it at once, because the menu returns focus to its trigger as it closes and the blur ends the edit; EntryMenu and FolderMenu now prevent that focus return for those items (`onCloseAutoFocus`). (2) EditableText ends the edit before calling oncommit, so the new-folder entry is kept in a plain variable. (3) jsdom: an open menu inside the scrolling table gets `visibility: hidden` from the positioning (no layout), which blanks accessible names, so the Listing test finds the submenu item by text; the drag helper restores its fakes and waits out the drop's click swallow.
 - 2026-11-08 — red-green: green in 9 commits (T1 bump + 8 flips) over about 16 iterations, 0 reverts, no STUCK. All 30 work-item tests pass, both gates green.
+- 2026-11-08 — T-live in the running app (CGEvent drags through a small Swift tool): the tree renders as the menu does; real drags move an entry into a folder and a folder above another; Rename from the folder menu and New folder… from the entry menu (keyboard) work, and the selection follows its entry; ⌘S then `list` shows the cart in tree order. Two bugs found and fixed: the drop hit-tested after clearing the drag state, so the end strip (shown only while dragging) was gone and an entry could not leave its folder (regression test added to rowDrag.test.ts, red on the old code); and a drag left a native text selection on the rows (cleared at drag start and drop). Not checked: a Finder drop of a .prg (can't be scripted; left for the user).
 
 ## DEEP PIPELINE (Deep lane only)
 
