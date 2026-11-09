@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Inside a folder our menu lists a `..` row first; RETURN or fire on it goes back to the top level, so the joystick can leave a folder (D-058)
-- **Next action:** S5 — `menu/README.md`
+- **Next action:** S6 — audit, reconcile into SPEC, closeout, PR (merge only on the user's yes)
 - **Branch:** feat/menu-folder-up · **Updated:** 2026-11-08
 
 ## STEPS
@@ -21,7 +21,7 @@
 - [x] S2 — triage, D-058, AC-170..AC-172 claimed, this JOURNAL
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-170..AC-172
 - [x] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
-- [ ] S5 — `menu/README.md`, the F7 help, gates with `STIDCART_REQUIRE_TOOLS=1`
+- [x] S5 — `menu/README.md`, the F7 help, gates with `STIDCART_REQUIRE_TOOLS=1`
 - [ ] S6 — audit, reconcile, closeout, PR (merge only on the user's yes)
 
 ## DECISIONS (this work-item)
@@ -89,3 +89,5 @@ CLR selects the last entry.
   F7 help gains a `..` line. 7a9a0c1's build joins `EARLIER_STIDCART_BUILDS`. AC-167's HOME now
   lands on `..`, and its F5 step starts from the first entry so the pick stays determined. ROM free
   1674 → 1484 bytes. AC-170..AC-172 green; gate 310 passed, GUI gate green.
+- 2026-11-08 — S5: README's key and stick tables, the folders section and the test list name
+  `..`. Gates as S4 (no code change since).
