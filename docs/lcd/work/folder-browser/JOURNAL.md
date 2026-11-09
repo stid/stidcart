@@ -6,19 +6,19 @@
 
 - **Lane:** Deep
 - **Goal:** The cart owns an ordered folder list (empty folders kept and stored), with CLI folder flags, New Folder, clearer menus and an inspector on the right.
-- **Next action:** test-gen, then red-green from T1
+- **Next action:** done; PR open (stacked on #58), merge after #58
 - **Branch:** feat/folder-browser (off feat/folder-editor; PR #58 awaits the user's merge yes) · **Updated:** 2026-11-08
 
 ## STEPS
 
 - [x] S1 — triage, spec, plan, tasks
-- [ ] S2 — failing tests ← next
-- [ ] S3 — T1–T2 version, format doc
-- [ ] S4 — T3–T8 core folder list
-- [ ] S5 — T9–T11 CLI, VICE boot
-- [ ] S6 — T12–T14 window Rust side
-- [ ] S7 — T15–T25 window frontend
-- [ ] S8 — T26, live check, audit, gates, close, PR
+- [x] S2 — failing tests
+- [x] S3 — T1–T2 version, format doc
+- [x] S4 — T3–T8 core folder list
+- [x] S5 — T9–T11 CLI, VICE boot
+- [x] S6 — T12–T14 window Rust side
+- [x] S7 — T15–T25 window frontend
+- [x] S8 — T26, live check, audit, gates, close, PR
 
 ## DECISIONS (this work-item)
 
@@ -63,7 +63,9 @@ See `spec.md` (AC-185..AC-196).
   by the auto-mode classifier, so the merge waits for the user's explicit yes.
 - 2026-11-08 — refine: T23 dropped. File ▸ New Folder is routed in App.svelte to the listing's exported `newFolder()` (the listing owns the tree), so `viewer.svelte.ts` needs no change and its test none. Default folder name "new folder N" (names hold 16 characters; "untitled folder 2" is 17).
 - 2026-11-08 — Core, CLI, VICE boot (AC-191), window Rust side and frontend green; both gates green.
+- 2026-11-08 — Live check (CGEvent drags, keyboard menus): ⇧⌘N did nothing at first: the Rust menu forwards an allowlist of ids and `new-folder` was missing; fixed with a contract test that reads `MenuId`. Then: New Folder + inline name, empty card, drop into it, Delete Folder (entries out), Move to with the current folder checked, inspector beside the list; ⌘S then `list` shows `folders: Arcade (2)  Tools (1)  Utilities (1)`.
+- 2026-11-08 — audit: PASS (run 2; run 1 blocked by the plan's `"folders:"` token); closeout appended; reconciled AC-185..AC-196 into SPEC.md (CLI folder row new, list row, inspector, tree row, metadata storage, C64 menu row).
 
 ## DEEP PIPELINE (Deep lane only)
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ✅`

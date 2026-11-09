@@ -123,7 +123,7 @@ Rejected:
 | `AC-186` | CLI     | `crates/stidcart-cli/src/lib.rs:"--remove-folder"` |
 | `AC-187` | CLI     | `crates/stidcart-cli/src/lib.rs:"--move-folder"`   |
 | `AC-188` | CLI     | `crates/stidcart-core/src/lib.rs:fn set_meta`      |
-| `AC-189` | CLI     | `crates/stidcart-cli/src/lib.rs:"folders:"`        |
+| `AC-189` | CLI     | `crates/stidcart-cli/src/lib.rs:l.folders`        |
 | `AC-189` | RENDER  | `gui/src/lib/Listing.svelte`                       |
 | `AC-192` | RENDER  | `gui/src/lib/Toolbar.svelte`                       |
 | `AC-193` | RENDER  | `gui/src/lib/FolderMenu.svelte`                    |
