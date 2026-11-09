@@ -5,10 +5,10 @@ use stidcart_core::{crt, listing, read, CartBuilder, Program};
 
 /// The build `menu/menu.bin` holds now. Changing the menu fails this until the replaced build's
 /// fingerprint joins `EARLIER_STIDCART_BUILDS`, so no cart built with it is ever stranded.
-const CURRENT: u64 = 0xb8b7_0e40_1467_ea23;
+const CURRENT: u64 = 0xa133_39a0_596f_3544;
 
 /// The earlier builds, oldest first, by the commit that last changed `menu/menu.bin`.
-const EARLIER: [(&str, u64); 14] = [
+const EARLIER: [(&str, u64); 15] = [
     ("0d3dfba", 0x85f5_5429_73af_46a6),
     ("2fbc818", 0x7537_fc2c_cf55_210c),
     ("ee3ec0f", 0x18ca_90a5_e0c1_5d17),
@@ -23,6 +23,7 @@ const EARLIER: [(&str, u64); 14] = [
     ("3aa1b39", 0xbe42_a63d_5738_a710),
     ("4e8f451", 0x7716_0576_a849_b6c4),
     ("7a9a0c1", 0x866f_3dcc_8415_53c1),
+    ("8b1f570", 0xb8b7_0e40_1467_ea23),
 ];
 
 /// The build at 5b54e81, the one carts made by stidcart 0.15 carry.

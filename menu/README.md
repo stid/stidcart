@@ -44,8 +44,8 @@ The screen is black (D-041) and wears the stidcart brand (D-048): the cartridge 
 five colour bands, sits left of a white block-letter logo, and a strip of the same five bands runs
 under the cart name. The cart name sits above 16 list rows. Each
 entry shows a badge for its kind, in the kind's colour: "PRG" for a program, "8K" and "16K" for
-those cartridges, "ULT" for Ultimax, and "XB" for multi-bank. The selected entry sits in an orange
-bar. When the list is longer than the screen, the divider to its right becomes a scroll bar: the
+those cartridges, "ULT" for Ultimax, and "XB" for multi-bank. The selected entry sits in a cyan bar
+(D-059). When the list is longer than the screen, the divider to its right becomes a scroll bar: the
 thumb's length is the share of the list in view, and its place is where the view is. The pane on the
 right describes the selection: its type, size, load address (program) or first bank (cartridge),
 and how it starts. Below the list are the position ("17 of 40"), the order in use and the kind

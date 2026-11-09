@@ -8,7 +8,25 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-059 -->
+<!-- Next id: D-060 -->
+
+---
+
+## D-059 · 2026-11-08 · The selection bar is cyan
+
+- **Context:** The user tried the folders on their own cart in VICE and didn't like the orange
+  selection bar (D-048). The bar is drawn in reverse, so its text is black and the bar has to be a
+  light colour. Light green, yellow, light red, purple and light blue are badge colours, yellow is
+  also the filter text, and grey is the help bar. Four previews were patched into copies of the
+  user's cart (cyan, white, light grey, light blue) and compared side by side in VICE; the user
+  chose cyan (2026-11-08).
+- **Decision:** the selection bar is cyan (C64 colour 3), which the menu uses nowhere else. The raster
+  strip, the mark and the logo keep the brand's colours, orange band included.
+- **Alternatives rejected:** white (same as the logo), light grey (close to the cart name and the
+  help bar), light blue (the multi-bank badge's colour and a band of the strip).
+- **Scope:** `menu/src/menu.s` (one constant), AC-123's check and the shared bar check in the boot
+  tests
+- **Status:** active · supersedes D-048's orange bar (the rest of D-048 stands)
 
 ---
 

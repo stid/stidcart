@@ -32,6 +32,7 @@ CHAR_ROM = $d800                ; the ROM's mixed-case set, with the character R
 CHAR_RAM = $3800                ; our copy, which the VIC reads in its bank 0
 BLACK      = 0                  ; the colours the menu uses (D-040, D-041)
 WHITE      = 1
+CYAN       = 3
 PURPLE     = 4
 YELLOW     = 7
 ORANGE     = 8
@@ -2417,7 +2418,7 @@ _badge:
         bne +
         lda #$80                ; the selection: a reverse bar over columns 1-20
         sta rvs
-        lda #ORANGE             ; the selection bar: the brand's accent (D-048)
+        lda #CYAN               ; the selection bar, black text on cyan (D-059)
         sta pen
         sta ipen
 +       ldx srow
