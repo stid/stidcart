@@ -8,7 +8,36 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-061 -->
+<!-- Next id: D-062 -->
+
+---
+
+## D-061 · 2026-11-08 · The window sends a folder tree as one edit, dragged by pointer events
+
+- **Context:** folder-editor plan. Every tree operation (D-060) must save the cart in tree order
+  and equal `edit`'s `--folder`/`--move` result. The recon (2026-11-08, tauri-runtime-wry 2.12.1,
+  wry 0.57.0, tauri#14373) found that with Tauri's native drag-drop handler on, which the Finder
+  drop needs for file paths, WKWebView never delivers HTML5 `dragover`/`drop` to the page.
+- **Decision:**
+  - One window edit, `Arrange { folders: [{name, entries}], loose }`. The Document checks that it
+    names every entry once, with non-empty, distinct folder names, then sets each entry's folder
+    and moves the entries into flattened order with the one new core primitive,
+    `CartBuilder::move_entry`, which `edit --move` also uses. Tree order holds by construction.
+  - The frontend builds the tree from the listing rows, applies the gesture as a pure tree
+    operation and sends `toArrange(tree)`. An unchanged tree sends nothing.
+  - Dragging is hand-rolled on pointer events: pointer capture, a 4 px threshold,
+    `elementFromPoint` with a pure two-band hit test. Tauri's `dragDropEnabled` stays on. Rows
+    disable native element drags. The user chose hand-rolled over a library (2026-11-08).
+  - The code renames `Field::Group` and the listing's `group` to folder. The format doc, the
+    stored bytes and the menu source keep "group", the name of the byte layout.
+- **Alternatives rejected:** a flat permutation plus a folder per entry (it can express a
+  scattered order, so tree order would rest on frontend care); one Rust edit per gesture (puts the
+  view's tree rules in Rust, four edits for one); HTML5 drag and drop or `dragDropEnabled: false`
+  (no drop events, or no Finder paths); @dnd-kit/svelte (pre-1.0, a new dependency, and dropping
+  onto a row unconfirmed).
+- **Scope:** `crates/stidcart-core/src/lib.rs` (`move_entry`), `meta.rs`, `listing.rs`, the CLI's
+  `edit`, `gui/src-tauri/src/document.rs`, `gui/src/lib/` (tree, drag, menus, listing)
+- **Status:** active · refines D-060
 
 ---
 
