@@ -36,7 +36,7 @@
 
 ### D. C64 menu evidence (AC-191)
 
-- [ ] **T11**: VICE boot test `AC-191` in `crates/stidcart-cli/tests/folder_boot.rs` (no menu change expected)
+- [ ] **T11**: VICE boot test `AC-191` in `crates/stidcart-cli/tests/menu_boot.rs` (no menu change expected)
 
 ### E. Window, Rust side (AC-189, AC-196)
 

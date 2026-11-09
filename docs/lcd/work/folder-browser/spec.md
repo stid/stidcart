@@ -71,8 +71,9 @@ before, byte for byte where it did.
 shows no row for an empty folder. Proven by a VICE boot.
 
 **AC-192** (surfaces: RENDER): New Folder (a button beside Add…, the app menu with ⇧⌘N, and a
-right-click on the list's empty space) adds an empty folder named "untitled folder" (or the first
-free "untitled folder N") after the others, as one undoable edit, and opens its name for editing.
+right-click on the list's empty space) adds an empty folder named "new folder" (or the first
+free "new folder N"; names hold 16 characters, too few for Finder's "untitled folder N") after the
+others, as one undoable edit, and opens its name for editing.
 
 **AC-193** (surfaces: RENDER): A folder's menu offers Delete Folder, which removes the folder and
 moves its entries to the entries in no folder, keeping them in the cart, as one undoable edit. An

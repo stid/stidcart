@@ -29,8 +29,10 @@ export type EntryMove =
 /** Where a folder is dropped: before or after another folder, or after the last one. */
 export type FolderTarget = { before: string } | { after: string } | { last: true };
 
-export function buildTree(rows: Row[]): Tree {
-  const tree: Tree = { folders: [], loose: [] };
+/** The tree of `rows`, starting from the cart's `folders` in order (empty ones included, D-063);
+ * a folder a row names that the list lacks joins after the others. */
+export function buildTree(rows: Row[], folders: string[] = []): Tree {
+  const tree: Tree = { folders: folders.map((name) => ({ name, entries: [] })), loose: [] };
   for (const r of rows) {
     if (r.folder === '') {
       tree.loose.push(r.index);
@@ -55,12 +57,10 @@ function listOf(tree: Tree, index: number): number[] {
   return tree.folders.find((f) => f.entries.includes(index))?.entries ?? tree.loose;
 }
 
-/** The tree without `index`; a folder it leaves empty goes too, since a folder exists only while an
- * entry is in it. */
+/** The tree without `index`. A folder it leaves empty stays: the cart keeps its folders (D-063). */
 function without(tree: Tree, index: number): Tree {
   const t = copy(tree);
   t.folders.forEach((f) => (f.entries = f.entries.filter((i) => i !== index)));
-  t.folders = t.folders.filter((f) => f.entries.length > 0);
   t.loose = t.loose.filter((i) => i !== index);
   return t;
 }
@@ -70,8 +70,8 @@ export function moveEntry(tree: Tree, index: number, target: EntryTarget): Tree 
   const t = without(tree, index);
   if ('into' in target) {
     const folder = t.folders.find((f) => f.name === target.into);
-    // Gone only if it held just this entry: dropped back into it, nothing changes.
     if (folder === undefined) return tree;
+    // Dropped back into its own folder where it already is last, nothing changes.
     folder.entries.push(index);
   } else if ('end' in target) {
     t.loose.push(index);
@@ -95,6 +95,32 @@ export function moveFolder(tree: Tree, name: string, target: FolderTarget): Tree
     t.folders.splice(other + ('after' in target ? 1 : 0), 0, folder);
   }
   return t;
+}
+
+/** An empty folder named `name`, after the others. */
+export function addFolder(tree: Tree, name: string): Tree {
+  const t = copy(tree);
+  t.folders.push({ name, entries: [] });
+  return t;
+}
+
+/** The folder gone; its entries move to the end of the loose ones, staying in the cart. */
+export function deleteFolder(tree: Tree, name: string): Tree {
+  const t = copy(tree);
+  const at = t.folders.findIndex((f) => f.name === name);
+  if (at < 0) return tree;
+  const [folder] = t.folders.splice(at, 1);
+  t.loose.push(...folder.entries);
+  return t;
+}
+
+/** "new folder", or the first "new folder N" no folder has, as a file browser names one. */
+export function untitledName(tree: Tree): string {
+  const taken = new Set(tree.folders.map((f) => f.name));
+  if (!taken.has('new folder')) return 'new folder';
+  let n = 2;
+  while (taken.has(`new folder ${n}`)) n++;
+  return `new folder ${n}`;
 }
 
 /** The entry moved into a new folder of that name, after the others. */

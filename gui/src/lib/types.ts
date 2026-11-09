@@ -32,6 +32,8 @@ export interface Listing {
    * (D-049), or `unrecognised`. */
   menu: string;
   rows: Row[];
+  /** The cart's folders in order, empty ones included (D-063). */
+  folders: string[];
   free: number;
   freeText: string;
   /** Metadata records dropped because their entry no longer matches (AC-154). */
@@ -86,7 +88,7 @@ export type MetaField = 'title' | 'year' | 'author' | 'note' | 'folder';
 export type Unsaved = 'save' | 'discard' | 'cancel';
 
 /** The ids the native menu sends (gui/src-tauri/src/menu.rs). */
-export type MenuId = 'new' | 'open' | 'save' | 'save-as' | 'undo' | 'redo' | 'quit';
+export type MenuId = 'new' | 'open' | 'new-folder' | 'save' | 'save-as' | 'undo' | 'redo' | 'quit';
 
 export type ViewState =
   { kind: 'empty' } | { kind: 'document'; doc: Document } | { kind: 'error'; file: string; message: string };

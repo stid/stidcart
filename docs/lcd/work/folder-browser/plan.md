@@ -66,8 +66,8 @@ entry, so the cart's order and hidden empty folders follow from the bytes. A VIC
 - **The tree:** `tree.ts`'s `buildTree(rows, folders)` starts from the cart's folder list, so
   empty folders show and keep their place. Moving the last entry out no longer drops the folder.
   New helpers `addFolder`, `deleteFolder` and `untitledName`.
-- **New Folder:** `Listing` exports `newFolder()`, which adds "untitled folder" (or the first free
-  "untitled folder N"), then opens its name once the edit lands. App calls it from three places:
+- **New Folder:** `Listing` exports `newFolder()`, which adds "new folder" (or the first free
+  "new folder N"; 16-character names), then opens its name once the edit lands. App calls it from three places:
   - the Toolbar button;
   - the native menu item `new-folder` (File ▸ New Folder, ⇧⌘N);
   - a bits-ui `ContextMenu` on the empty space under the list.
@@ -112,7 +112,7 @@ Rejected:
 | MAP: format facts from `docs/format/`     | yes      | The folder-table paragraph changes there first, in the first commit of the build                                                                                                                                                                                                         |
 | MAP: no global state / I/O policy in core | yes      | Folder ops are pure builder mutators                                                                                                                                                                                                                                                     |
 | MAP: describing vs rebuilding (D-011)     | yes      | `Listing.folders` is a description; the folder ops are rebuild-path edits                                                                                                                                                                                                                |
-| `.claude/rules/lcd-conventions.md`        | yes      | ACs 185-196 claimed; new root stems `folder_browser_cli`, `folder_boot`; GUI `folder_browser.rs`                                                                                                                                                                                         |
+| `.claude/rules/lcd-conventions.md`        | yes      | ACs 185-196 claimed; new root stems `folder_browser_cli`, `menu_boot` (extended); GUI `folder_browser.rs`                                                                                                                                                                                         |
 | Memory `compat-scope`                     | yes      | No compatibility code for earlier stidcart carts; legacy fixtures still load and convert                                                                                                                                                                                                 |
 
 ## Cross-path behavior matrix
@@ -131,7 +131,7 @@ Rejected:
 | `AC-195` | RENDER  | `gui/src/lib/MetaPanel.svelte`                     |
 | `AC-196` | RENDER  | `gui/src-tauri/src/document.rs`                    |
 
-**Test scope:** `crates/stidcart-cli/tests/folder_browser_cli.rs`, `crates/stidcart-core/tests/folders.rs`, `crates/stidcart-cli/tests/folder_boot.rs`, `gui/src-tauri/tests/folder_browser.rs`, `gui/src/lib/tree.test.ts`, `gui/src/lib/Listing.test.ts`, `gui/src/lib/EntryMenu.test.ts`, `gui/src/lib/FolderMenu.test.ts`, `gui/src/lib/MetaPanel.test.ts`, `gui/src/lib/Toolbar.test.ts`, `gui/src/lib/viewer.test.ts`
+**Test scope:** `crates/stidcart-cli/tests/folder_browser_cli.rs`, `crates/stidcart-core/tests/folders.rs`, `crates/stidcart-cli/tests/menu_boot.rs`, `gui/src-tauri/tests/folder_browser.rs`, `gui/src/lib/tree.test.ts`, `gui/src/lib/Listing.test.ts`, `gui/src/lib/EntryMenu.test.ts`, `gui/src/lib/FolderMenu.test.ts`, `gui/src/lib/MetaPanel.test.ts`, `gui/src/lib/Toolbar.test.ts`, `gui/src/lib/viewer.test.ts`
 
 ## Reused primitives
 
@@ -168,7 +168,7 @@ FolderError>`, `set_folders(Vec<String>) -> Result<(), FolderError>`. `FolderErr
 ```
 crates/stidcart-core/tests/folders.rs        AC-190: folder table order, empty folders stored, legacy fixtures unchanged
 crates/stidcart-cli/tests/folder_browser_cli.rs  AC-185..AC-189 (CLI)
-crates/stidcart-cli/tests/folder_boot.rs     AC-191: VICE boot, folder order and empty folders hidden
+crates/stidcart-cli/tests/menu_boot.rs     AC-191: VICE boot, folder order and empty folders hidden
 gui/src-tauri/tests/folder_browser.rs        AC-196 parity, empty folders through arrange, AC-189 DTO
 ```
 

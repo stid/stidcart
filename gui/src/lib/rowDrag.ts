@@ -41,8 +41,11 @@ export function dropTarget(
 
 /** The row an element sits in, as `dropTarget` reads it, from the rows' data attributes. */
 function overOf(el: Element | null): { row: Element; over: Over } | null {
-  const row = el?.closest('[data-entry], [data-folder-row], [data-drop-end]');
+  const row = el?.closest('[data-entry], [data-folder-row], [data-folder-drop], [data-drop-end]');
   if (!row) return null;
+  // An empty folder's "drag entries here" row stands for its folder (D-063).
+  if (row.hasAttribute('data-folder-drop'))
+    return { row, over: { kind: 'folder', name: row.getAttribute('data-folder-drop')! } };
   if (row.hasAttribute('data-folder-row'))
     return { row, over: { kind: 'folder', name: row.getAttribute('data-folder-row')! } };
   if (row.hasAttribute('data-drop-end')) return { row, over: { kind: 'end' } };
