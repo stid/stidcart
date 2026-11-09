@@ -71,27 +71,42 @@
   {#if onmove}
     <DropdownMenu.Separator class="menu-separator" />
     <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger class="menu-item">Move to folder</DropdownMenu.SubTrigger>
+      <DropdownMenu.SubTrigger class="menu-item">Move to</DropdownMenu.SubTrigger>
       <DropdownMenu.SubContent class="menu">
-        {#each folders as name (name)}
-          <DropdownMenu.Item
-            class="menu-item"
-            disabled={name === row.folder}
-            onSelect={() => onmove({ kind: 'folder', name })}>{name}</DropdownMenu.Item
+        <!-- Where the entry is reads as a checked choice, never as a greyed heading (D-063). -->
+        <DropdownMenu.RadioGroup value={row.folder}>
+          <DropdownMenu.GroupHeading class="menu-label">// folders</DropdownMenu.GroupHeading>
+          {#each folders as name (name)}
+            <DropdownMenu.RadioItem
+              class="menu-item check-item"
+              value={name}
+              onSelect={() => name !== row.folder && onmove({ kind: 'folder', name })}
+            >
+              {#snippet children({ checked })}<span class="check" aria-hidden="true">{checked ? '✓' : ''}</span
+                >{name}{/snippet}
+            </DropdownMenu.RadioItem>
+          {/each}
+          <DropdownMenu.Separator class="menu-separator" />
+          <DropdownMenu.RadioItem
+            class="menu-item check-item"
+            value=""
+            onSelect={() => row.folder !== '' && onmove({ kind: 'noFolder' })}
           >
-        {/each}
-        {#if row.folder !== ''}
-          <DropdownMenu.Item class="menu-item" onSelect={() => onmove({ kind: 'noFolder' })}>No folder</DropdownMenu.Item>
-        {/if}
+            {#snippet children({ checked })}<span class="check" aria-hidden="true">{checked ? '✓' : ''}</span
+              >Not in a folder{/snippet}
+          </DropdownMenu.RadioItem>
+        </DropdownMenu.RadioGroup>
+        <DropdownMenu.Separator class="menu-separator" />
         <DropdownMenu.Item
-          class="menu-item"
+          class="menu-item check-item"
           onSelect={() => {
             toField = true;
             onmove({ kind: 'newFolder' });
-          }}>New folder…</DropdownMenu.Item
+          }}><span class="check" aria-hidden="true"></span>New Folder with Entry</DropdownMenu.Item
         >
       </DropdownMenu.SubContent>
     </DropdownMenu.Sub>
+    <DropdownMenu.Separator class="menu-separator" />
     <DropdownMenu.Item class="menu-item" disabled={!canUp} onSelect={() => onmove({ kind: 'up' })}>Move up</DropdownMenu.Item>
     <DropdownMenu.Item class="menu-item" disabled={!canDown} onSelect={() => onmove({ kind: 'down' })}
       >Move down</DropdownMenu.Item
@@ -171,8 +186,31 @@
     user-select: none;
   }
 
+  /* Disabled is only ever an unavailable command, so it reads dimmer than any label (D-063). */
   :global(.menu-item[data-disabled]) {
     color: var(--text-faint);
+    opacity: 0.6;
+  }
+
+  :global(.menu-label) {
+    padding: var(--space-1) var(--space-3) 2px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-faint);
+  }
+
+  :global(.check-item) {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  :global(.check) {
+    width: 12px;
+    color: var(--accent);
+  }
+
+  :global(.menu-item[data-highlighted] .check) {
+    color: inherit;
   }
 
   :global(.menu-item[data-highlighted]) {

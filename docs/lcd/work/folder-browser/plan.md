@@ -131,7 +131,7 @@ Rejected:
 | `AC-195` | RENDER  | `gui/src/lib/MetaPanel.svelte`                     |
 | `AC-196` | RENDER  | `gui/src-tauri/src/document.rs`                    |
 
-**Test scope:** `crates/stidcart-cli/tests/folder_browser_cli.rs`, `crates/stidcart-core/tests/folders.rs`, `crates/stidcart-cli/tests/menu_boot.rs`, `gui/src-tauri/tests/folder_browser.rs`, `gui/src/lib/tree.test.ts`, `gui/src/lib/Listing.test.ts`, `gui/src/lib/EntryMenu.test.ts`, `gui/src/lib/FolderMenu.test.ts`, `gui/src/lib/MetaPanel.test.ts`, `gui/src/lib/Toolbar.test.ts`, `gui/src/lib/viewer.test.ts`
+**Test scope:** `crates/stidcart-cli/tests/folder_browser_cli.rs`, `crates/stidcart-core/tests/folders.rs`, `crates/stidcart-cli/tests/menu_boot.rs`, `gui/src-tauri/tests/folder_browser.rs`, `gui/src/lib/tree.test.ts`, `gui/src/lib/Listing.test.ts`, `gui/src/lib/EntryMenu.test.ts`, `gui/src/lib/FolderMenu.test.ts`, `gui/src/lib/MetaPanel.test.ts`, `gui/src/lib/Toolbar.test.ts`
 
 ## Reused primitives
 
@@ -195,7 +195,7 @@ gui/src-tauri/tests/folder_browser.rs        AC-196 parity, empty folders throug
 - `gui/src/lib/FolderMenu.svelte`, `gui/src/lib/FolderMenu.test.ts`: Delete Folder
 - `gui/src/lib/MetaPanel.svelte`, `gui/src/lib/MetaPanel.test.ts`: the inspector
 - `gui/src/lib/Toolbar.svelte`, `gui/src/lib/Toolbar.test.ts`: New Folder button
-- `gui/src/lib/viewer.svelte.ts`, `gui/src/lib/viewer.test.ts`: the `new-folder` menu id
+- `gui/src/lib/viewer.svelte.ts`: the `new-folder` menu id
 - `gui/src/App.svelte`: wire New Folder to the listing
 - `README.md`: folders, the new flags
 - `docs/lcd/work/folder-browser/`, `docs/lcd/DECISIONS.md`, `docs/lcd/SPEC.md`, `docs/lcd/MAP.md`, `.claude/rules/lcd-conventions.md`

@@ -1,16 +1,20 @@
 <script lang="ts">
   import EditableText from './EditableText.svelte';
+  import { ContextMenu } from 'bits-ui';
   import EntryMenu from './EntryMenu.svelte';
   import FolderMenu from './FolderMenu.svelte';
   import MetaPanel from './MetaPanel.svelte';
   import { dragRow, type DragSource, type Drop } from './rowDrag';
   import {
+    addFolder,
     buildTree,
+    deleteFolder,
+    untitledName,
     canStep,
     indexAfter,
     moveEntry,
     moveFolder,
-    newFolder,
+    newFolder as newFolderWithEntry,
     renameFolder,
     sameTree,
     stepEntry,
@@ -31,6 +35,7 @@
     rows = [],
     onedit,
     onreplace,
+    onadd,
   }: {
     listing: Listing;
     file: string;
@@ -43,6 +48,8 @@
     /** Given (with `onreplace`), the listing offers edits. Without it, it only shows. */
     onedit?: (e: Edit) => void | Promise<boolean>;
     onreplace?: (index: number) => void;
+    /** Given, the empty space's menu also offers Add… and Add Aligned…. */
+    onadd?: (aligned: boolean) => void;
   } = $props();
 
   /** The menus a cart can boot into, by the names the listing shows (D-042). */
@@ -58,9 +65,6 @@
   /** The row whose metadata the panel shows, chosen by clicking it (D-054). */
   let selected = $state<number | null>(null);
   const selectedRow = $derived(listing.rows.find((r) => r.index === selected));
-  /** With any folder the listing is the folder tree, drawn as cards (D-062); a cart without lists
-   * flat, as before. */
-  const hasFolders = $derived(listing.rows.some((r) => r.folder !== ''));
 
   /** An exact byte count, for the hover on a size the listing shows rounded (D-044). */
   function exact(bytes: number): string {
@@ -72,7 +76,10 @@
   }
 
   /** The cart as our menu shows it: folders first, then the loose entries (D-057, D-060). */
-  const tree = $derived(buildTree(listing.rows));
+  const tree = $derived(buildTree(listing.rows, listing.folders ?? []));
+  /** With any folder, empty ones included, the listing is the folder tree, drawn as cards (D-062,
+   * D-063); a cart without lists flat, as before. */
+  const hasFolders = $derived(tree.folders.length > 0);
   const folderNames = $derived(tree.folders.map((f) => f.name));
   /** Each row by its entry index, with its position in `listing.rows` (for `rows[i]`). */
   const rowAt = $derived(new Map(listing.rows.map((r, i) => [r.index, { row: r, i }])));
@@ -97,11 +104,21 @@
   }
 
   /** Send the tree as one edit, unless it is the tree already; the selection follows its entry. */
-  async function arrange(next: Tree) {
-    if (sameTree(next, tree)) return;
+  async function arrange(next: Tree): Promise<boolean> {
+    if (sameTree(next, tree)) return false;
     const was = selected;
-    const took = await onedit?.(toArrange(next));
-    if (took !== false && was !== null) selected = indexAfter(next, was);
+    const took = (await onedit?.(toArrange(next))) !== false;
+    if (took && was !== null) selected = indexAfter(next, was);
+    return took;
+  }
+
+  /** New Folder, as a file browser has it (D-063): an empty folder after the others, its name open
+   * for typing once the cart has it. The window's button, File ▸ New Folder and the empty space's
+   * menu all come here. */
+  export async function newFolder() {
+    if (!editable) return;
+    const name = untitledName(tree);
+    if (await arrange(addFolder(tree, name))) renamingFolder = name;
   }
 
   function dropped(source: DragSource, drop: Drop) {
@@ -265,9 +282,10 @@
     </dl>
   </header>
 
-  {#if listing.rows.length === 0}
+  {#if listing.rows.length === 0 && tree.folders.length === 0}
     <p class="none">No entries{editable ? ' — drop programs or cartridge images here, or use Add…' : ''}</p>
   {:else}
+    <div class="body">
     <div class="table-wrap">
       <table class:tree={hasFolders}>
         <thead>
@@ -328,6 +346,7 @@
                       canDown={f < tree.folders.length - 1}
                       onrename={(name) => (renamingFolder = name)}
                       onmove={(name, dir) => void arrange(stepFolder(tree, name, dir))}
+                      ondelete={(name) => void arrange(deleteFolder(tree, name))}
                     />
                   </td>
                 {/if}
@@ -337,6 +356,14 @@
                 {#each folder.entries as index (index)}
                   {@render entry(index)}
                 {/each}
+                {#if folder.entries.length === 0}
+                  <!-- An empty folder stays (D-063) and takes a dragged entry here. -->
+                  <tr class="empty-drop" data-folder-drop={folder.name}>
+                    <td class="edge" aria-hidden="true"></td>
+                    <td colspan={inner}><div class="empty-strip">empty · drag entries here</div></td>
+                    <td class="edge" aria-hidden="true"></td>
+                  </tr>
+                {/if}
               {/if}
             </tbody>
           {/each}
@@ -350,7 +377,7 @@
                     value=""
                     label="New folder name"
                     bind:editing={() => naming !== null, (on) => !on && (naming = null)}
-                    oncommit={(name) => void arrange(newFolder(tree, namingFor, name))}
+                    oncommit={(name) => void arrange(newFolderWithEntry(tree, namingFor, name))}
                   />
                 </td>
                 <td class="edge" aria-hidden="true"></td>
@@ -385,10 +412,31 @@
           </tbody>
         {/if}
       </table>
+      {#if editable}
+        <!-- The list's empty space: a right-click here makes a folder, as in a file browser (D-063). -->
+        <ContextMenu.Root>
+          <ContextMenu.Trigger>
+            {#snippet child({ props })}
+              <div class="empty-space" data-empty-space {...props}></div>
+            {/snippet}
+          </ContextMenu.Trigger>
+          <ContextMenu.Portal>
+            <ContextMenu.Content class="menu">
+              <ContextMenu.Item class="menu-item shortcut-item" onSelect={() => void newFolder()}
+                ><span>New Folder</span><span class="keys">⇧⌘N</span></ContextMenu.Item
+              >
+              {#if onadd}
+                <ContextMenu.Separator class="menu-separator" />
+                <ContextMenu.Item class="menu-item" onSelect={() => onadd(false)}>Add…</ContextMenu.Item>
+                <ContextMenu.Item class="menu-item" onSelect={() => onadd(true)}>Add Aligned…</ContextMenu.Item>
+              {/if}
+            </ContextMenu.Content>
+          </ContextMenu.Portal>
+        </ContextMenu.Root>
+      {/if}
     </div>
-    {#if selectedRow}
-      <MetaPanel row={selectedRow} {editable} onedit={edit} />
-    {/if}
+    <MetaPanel row={selectedRow ?? null} {editable} onedit={edit} folders={folderNames} />
+    </div>
   {/if}
 </section>
 
@@ -498,9 +546,19 @@
     font-weight: 500;
   }
 
-  .table-wrap {
+  /* The list and the inspector side by side, each scrolling on its own (D-063). */
+  .body {
     flex: 1;
     min-height: 0;
+    display: flex;
+  }
+
+  .table-wrap {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     overflow: auto;
     border-top: 1px solid var(--border);
   }
@@ -656,6 +714,48 @@
 
   .tree tbody tr:hover {
     background: none;
+  }
+
+  .empty-space {
+    min-height: var(--space-8);
+    flex: 1;
+  }
+
+  .empty-strip {
+    margin: var(--space-1) 0 var(--space-3) calc(var(--space-4) + var(--space-5));
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-faint);
+  }
+
+  .empty-drop td {
+    padding: 0 var(--space-3) 0 0;
+  }
+
+  .empty-drop[data-drop] .empty-strip {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  :global(.shortcut-item) {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-5);
+  }
+
+  :global(.keys) {
+    font-family: var(--font-mono);
+    color: var(--text-faint);
+  }
+
+  :global(.menu-item[data-highlighted] .keys) {
+    color: inherit;
   }
 
   .tree .gap td {

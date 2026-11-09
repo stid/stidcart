@@ -61,7 +61,9 @@ See `spec.md` (AC-185..AC-196).
   ("implement all of it"); design boards "Folder browser" on the canvas. Spec, plan, tasks written;
   D-063. PR #58 green (review: one misplaced doc comment, fixed here); `gh pr merge 58` was denied
   by the auto-mode classifier, so the merge waits for the user's explicit yes.
+- 2026-11-08 — refine: T23 dropped. File ▸ New Folder is routed in App.svelte to the listing's exported `newFolder()` (the listing owns the tree), so `viewer.svelte.ts` needs no change and its test none. Default folder name "new folder N" (names hold 16 characters; "untitled folder 2" is 17).
+- 2026-11-08 — Core, CLI, VICE boot (AC-191), window Rust side and frontend green; both gates green.
 
 ## DEEP PIPELINE (Deep lane only)
 
-`spec.md ✅  plan.md ✅  tasks.md ✅  tests ⬜  red-green ⬜  audit.md ⬜`
+`spec.md ✅  plan.md ✅  tasks.md ✅  tests ✅  red-green ✅  audit.md ⬜`

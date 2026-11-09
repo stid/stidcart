@@ -8,10 +8,13 @@
     doc,
     onadd,
     onopen,
+    onnewfolder,
     opened = doc !== null,
   }: {
     doc: Document | null;
     onadd: (aligned: boolean) => void;
+    /** Add an empty folder to the open cart, as a file browser's New Folder (D-063). */
+    onnewfolder: () => void;
     onopen: () => void;
     /** Something is on screen (a cart or a refusal), so Open… belongs in the bar. */
     opened?: boolean;
@@ -34,6 +37,7 @@
 
 <div class="actions">
   {#if editable}
+    <button class="button" onclick={onnewfolder} title="New Folder (⇧⌘N)">New Folder</button>
     <button class="button" onclick={() => onadd(false)}>Add…</button>
     <button class="button" onclick={() => onadd(true)} title="Add an xbank cartridge with 64 KB alignment"
       >Add Aligned…</button

@@ -9,12 +9,15 @@
     canDown,
     onrename,
     onmove,
+    ondelete,
   }: {
     name: string;
     canUp: boolean;
     canDown: boolean;
     onrename: (name: string) => void;
     onmove: (name: string, dir: -1 | 1) => void;
+    /** Delete the folder; its entries move out, staying in the cart (D-063). */
+    ondelete: (name: string) => void;
   } = $props();
 
   // Rename opens a text field on the folder row; focus going back to the trigger would end it.
@@ -40,6 +43,8 @@
       <DropdownMenu.Item class="menu-item" disabled={!canDown} onSelect={() => onmove(name, 1)}
         >Move down</DropdownMenu.Item
       >
+      <DropdownMenu.Separator class="menu-separator" />
+      <DropdownMenu.Item class="menu-item danger" onSelect={() => ondelete(name)}>Delete Folder</DropdownMenu.Item>
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
