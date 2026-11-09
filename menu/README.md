@@ -15,11 +15,11 @@ code.
 | --------------- | ------------------------------------------------------------------------ |
 | CRSR ↓ / CRSR ↑ | move the selection. The list scrolls past 16 rows                        |
 | CRSR → / CRSR ← | move 16 entries down or up, stopping at the last or first                |
-| RETURN          | start the selected entry, or open the selected folder                    |
+| RETURN          | start the selected entry, open the selected folder, or on `..` leave it  |
 | SHIFT+RETURN    | load the selected program and stop at `READY.`; on a cartridge, nothing  |
 | letters, digits | filter: list only the entries whose name or title contains the text      |
 | DEL             | remove the last character of the filter text; with none, leave a folder  |
-| HOME / CLR      | clear the filter text; with none, go to the first / last entry           |
+| HOME / CLR      | clear the filter text; with none, go to the first row / last entry       |
 | F1              | switch between the cart's own order and A-Z                              |
 | F3              | list all entries, then only programs, then only cartridges               |
 | F5              | select a random entry among those listed, never the one already selected |
@@ -32,7 +32,7 @@ A joystick in port 2 does what the cursor keys and RETURN do (D-052):
 | ------------ | ---------------------------------------- |
 | up / down    | as CRSR ↑ / CRSR ↓, one entry            |
 | left / right | as CRSR ← / CRSR →, a page               |
-| fire         | as RETURN: start an entry, open a folder |
+| fire         | as RETURN: start, open a folder, or `..` |
 | any, on help | go back to the menu, and nothing else    |
 
 A direction acts when it is pushed, and if it is held it repeats after 0.4 s, then ten times a
@@ -93,9 +93,14 @@ hidden entry, `STIDCART.META`, which the menu reads once at boot (D-057).
   or note keeps the usual pane.
 - Groups are folders. The top level lists one row per group that has a visible entry, with a folder
   badge, the group's name and its number of entries, then the entries without a group. RETURN or
-  fire opens a folder. Inside, the keys act on the folder's entries, and DEL with no text or
-  RUN/STOP goes back to the top level with the folder selected. A name too long for the row is cut
-  to leave room for the count.
+  fire opens a folder, with its first entry selected. Inside, the keys act on the folder's entries,
+  and DEL with no text or RUN/STOP goes back to the top level with the folder selected. A name too
+  long for the row is cut to leave room for the count.
+- Inside a folder the first row is `..`, with the folder badge. RETURN or fire on it goes back to
+  the top level as DEL and RUN/STOP do, so the joystick can leave a folder (D-058). It stays first
+  under A-Z, the kind filter and filter text, even when nothing matches. It isn't an entry: rows
+  22-23 don't count it, so on it the position reads 0, F5 never picks it, and a reset never comes
+  back to it. HOME selects it and CLR the last entry.
 - Text typed at the top level searches every entry, in every folder, by name or title, and lists
   the matches without folders.
 - Folder rows ignore the kind filter and stay in the order the groups were first used, also under
@@ -219,4 +224,5 @@ The evidence that the menu works is VICE, because the reference tool knows nothi
 AC-136..AC-141 for the keys of D-051, AC-142..AC-146 for the stick, AC-147..AC-152 for coming
 back after a reset, which the tests do with the monitor's `reset 0` and `reset 1`, and
 AC-160..AC-162 and AC-165 for programs reaching `$D000-$FFFF`, read back as RAM with the monitor's
-`bank ram`, and AC-166..AC-169 for titles, folders and the metadata checks).
+`bank ram`, AC-166..AC-169 for titles, folders and the metadata checks, and AC-170..AC-172 for
+the `..` row).

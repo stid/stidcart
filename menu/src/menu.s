@@ -163,6 +163,8 @@ fld     = $c13d                 ; the pane's field, 0 title to 3 note
 fy      = $c13e                 ; where the next field's length is in its record
 gno     = $c13f                 ; the folder row's group
 bcode   = $c140                 ; the row's badge code
+nup     = $c141                 ; 1 inside a folder, where shown starts with the ".." row (D-058)
+skip    = $c142                 ; the row F5 must not pick, $FF for none
 srow    = $c150                ; the screen row a list row goes to
 kind    = $c151                 ; the entry's kind: 0 program, 1 8K, 2 16K, 3 Ultimax, 4 multi-bank
 ipen    = $c152                 ; the icon's colour
@@ -349,12 +351,17 @@ clear:
         lda #0
         sta qlen
 
-; The text, the kind or the order changed: list again from the first match.
+; The text, the kind or the order changed: list again from the first match, which inside a folder
+; is the first entry below "..", if any (D-058).
 refresh:
         jsr refilter
         lda #0
-        sta sel
         sta top
+        ldx nup
+        cpx nshown
+        bcc +
+        tax
++       stx sel
         jsr vsync
 redraw:
         jsr draw_list
@@ -453,15 +460,28 @@ page_up:
         lda #0
         jmp select
 
-; F5: a random entry among those listed, never the one already selected. The CIA timer, the beam
-; and the jiffy clock differ at every key press a person makes.
+; F5: a random entry among those listed, never the one already selected, and never ".." (D-058).
+; The CIA timer, the beam and the jiffy clock differ at every key press a person makes.
 pick:
         lda nshown
-        cmp #2
-        bcs +
-        jmp loop                ; one entry or none: nothing to pick from
-+       sbc #1                  ; the carry is set: the other entries
+        sec
+        sbc nup                 ; the entries listed
+        ldx sel
+        cpx nup
+        bcs _other
+        ldx #$ff                ; on "..": every entry is another one
+        cmp #1
+        bcs _draw
+        bcc _none
+_other:
+        sbc #1                  ; the carry is set: the entries but the selection
+        beq _none
+        bcs _draw
+_none:
+        jmp loop                ; nothing else to pick from
+_draw:
         sta den
+        stx skip
         lda $dc04
         eor RASTER
         eor $a2
@@ -469,7 +489,9 @@ pick:
         bcc +
         sbc den
         bcs -
-+       cmp sel
++       clc
+        adc nup                 ; past ".."
+        cmp skip
         bcc +
         adc #0                  ; the carry is set: skip the selection
 +       jmp select
@@ -615,7 +637,9 @@ start:
         beq +
         jmp loop
 +       lda shown,x
-        sta folder
+        bne +
+        jmp back                ; "..": out of the folder (D-058)
++       sta folder
         jmp refresh
 _entry:
         lda shown,x
@@ -1195,15 +1219,21 @@ _no:
 
 ; shown = what the list shows, in the order in use (D-057). At the top level with no text: a folder
 ; row per group with a visible entry (its group number), nfold of them, then the entries without a
-; group. Inside a folder: its entries. At the top level with text: every visible entry. Entries are
-; kept only if the text is in their name or title and the kind filter lets them through.
+; group. Inside a folder: the ".." row (group 0), whatever the filters, then its entries (D-058). At
+; the top level with text: every visible entry. Entries are kept only if the text is in their name
+; or title and the kind filter lets them through.
 refilter:
         lda #0
         sta nshown
         sta si
+        sta nup
         ldx folder
+        beq +
+        sta shown               ; ".." is a folder row whose group is 0
+        inc nup
+        inc nshown
         bne _rows
-        lda qlen
++       lda qlen
         bne _rows
 _group:
         cpx ngroups
@@ -2311,12 +2341,17 @@ list_row:
         ldy #>no_entries
         jmp _message
 +       lda nshown
-        bne _entry
+        cmp nup
+        bne _entry              ; an entry or a folder row is listed
+        lda row
+        cmp nup
+        bcc _entry              ; "..", above the message (D-058)
         lda #<no_matches
         ldy #>no_matches
 _message:
         ldx row
-        bne _blank              ; the message goes on the first row only
+        cpx nup
+        bne _blank              ; the message goes on the first row after "..", if any
         pha
         tya
         pha
@@ -2357,9 +2392,10 @@ _listed:
         sta gno
         jsr begin
         ldx gno
+        beq +                   ; "..": no count (D-058)
         lda fcount,x
         jsr decimal
-        lda #WHITE
++       lda #WHITE
         sta ipen
         lda #FOLDER
         bne _badge
@@ -2414,7 +2450,13 @@ _badge:
         jmp pad                 ; to column 20
 _folder:
         ldx gno                 ; the name, cut to leave a space before the count at column 19
-        jsr group_at
+        bne +
+        lda #<up_name           ; "..", without a count (D-058)
+        ldy #>up_name
+        jsr say
+        lda #17
+        jmp pad
++       jsr group_at
         lda #15
         sec
         sbc sx
@@ -2545,7 +2587,8 @@ _cell:
 ; Columns 23-38 of rows 6-20, every cell written on every update (D-041): the selection's name in
 ; row 6, then type, size, load address or bank, and how it starts, on every other row (AC-108). An
 ; entry with metadata has them on every row instead, then a blank row and its title, year, author
-; and note, each wrapped from a row of its own (D-057). A folder row shows its group's name.
+; and note, each wrapped from a row of its own (D-057). A folder row shows its group's name, and
+; ".." that it goes back to the top level (D-058).
 draw_pane:
         lda #0
         sta rvs
@@ -2558,10 +2601,28 @@ draw_pane:
         cpx nfold
         bcs _entry
         lda shown,x             ; a folder
+        beq _up
         tax
         jsr group_at
         jsr pane_name
 _rest:
+        jmp blank_rest
+_up:
+        lda #<up_name
+        sta dst
+        lda #>up_name
+        sta dst+1
+        jsr pane_name
+        jsr blank_row
+        lda #<up_text
+        sta dst
+        lda #>up_text
+        sta dst+1
+        lda #up_text_end - up_text
+        sta wlen
+        lda #GREY
+        sta pen
+        jsr wrap
         jmp blank_rest
 _entry:
         lda shown,x
@@ -2828,7 +2889,8 @@ value:
 
 ; --- the status and the filter text ------------------------------------------------------------
 
-; Row 22: the selection's position among those listed, and the order in use (AC-110).
+; Row 22: the selection's position among those listed, and the order in use (AC-110). Neither
+; counts "..", so on it the position is 0 (D-058).
 draw_status:
         lda #0
         sta rvs
@@ -2840,11 +2902,15 @@ draw_status:
         lda sel
         clc
         adc #1
+        sec
+        sbc nup
 +       jsr decimal
         lda #<of_text
         ldy #>of_text
         jsr append
         lda nshown
+        sec
+        sbc nup
         jsr decimal
         lda #<cart_order
         ldy #>cart_order
@@ -2893,7 +2959,9 @@ draw_find:
         tya
         pha
         jsr begin
-        lda nshown
+        lda nshown              ; the matches, ".." left out (D-058)
+        sec
+        sbc nup
         jsr decimal
         lda #<of_text
         ldy #>of_text
@@ -3039,6 +3107,7 @@ help_lines:
         .text "letters, digits", 0, "find name or title", 0
         .text "del", 0, "delete the last letter", 0
         .text "del, run/stop", 0, "out of a folder", 0
+        .text "..", 0, "return or fire: go up", 0
         .text "home / clr", 0, "clear what you typed", 0
         .text " ", 0, "or go to first / last", 0
         .text "f1", 0, "cart order or a-z", 0
@@ -3050,6 +3119,11 @@ help_lines:
         .byte 0
 no_entries:
         .null "no entries"
+up_name:
+        .null ".."
+up_text:                        ; the pane on "..", sixteen a row
+        .text "goes back to thetop level"
+up_text_end:
 no_matches:
         .null "no matches"
 find_text:

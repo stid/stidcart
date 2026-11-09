@@ -3937,8 +3937,8 @@ fn ac_167_groups_show_as_folders() {
             vec![key::F3, key::F3, key::DEL],        // 3: all kinds, back out
             vec![key::UP, key::RETURN, key::F1],     // 4: into games, A-Z
             vec![key::RIGHT],                        // 5: a page down
-            vec![key::HOME],                         // 6: the first
-            vec![key::F5],                           // 7: a random other one
+            vec![key::HOME],                         // 6: the first row, ".." (D-058)
+            vec![key::DOWN, key::F5],                // 7: from the first entry, a random other one
             typed("zu"),                             // 8: text
             vec![key::DEL, key::DEL],                // 9: text gone, still inside
             vec![key::DEL],                          // 10: back out
@@ -3984,7 +3984,11 @@ fn ac_167_groups_show_as_folders() {
         "games, A-Z",
     );
     assert_selected(&s[5], "zulu", "CRSR right inside");
-    assert_selected(&s[6], "p3", "HOME inside");
+    assert_eq!(
+        selected_rows(&s[6]),
+        vec![5],
+        "HOME inside: '..' is not selected"
+    );
     assert_selected(&s[7], "zulu", "F5 inside");
     inside(
         8,
@@ -4525,4 +4529,243 @@ fn ac_169_the_last_of_two_metadata_entries_is_the_one() {
             );
         }
     }
+}
+
+// --- menu-folder-up: the ".." row that goes back up (AC-170..AC-172, D-058) -----------------------
+
+/// What the `..` row shows in columns 4-19.
+fn up_row() -> Vec<u8> {
+    vice::screen_text("..")
+}
+
+/// Assert list row 5 is `..` wearing the badge of the top level's folder rows.
+fn assert_up_first(s: &[u8], folder_badge: [u8; 2], what: &str) {
+    assert_eq!(
+        row_name(s, 5),
+        up_row(),
+        "{what}: the first row is not '..'"
+    );
+    assert_eq!(
+        badge(s, 5),
+        folder_badge,
+        "{what}: '..' does not wear the folder badge"
+    );
+}
+
+/// Assert the top level is listed with the folder row at screen row `at` selected.
+fn assert_back_at(s: &[u8], at: usize, name: &str, count: usize, what: &str) {
+    assert_eq!(
+        row_name(s, at),
+        folder_row(name, count),
+        "{what}: not back at the top level"
+    );
+    assert_eq!(
+        selected_rows(s),
+        vec![at],
+        "{what}: the folder '{name}' is not selected"
+    );
+}
+
+/// AC-170 (none): a folder opens with `..` as its first row, wearing the folder badge, and the first
+/// entry below it selected. RETURN on `..`, and fire on the joystick in port 2, go back to the top
+/// level with the folder that was open selected. The pane on `..` says it goes back to the top level.
+#[test]
+fn ac_170_a_folder_starts_with_a_row_that_goes_back_up() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-170: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac170");
+    let f = folder_cart(&dir);
+    let s = screens_after(
+        &dir,
+        &f.cart,
+        &[
+            vec![],                       // 0: the top level
+            vec![key::DOWN, key::RETURN], // 1: into demos
+            vec![key::UP],                // 2: on ".."
+            vec![key::RETURN],            // 3: back up
+        ],
+    );
+    let folder_badge = badge(&s[0], 5);
+    assert_up_first(&s[1], folder_badge, "into demos");
+    assert_listed_in_order(&s[1], &["demo a", "k8"], "into demos");
+    assert_eq!(
+        row_name(&s[1], 6),
+        vice::screen_text("demo a"),
+        "into demos: the first entry is not right under '..'"
+    );
+    assert_selected(&s[1], "demo a", "into demos");
+    assert_eq!(selected_rows(&s[2]), vec![5], "UP: '..' is not selected");
+    assert_eq!(
+        pane_row(&s[2], 6),
+        wrapped("..")[0],
+        "the pane does not name '..'"
+    );
+    let pane: Vec<u8> = (LIST_ROWS.start + 1..LIST_ROWS.end)
+        .flat_map(|n| pane_row(&s[2], n))
+        .collect();
+    assert!(
+        vice::find(&pane, &vice::screen_text("top level")).is_some(),
+        "the pane on '..' does not say it goes back to the top level"
+    );
+    assert_back_at(&s[3], 6, DEMOS, 2, "RETURN on '..'");
+
+    // The same with the stick alone: down to demos, fire, up to "..", fire.
+    let mut steps = vec![idle()];
+    for lines in [stick::DOWN, stick::FIRE, stick::UP] {
+        steps.extend(hold(lines, 3));
+    }
+    steps.push(screen());
+    steps.extend(hold(stick::FIRE, 3));
+    steps.push(screen());
+    let d = boot_stick(&dir, &f.cart, stick::REST, steps);
+    assert_up_first(&d[0], folder_badge, "the stick in demos");
+    assert_eq!(
+        selected_rows(&d[0]),
+        vec![5],
+        "stick up: '..' is not selected"
+    );
+    assert_back_at(&d[1], 6, DEMOS, 2, "fire on '..'");
+}
+
+/// AC-171 (none): `..` stays the first row and can be chosen with filter text that matches nothing,
+/// under A-Z and under each kind filter. HOME selects it and CLR the last entry.
+#[test]
+fn ac_171_the_up_row_is_always_listed_first() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-171: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac171");
+    let f = folder_cart(&dir);
+    // "!" ($21) sorts before "." ($2E): a ".." sorted with the entries would come second under A-Z.
+    edit(&f.cart, &["--title", "3", "!k8"]);
+    let s = screens_after(
+        &dir,
+        &f.cart,
+        &[
+            vec![],                                // 0: the top level
+            vec![key::DOWN, key::RETURN],          // 1: into demos
+            typed("qq"),                           // 2: text matching nothing
+            vec![key::RETURN],                     // 3: ".." chosen
+            vec![key::RETURN, key::F1],            // 4: into demos, A-Z
+            vec![key::F3],                         // 5: programs
+            vec![key::F3],                         // 6: cartridges
+            vec![key::UP, key::RETURN],            // 7: ".." chosen
+            vec![key::RETURN, key::F3, key::HOME], // 8: all kinds, HOME
+            vec![key::CLR],                        // 9: CLR
+        ],
+    );
+    let folder_badge = badge(&s[0], 5);
+    assert_up_first(&s[2], folder_badge, "no match");
+    assert_eq!(
+        selected_rows(&s[2]),
+        vec![5],
+        "no match: '..' is not selected"
+    );
+    assert_not_listed(&s[2], &["demo a", "k8"], "no match");
+    assert_back_at(&s[3], 6, DEMOS, 2, "RETURN on '..' with no match");
+    for (n, names, what) in [
+        (4, &["!k8", "demo a"][..], "A-Z"),
+        (5, &["demo a"][..], "programs"),
+        (6, &["!k8"][..], "cartridges"),
+    ] {
+        assert_up_first(&s[n], folder_badge, what);
+        assert_listed_in_order(&s[n], names, what);
+        assert_selected(&s[n], names[0], what);
+    }
+    assert_not_listed(&s[5], &["k8"], "programs");
+    assert_not_listed(&s[6], &["demo a"], "cartridges");
+    assert_back_at(&s[7], 6, DEMOS, 2, "RETURN on '..' listing cartridges");
+    assert_up_first(&s[8], folder_badge, "HOME");
+    assert_eq!(selected_rows(&s[8]), vec![5], "HOME: '..' is not selected");
+    assert_selected(&s[9], "demo a", "CLR");
+    assert_eq!(row_name(&s[9], 5), up_row(), "CLR: '..' moved");
+}
+
+/// AC-172 (none): inside a folder, rows 22-23 count its entries and never `..`, F5 never selects
+/// `..`, and an entry started there comes back after a soft reset, never `..`. DEL with no text and
+/// RUN/STOP still go back up.
+#[test]
+fn ac_172_the_up_row_is_not_an_entry() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-172: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac172");
+    let f = folder_cart(&dir);
+    let mut groups = vec![
+        vec![key::RETURN], // 0: into games
+        vec![key::UP],     // 1: on ".."
+        typed("u"),        // 2: text
+        vec![key::DEL],    // 3: text gone
+    ];
+    // Eight presses from an entry: a pick that could land on ".." would, about half the time.
+    let f5_from = groups.len();
+    groups.extend(std::iter::repeat_n(vec![key::F5], 8));
+    groups.push(vec![key::HOME, key::F5]); // from "..": either entry, never ".."
+    groups.push(vec![key::DEL]); // back out by DEL
+    groups.push(vec![key::RETURN, key::STOP]); // in and out by RUN/STOP
+    let s = screens_after(&dir, &f.cart, &groups);
+    let status = |n: usize, text: &str, what: &str| {
+        assert!(
+            row_shows(&s[n], STATUS_ROW, text),
+            "{what}: row 22 does not read '{text}'"
+        );
+    };
+    status(0, "1 of 2   cart order   all kinds", "into games");
+    assert_selected(&s[0], "zulu", "into games");
+    status(1, "0 of 2   cart order   all kinds", "on '..'");
+    assert_eq!(selected_rows(&s[1]), vec![5], "UP: '..' is not selected");
+    status(2, "1 of 1   cart order   all kinds", "text");
+    assert!(
+        row_shows(&s[2], QUERY_ROW, "1 of 2 match"),
+        "text: row 23 does not count the folder's two entries alone"
+    );
+    assert_selected(&s[3], "zulu", "DEL with text");
+    let mut last = "zulu";
+    for (k, screen) in s[f5_from..f5_from + 8].iter().enumerate() {
+        let next = if last == "zulu" { "p3" } else { "zulu" };
+        assert_selected(screen, next, &format!("F5 press {}", k + 1));
+        last = next;
+    }
+    let picked = selected_rows(&s[f5_from + 8]);
+    assert!(
+        picked == [6] || picked == [7],
+        "F5 on '..': rows {picked:?} selected, not one of the two entries"
+    );
+    assert_back_at(&s[f5_from + 9], 5, "games", 2, "DEL with no text");
+    assert_back_at(&s[f5_from + 10], 5, "games", 2, "RUN/STOP");
+
+    // The first entry under "..", started and soft-reset: it comes back, not "..".
+    let d = boot_or_panic(
+        &dir,
+        &f.cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Keys(vec![key::RETURN, key::F1, key::RETURN]),
+            Step::Break(Target::Addr(f.p3.spin)),
+            screen(),
+            soft_reset(),
+            screen(),
+        ],
+    );
+    assert_marker(&d[0], &f.p3);
+    assert_eq!(
+        row_name(&d[1], 5),
+        up_row(),
+        "after a soft reset: '..' is not first"
+    );
+    assert_eq!(
+        assert_selected(&d[1], "p3", "after a soft reset"),
+        6,
+        "after a soft reset: p3 is not right under '..'"
+    );
+    assert!(row_shows(
+        &d[1],
+        STATUS_ROW,
+        "1 of 2   a-z order   all kinds"
+    ));
 }
