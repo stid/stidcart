@@ -21,6 +21,8 @@ pub struct Listing {
     pub menu: String,
     /// One row per directory entry, in slot order.
     pub rows: Vec<Row>,
+    /// The cart's folders in order, empty ones included (D-063).
+    pub folders: Vec<String>,
     /// The bytes free: what a re-placement of the entries plus one more program accepts (D-027).
     pub free: usize,
     /// Metadata records dropped because their entry no longer matches them (AC-154).
@@ -124,6 +126,7 @@ pub fn describe(bytes: &[u8]) -> Result<Listing, ReadError> {
         built_by: printable(&info.header_name),
         menu: info.menu.map_or("unrecognised", |m| m.name()).to_string(),
         rows,
+        folders: info.folders.clone(),
         free,
         meta_dropped: info.meta_dropped,
         meta_kept: info

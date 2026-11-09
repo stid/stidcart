@@ -278,6 +278,8 @@ pub struct CartInfo {
     pub menu: Option<Recognised>,
     /// Each entry's metadata, one per entry: empty where no record attached.
     pub metas: Vec<Meta>,
+    /// The cart's folders in stored order, empty ones included; none without metadata (D-063).
+    pub folders: Vec<String>,
     /// The metadata entry as stored, if the cart has one. Its space is occupied like any entry's.
     pub meta_entry: Option<DirEntry>,
     /// Records whose entry no longer matches them, dropped (AC-154).
@@ -422,8 +424,10 @@ fn finish(
 
     let mut metas = vec![Meta::default(); entries.len()];
     let (mut meta_dropped, mut meta_kept) = (0, None);
+    let mut folders = Vec::new();
     match decoded {
-        Some(Decoded::Records(records)) => {
+        Some(Decoded::Records(table, records)) => {
+            folders = table;
             let mut matched = vec![false; entries.len()];
             for (index, name, m) in records {
                 if index < entries.len() && !matched[index] && raw_names[index] == name {
@@ -444,6 +448,7 @@ fn finish(
         entries,
         menu: None,
         metas,
+        folders,
         meta_entry,
         meta_dropped,
         meta_kept,
@@ -494,6 +499,7 @@ fn load_inner(bytes: &[u8], replacing: Option<Menu>) -> Result<CartBuilder, Read
         .with_header_name(&info.header_name)
         .with_ef_name(&info.ef_name)
         .with_menu(menu);
+    builder.set_folders_loaded(info.folders.clone());
 
     for (entry, meta) in info.entries.iter().zip(info.metas) {
         let (bank, offset, size) = (
