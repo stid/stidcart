@@ -52,6 +52,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&item("new", "New", "CmdOrCtrl+N")?)
         .item(&item("open", "Open…", "CmdOrCtrl+O")?)
         .separator()
+        // Acts on the open cart's folder tree; the window ignores it with no editable cart (D-063).
+        .item(&item("new-folder", "New Folder", "CmdOrCtrl+Shift+N")?)
+        .separator()
         .item(&save)
         .item(&save_as)
         .separator()
