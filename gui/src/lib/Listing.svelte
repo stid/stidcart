@@ -1,7 +1,26 @@
 <script lang="ts">
   import EditableText from './EditableText.svelte';
   import EntryMenu from './EntryMenu.svelte';
+  import FolderMenu from './FolderMenu.svelte';
   import MetaPanel from './MetaPanel.svelte';
+  import { dragRow, type DragSource, type Drop } from './rowDrag';
+  import {
+    buildTree,
+    canStep,
+    indexAfter,
+    moveEntry,
+    moveFolder,
+    newFolder,
+    renameFolder,
+    sameTree,
+    stepEntry,
+    stepFolder,
+    toArrange,
+    type EntryMove,
+    type EntryTarget,
+    type FolderTarget,
+    type Tree,
+  } from './tree';
   import type { Edit, Listing, Row, RowActions } from './types';
 
   let {
@@ -22,7 +41,7 @@
     /** What each row may offer, from the Rust side. */
     rows?: RowActions[];
     /** Given (with `onreplace`), the listing offers edits. Without it, it only shows. */
-    onedit?: (e: Edit) => void;
+    onedit?: (e: Edit) => void | Promise<boolean>;
     onreplace?: (index: number) => void;
   } = $props();
 
@@ -39,8 +58,9 @@
   /** The row whose metadata the panel shows, chosen by clicking it (D-054). */
   let selected = $state<number | null>(null);
   const selectedRow = $derived(listing.rows.find((r) => r.index === selected));
-  /** The Group column shows only when some entry has a group, so a cart without lists as before. */
-  const hasGroups = $derived(listing.rows.some((r) => r.group !== ''));
+  /** With any folder the listing is the folder tree, drawn as cards (D-062); a cart without lists
+   * flat, as before. */
+  const hasFolders = $derived(listing.rows.some((r) => r.folder !== ''));
 
   /** An exact byte count, for the hover on a size the listing shows rounded (D-044). */
   function exact(bytes: number): string {
@@ -50,12 +70,58 @@
   function edit(e: Edit) {
     onedit?.(e);
   }
+
+  /** The cart as our menu shows it: folders first, then the loose entries (D-057, D-060). */
+  const tree = $derived(buildTree(listing.rows));
+  const folderNames = $derived(tree.folders.map((f) => f.name));
+  /** Each row by its entry index, with its position in `listing.rows` (for `rows[i]`). */
+  const rowAt = $derived(new Map(listing.rows.map((r, i) => [r.index, { row: r, i }])));
+  /** The total column count, for the rows that span the table. The tree has no `#` column (the
+   * number sits with the name) and an edge column each side that insets the cards. */
+  const columns = $derived((hasFolders ? 8 : 7) + (editable ? 1 : 0));
+  /** The columns between the tree's two edges. */
+  const inner = $derived(columns - 2);
+
+  /** Folders whose entries are hidden; every folder opens expanded. */
+  let collapsed = $state<string[]>([]);
+  /** The folder whose name is being edited, started from its menu's Rename. */
+  let renamingFolder = $state<string | null>(null);
+  /** The entry waiting for the name of the new folder it goes into ("New folder…"). */
+  let naming = $state<number | null>(null);
+  /** The same entry, kept past the field's close: it ends its edit (clearing `naming`) before it
+   * commits. */
+  let namingFor = -1;
+
+  function toggle(name: string) {
+    collapsed = collapsed.includes(name) ? collapsed.filter((n) => n !== name) : [...collapsed, name];
+  }
+
+  /** Send the tree as one edit, unless it is the tree already; the selection follows its entry. */
+  async function arrange(next: Tree) {
+    if (sameTree(next, tree)) return;
+    const was = selected;
+    const took = await onedit?.(toArrange(next));
+    if (took !== false && was !== null) selected = indexAfter(next, was);
+  }
+
+  function dropped(source: DragSource, drop: Drop) {
+    if (source.kind === 'entry') void arrange(moveEntry(tree, source.index, drop as EntryTarget));
+    else void arrange(moveFolder(tree, source.name, drop as FolderTarget));
+  }
+
+  function moved(index: number, move: EntryMove) {
+    if (move.kind === 'folder') void arrange(moveEntry(tree, index, { into: move.name }));
+    else if (move.kind === 'noFolder') void arrange(moveEntry(tree, index, { end: true }));
+    else if (move.kind === 'newFolder') naming = namingFor = index;
+    else void arrange(stepEntry(tree, index, move.kind === 'up' ? -1 : 1));
+  }
 </script>
 
 {#snippet cells(row: Row)}
-  <td class="num faint">{row.index}</td>
-  <td class="name">
-    {#if editable}
+  <!-- In the tree the number sits inside the indent with the name, under its folder (D-062). -->
+  {#if !hasFolders}<td class="num faint">{row.index}</td>{/if}
+  <td class="name" class:nested={hasFolders && row.folder !== ''} class:in-tree={hasFolders}>
+    {#if hasFolders}<span class="idx">{row.index}</span>{/if}{#if editable}
       <EditableText
         value={row.name}
         label={`Name of entry ${row.index}`}
@@ -67,7 +133,6 @@
     {/if}
     {#if row.title !== ''}<span class="title">{row.title}</span>{/if}
   </td>
-  {#if hasGroups}<td class="muted">{row.group}</td>{/if}
   <td>
     {#if row.flags === '-'}<span class="faint">-</span>{:else}{#each row.flags.split('') as f (f)}<span
           class="flag"
@@ -78,6 +143,52 @@
   <td class="num mono">{row.bank}</td>
   <td class="mono muted">{row.layout}</td>
   <td class="num mono" title={exact(row.sizeBytes)}>{row.size}</td>
+{/snippet}
+
+{#snippet entry(index: number)}
+  {@const at = rowAt.get(index)}
+  {#if at}
+    {@const row = at.row}
+    {#if editable && onreplace}
+      {@const actions = rows[at.i] ?? { alignable: false }}
+      {@const menu = {
+        folders: folderNames,
+        canUp: canStep(tree, index, -1),
+        canDown: canStep(tree, index, 1),
+        onmove: (m: EntryMove) => moved(index, m),
+      }}
+      <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} {...menu}>
+        {#snippet children(props)}
+          <tr
+            {...props}
+            data-entry={row.index}
+            data-folder={row.folder || undefined}
+            aria-selected={selected === row.index}
+            onclick={() => (selected = row.index)}
+            {@attach dragRow({ kind: 'entry', index: row.index }, dropped, `⠿  ${row.index}  ${row.name}`)}
+          >
+            {#if hasFolders}<td class="edge" aria-hidden="true"></td>{/if}
+            {@render cells(row)}
+            <td class="more-col">
+              <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} {...menu} />
+            </td>
+            {#if hasFolders}<td class="edge" aria-hidden="true"></td>{/if}
+          </tr>
+        {/snippet}
+      </EntryMenu>
+    {:else}
+      <tr
+        data-entry={row.index}
+        data-folder={row.folder || undefined}
+        aria-selected={selected === row.index}
+        onclick={() => (selected = row.index)}
+      >
+        {#if hasFolders}<td class="edge" aria-hidden="true"></td>{/if}
+        {@render cells(row)}
+        {#if hasFolders}<td class="edge" aria-hidden="true"></td>{/if}
+      </tr>
+    {/if}
+  {/if}
 {/snippet}
 
 <section class="listing">
@@ -158,39 +269,121 @@
     <p class="none">No entries{editable ? ' — drop programs or cartridge images here, or use Add…' : ''}</p>
   {:else}
     <div class="table-wrap">
-      <table>
+      <table class:tree={hasFolders}>
         <thead>
           <tr>
-            <th class="num">#</th>
-            <th>Name</th>
-            {#if hasGroups}<th>Group</th>{/if}
+            {#if hasFolders}
+              <th class="edge" aria-hidden="true"></th>
+              <th class="in-tree"><span class="idx">#</span>Name</th>
+            {:else}
+              <th class="num">#</th>
+              <th>Name</th>
+            {/if}
             <th>Flags</th>
             <th>Type</th>
             <th class="num">Bank</th>
             <th>Layout</th>
             <th class="num">Size</th>
             {#if editable}<th class="more-col"><span class="visually-hidden">Actions</span></th>{/if}
+            {#if hasFolders}<th class="edge" aria-hidden="true"></th>{/if}
           </tr>
         </thead>
-        <tbody>
-          {#each listing.rows as row, i (row.index)}
-            {#if editable && onreplace}
-              {@const actions = rows[i] ?? { alignable: false }}
-              <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace}>
-                {#snippet children(props)}
-                  <tr {...props} aria-selected={selected === row.index} onclick={() => (selected = row.index)}>
-                    {@render cells(row)}
-                    <td class="more-col">
-                      <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} />
-                    </td>
-                  </tr>
-                {/snippet}
-              </EntryMenu>
-            {:else}
-              <tr aria-selected={selected === row.index} onclick={() => (selected = row.index)}>{@render cells(row)}</tr>
-            {/if}
+        {#if hasFolders}
+          {#each tree.folders as folder, f (folder.name)}
+            {@const open = !collapsed.includes(folder.name)}
+            <tbody class="gap" aria-hidden="true"><tr><td colspan={columns}></td></tr></tbody>
+            <tbody class="card">
+              <tr
+                class="folder-row"
+                data-folder-row={folder.name}
+                {@attach editable && dragRow({ kind: 'folder', name: folder.name }, dropped, `▸  ${folder.name}  ${folder.entries.length}`)}
+              >
+                <td class="edge" aria-hidden="true"></td>
+                <td class="name in-tree" colspan={inner - (editable ? 1 : 0)} data-name={folder.name}>
+                  <button
+                    class="toggle"
+                    aria-expanded={open}
+                    aria-label={`Folder ${folder.name}`}
+                    onclick={() => toggle(folder.name)}>{open ? '▾' : '▸'}</button
+                  >
+                  {#if editable}
+                    <EditableText
+                      value={folder.name}
+                      label={`Name of folder ${folder.name}`}
+                      bind:editing={
+                        () => renamingFolder === folder.name, (on) => (renamingFolder = on ? folder.name : null)
+                      }
+                      oncommit={(name) => void arrange(renameFolder(tree, folder.name, name))}
+                    />
+                  {:else}
+                    <span>{folder.name}</span>
+                  {/if}
+                  <span class="count">{folder.entries.length}</span>
+                </td>
+                {#if editable}
+                  <td class="more-col">
+                    <FolderMenu
+                      name={folder.name}
+                      canUp={f > 0}
+                      canDown={f < tree.folders.length - 1}
+                      onrename={(name) => (renamingFolder = name)}
+                      onmove={(name, dir) => void arrange(stepFolder(tree, name, dir))}
+                    />
+                  </td>
+                {/if}
+                <td class="edge" aria-hidden="true"></td>
+              </tr>
+              {#if open}
+                {#each folder.entries as index (index)}
+                  {@render entry(index)}
+                {/each}
+              {/if}
+            </tbody>
           {/each}
-        </tbody>
+          {#if naming !== null}
+            <tbody class="gap" aria-hidden="true"><tr><td colspan={columns}></td></tr></tbody>
+            <tbody class="card">
+              <tr class="folder-row">
+                <td class="edge" aria-hidden="true"></td>
+                <td class="name in-tree" colspan={inner}>
+                  <EditableText
+                    value=""
+                    label="New folder name"
+                    bind:editing={() => naming !== null, (on) => !on && (naming = null)}
+                    oncommit={(name) => void arrange(newFolder(tree, namingFor, name))}
+                  />
+                </td>
+                <td class="edge" aria-hidden="true"></td>
+              </tr>
+            </tbody>
+          {/if}
+          <tbody class="loose">
+            {#if tree.loose.length > 0}
+              <tr class="loose-label">
+                <td class="edge" aria-hidden="true"></td>
+                <td class="in-tree" colspan={inner}>// not in a folder</td>
+                <td class="edge" aria-hidden="true"></td>
+              </tr>
+            {/if}
+            {#each tree.loose as index (index)}
+              {@render entry(index)}
+            {/each}
+            {#if editable}
+              <!-- Shown only while dragging an entry: the top level, after the last row. -->
+              <tr class="drop-end" data-drop-end aria-hidden="true">
+                <td class="edge"></td>
+                <td colspan={inner}><div class="strip">drop here for no folder</div></td>
+                <td class="edge"></td>
+              </tr>
+            {/if}
+          </tbody>
+        {:else}
+          <tbody>
+            {#each tree.loose as index (index)}
+              {@render entry(index)}
+            {/each}
+          </tbody>
+        {/if}
       </table>
     </div>
     {#if selectedRow}
@@ -441,6 +634,245 @@
     margin: var(--space-1) 0 0;
     font-size: var(--text-sm);
     color: var(--text-muted);
+  }
+
+  /* The folder tree as grouped cards (D-062): each folder a stid card on the mantle surface, a
+     hairline border and --radius-lg; an edge column each side insets the cards from the window. */
+  table.tree {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .tree .edge {
+    width: var(--space-4);
+    min-width: var(--space-4);
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .tree thead .edge {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tree tbody tr:hover {
+    background: none;
+  }
+
+  .tree .gap td {
+    height: var(--space-3);
+    padding: 0;
+    border: none;
+  }
+
+  .card td:not(.edge) {
+    background: var(--bg-subtle);
+  }
+
+  .card tr:first-child td:not(.edge) {
+    border-top: 1px solid var(--border);
+  }
+
+  .card td.edge + td {
+    border-left: 1px solid var(--border);
+  }
+
+  .card td:nth-last-child(2) {
+    border-right: 1px solid var(--border);
+  }
+
+  .card tr:first-child td.edge + td {
+    border-top-left-radius: var(--radius-lg);
+  }
+
+  .card tr:first-child td:nth-last-child(2) {
+    border-top-right-radius: var(--radius-lg);
+  }
+
+  .card tr:last-child td.edge + td {
+    border-bottom-left-radius: var(--radius-lg);
+  }
+
+  .card tr:last-child td:nth-last-child(2) {
+    border-bottom-right-radius: var(--radius-lg);
+  }
+
+  .card tr:hover td:not(.edge) {
+    box-shadow: inset 0 0 0 999px var(--bg-hover);
+  }
+
+  .card tr[aria-selected='true'] td:not(.edge) {
+    box-shadow: inset 0 0 0 999px var(--accent-soft);
+  }
+
+  /* The number travels with the name, inside the indent: under its folder when nested. */
+  .in-tree {
+    padding-left: var(--space-4);
+  }
+
+  td.in-tree.nested {
+    padding-left: calc(var(--space-4) + var(--space-5));
+  }
+
+  .idx {
+    display: inline-block;
+    width: var(--space-6);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--text-faint);
+  }
+
+  .in-tree .title {
+    padding-left: var(--space-6);
+  }
+
+  .folder-row td.name {
+    font-weight: 600;
+  }
+
+  .toggle {
+    all: unset;
+    cursor: default;
+    width: 14px;
+    margin-right: var(--space-2);
+    text-align: center;
+    font-family: var(--font-mono);
+    color: var(--accent);
+  }
+
+  .toggle:focus-visible {
+    outline: 2px solid var(--accent);
+  }
+
+  .count {
+    margin-left: var(--space-2);
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--badge-bg);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+
+  .loose-label td {
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-faint);
+  }
+
+  .loose-label td.edge {
+    border-bottom: none;
+  }
+
+  /* Dragging (D-061, D-062). The end strip stands for "no folder" and shows only while an entry is
+     dragged; the source fades; the target lights up. */
+  .drop-end {
+    display: none;
+  }
+
+  :global(body[data-dragging='entry']) .drop-end {
+    display: table-row;
+  }
+
+  .drop-end td {
+    padding: var(--space-3) 0 0;
+    border: none;
+  }
+
+  .strip {
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-faint);
+  }
+
+  .drop-end[data-drop] .strip {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  :global(body[data-dragging]) {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  :global(body[data-dragging='entry']) tr[data-drop='before'] td:not(.edge) {
+    box-shadow: inset 0 2px 0 var(--accent);
+  }
+
+  :global(body[data-dragging='entry']) tr[data-drop='after'] td:not(.edge) {
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  /* An entry over a folder's header goes into it: the whole card lights up. */
+  .card:has(tr[data-drop='into']) td:not(.edge) {
+    box-shadow: inset 0 0 0 999px var(--accent-soft);
+  }
+
+  .card:has(tr[data-drop='into']) tr:first-child td:not(.edge) {
+    border-top-color: var(--accent);
+  }
+
+  .card:has(tr[data-drop='into']) tr:last-child td:not(.edge) {
+    border-bottom-color: var(--accent);
+  }
+
+  .card:has(tr[data-drop='into']) td.edge + td {
+    border-left-color: var(--accent);
+  }
+
+  .card:has(tr[data-drop='into']) td:nth-last-child(2) {
+    border-right-color: var(--accent);
+  }
+
+  tr[data-drop='into'] td.name::after {
+    content: '→ move into ' attr(data-name);
+    float: right;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+
+  /* A folder lands before or after a whole card: the line runs along the card's edge. */
+  :global(body[data-dragging='folder']) .card:has(tr[data-drop='before']) tr:first-child td:not(.edge) {
+    box-shadow: 0 -4px 0 -2px var(--accent);
+  }
+
+  :global(body[data-dragging='folder']) .card:has(tr[data-drop='after']) tr:last-child td:not(.edge) {
+    box-shadow: 0 4px 0 -2px var(--accent);
+  }
+
+  tr[data-drag-source] td:not(.edge) {
+    opacity: 0.35;
+  }
+
+  .card:has(tr.folder-row[data-drag-source]) td:not(.edge) {
+    opacity: 0.35;
+    border-style: dashed;
+  }
+
+  /* The lifted copy that follows the pointer; rowDrag places it, and it never takes the pointer. */
+  :global(.drag-ghost) {
+    position: fixed;
+    z-index: 100;
+    pointer-events: none;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    font-weight: 500;
+    white-space: pre;
+    transform: rotate(-1deg);
   }
 
   tbody tr[aria-selected='true'] {

@@ -49,7 +49,7 @@ pub struct Program {
     /// survives a save and a reload — which is the whole reason [`read::load`] no longer refuses a
     /// cart that carries one (D-020).
     pub hidden: bool,
-    /// Title, year, author, note and group. Carried as `hidden` is, so remove, rename, replace and
+    /// Title, year, author, note and folder. Carried as `hidden` is, so remove, rename, replace and
     /// re-order keep it with its entry (D-054).
     pub meta: Meta,
 }
@@ -394,6 +394,13 @@ impl CartBuilder {
     /// for the message to be wrong.
     pub fn remove(&mut self, index: usize) -> Entry {
         self.entries.remove(index)
+    }
+
+    /// Move the entry at `from` so it sits at `to`, the others keeping their order. Its name,
+    /// flags, data and metadata travel with it (D-061).
+    pub fn move_entry(&mut self, from: usize, to: usize) {
+        let entry = self.entries.remove(from);
+        self.entries.insert(to, entry);
     }
 
     pub fn set_name(&mut self, index: usize, name: &str) {

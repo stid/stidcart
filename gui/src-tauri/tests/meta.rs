@@ -29,7 +29,7 @@ fn cli_edit(cart: &Path, args: &[&str], out: &Path) -> Result<Option<String>, St
     stidcart_cli::run(&all)
 }
 
-/// A copy of `two.crt` with a title and group on entry 0, set by `edit`.
+/// A copy of `two.crt` with a title and folder on entry 0, set by `edit`.
 fn annotated(tag: &str) -> PathBuf {
     let dir = scratch(tag);
     let out = dir.join("meta.crt");
@@ -62,7 +62,7 @@ fn ac_158_the_listing_carries_each_entrys_metadata() {
         "the metadata entry is not a row"
     );
     assert_eq!(rows[0]["title"], "Hello There");
-    assert_eq!(rows[0]["group"], "Games");
+    assert_eq!(rows[0]["folder"], "Games");
     for f in ["year", "author", "note"] {
         assert_eq!(rows[0][f], "", "{f}");
     }
@@ -85,14 +85,14 @@ fn ac_159_a_field_change_is_one_undoable_step() {
         ("year", "1985"),
         ("author", "Me"),
         ("note", "n"),
-        ("group", "Demos"),
+        ("folder", "Demos"),
     ] {
         doc.apply(set(1, field, value)).unwrap();
     }
     let dto = doc.dto();
     let row = &dto.listing.rows[1];
     assert_eq!(
-        [&row.title, &row.year, &row.author, &row.note, &row.group],
+        [&row.title, &row.year, &row.author, &row.note, &row.folder],
         ["Second", "1985", "Me", "n", "Demos"]
     );
     assert!(dto.dirty);
@@ -146,7 +146,7 @@ fn ac_159_saved_metadata_is_byte_identical_to_edit() {
             set(0, "title", "Hello There"),
             vec!["--title", "0", "Hello There"],
         ),
-        (set(1, "group", "Games"), vec!["--group", "1", "Games"]),
+        (set(1, "folder", "Games"), vec!["--folder", "1", "Games"]),
         (set(0, "year", "1984"), vec!["--year", "0", "1984"]),
         (set(0, "title", ""), vec!["--title", "0", ""]),
     ];

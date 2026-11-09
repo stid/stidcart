@@ -102,7 +102,7 @@ fn ac_156_cli_edit_sets_each_field_and_an_empty_value_clears() {
     assert_eq!(field(&c, 1, Field::Year), "1987");
     assert_eq!(field(&c, 1, Field::Author), "Someone");
     assert_eq!(field(&c, 1, Field::Note), "a note");
-    assert_eq!(field(&c, 1, Field::Group), "Demos");
+    assert_eq!(field(&c, 1, Field::Folder), "Demos");
     assert_eq!(
         field(&c, 0, Field::Title),
         "",
@@ -140,7 +140,7 @@ fn ac_156_cli_an_invalid_value_is_refused_naming_the_field() {
         ("--year", "19845".into(), "year"),
         ("--author", "A".repeat(25), "author"),
         ("--note", "N".repeat(49), "note"),
-        ("--group", "G".repeat(17), "group"),
+        ("--group", "G".repeat(17), "folder"),
         ("--author", "Zoë".into(), "author"),
     ];
     for (flag, value, name) in cases {
@@ -204,7 +204,7 @@ author = "Somebody"
     ok(&edit(&c, &["--import", file.to_str().unwrap()]));
     assert_eq!(field(&c, 0, Field::Title), "Alpha Game");
     assert_eq!(field(&c, 0, Field::Year), "1984");
-    assert_eq!(field(&c, 0, Field::Group), "Games");
+    assert_eq!(field(&c, 0, Field::Folder), "Games");
     assert_eq!(
         field(&c, 0, Field::Note),
         "keep me",
@@ -251,7 +251,7 @@ fn ac_157_cli_a_bad_import_is_refused_whole_and_writes_nothing() {
 
 /// The line `list` prints under a row with metadata.
 const META_LINE: &str =
-    "       title: Alpha Game  year: 1984  author: Someone  note: a note  group: Games";
+    "       title: Alpha Game  year: 1984  author: Someone  note: a note  folder: Games";
 
 // AC-158 (RENDER): list prints metadata on an indented line under each entry that has some
 #[test]
@@ -302,7 +302,7 @@ fn ac_158_list_prints_metadata_under_the_entries_that_have_some() {
     ));
     let out = ok(&stidcart(&["list".as_ref(), c.as_os_str()]));
     assert!(
-        out.contains("\n       title: Alpha Game  group: Games\n"),
+        out.contains("\n       title: Alpha Game  folder: Games\n"),
         "{out}"
     );
 }

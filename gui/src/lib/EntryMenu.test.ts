@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import { afterEach, expect, test, vi } from 'vitest';
 import two from './fixtures/two.json';
 import type { Row, RowActions } from './types';
@@ -67,4 +67,72 @@ test('AC-68 (RENDER): alignment is offered only where it applies, and toggles', 
   const aligned = setup({ ...hello, kind: 'XB16', flags: 'A' }, { alignable: true });
   await choose(/remove 64 kb alignment/i);
   expect(aligned.onedit).toHaveBeenCalledExactlyOnceWith({ kind: 'setAligned', index: 0, aligned: false });
+});
+
+/** The entry's menu with the moves offered: the cart's folders and which steps are possible. */
+function withMoves(row: Row, folders: string[], canUp: boolean, canDown: boolean) {
+  const props = {
+    row,
+    actions: { alignable: false },
+    onedit: vi.fn(),
+    onrename: vi.fn(),
+    onreplace: vi.fn(),
+    onmove: vi.fn(),
+    folders,
+    canUp,
+    canDown,
+  };
+  render(EntryMenu, { props });
+  return props;
+}
+
+async function open() {
+  const trigger = screen.getByRole('button', { name: /actions for/i });
+  trigger.focus();
+  await fireEvent.keyDown(trigger, { key: 'Enter' });
+}
+
+/** Open "Move to folder" and list what it offers. */
+async function folderChoices() {
+  await open();
+  const sub = await screen.findByRole('menuitem', { name: /move to folder/i });
+  sub.focus();
+  await fireEvent.keyDown(sub, { key: 'ArrowRight' });
+  const menus = await screen.findAllByRole('menu');
+  return within(menus[menus.length - 1])
+    .getAllByRole('menuitem')
+    .map((i) => i.textContent?.trim());
+}
+
+test('AC-182 (RENDER): Move to folder lists the folders, No folder only inside one, and New folder…', async () => {
+  withMoves({ ...hello, folder: 'Games' } as Row, ['Games', 'Demos'], true, true);
+  expect(await folderChoices()).toEqual(['Games', 'Demos', 'No folder', 'New folder…']);
+
+  cleanup();
+  withMoves({ ...hello, folder: '' } as Row, ['Games'], true, true);
+  expect(await folderChoices()).toEqual(['Games', 'New folder…']);
+});
+
+test('AC-182 (RENDER): each move is one request; Move up and Move down are disabled at the edges', async () => {
+  const p = withMoves({ ...hello, folder: '' } as Row, ['Games'], false, true);
+  await folderChoices();
+  await fireEvent.click(screen.getByRole('menuitem', { name: 'Games' }));
+  expect(p.onmove).toHaveBeenCalledExactlyOnceWith({
+    kind: 'folder',
+    name: 'Games',
+  });
+
+  cleanup();
+  const q = withMoves({ ...hello, folder: '' } as Row, ['Games'], false, true);
+  await folderChoices();
+  await fireEvent.click(screen.getByRole('menuitem', { name: /new folder/i }));
+  expect(q.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'newFolder' });
+
+  cleanup();
+  const r = withMoves({ ...hello, folder: 'Games' } as Row, ['Games'], false, true);
+  await open();
+  expect(await screen.findByRole('menuitem', { name: /move up/i })).toHaveAttribute('aria-disabled', 'true');
+  await fireEvent.click(screen.getByRole('menuitem', { name: /move down/i }));
+  expect(r.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'down' });
+  expect(r.onedit).not.toHaveBeenCalled();
 });

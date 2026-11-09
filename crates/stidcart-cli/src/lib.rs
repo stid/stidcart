@@ -40,6 +40,8 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   --add-aligned FILE  append an xbank cartridge image with 64 KB alignment requested
   --remove N      drop the entry at index N
   --rename N NAME rename the entry at index N
+  --move N TO     move the entry at index N so it sits at index TO; once per call,
+                  and not with --add, --add-aligned or --remove
   --replace N FILE swap the data at index N, keeping its name and place; the kind follows the file
   --hide N        hide the entry at index N
   --show N        stop hiding the entry at index N
@@ -53,10 +55,11 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   --year N TEXT   set its year (at most 4)
   --author N TEXT set its author (at most 24)
   --note N TEXT   set its note (at most 48)
-  --group N TEXT  put it in a group (at most 16); an empty TEXT clears any of these
+  --folder N TEXT put it in a folder (at most 16; --group N TEXT also works); an
+                  empty TEXT clears any of these
   --import FILE   set metadata from a TOML file of [[entry]] tables, each naming an
                   entry by its stored name (case ignored) with any of title, year,
-                  author, note and group; any problem refuses the whole file
+                  author, note and folder; any problem refuses the whole file
 
   Indices are the ones `list` prints, and every index in one invocation refers
   to the image as it was given, not to the state a previous operation left.
@@ -144,6 +147,8 @@ enum Op {
     Add(String, bool),
     Remove(usize),
     Rename(usize, String),
+    /// The entry at the first index, moved to sit at the second in the result (D-060).
+    Move(usize, usize),
     Replace(usize, String),
     Hidden(usize, bool),
     Align(usize, bool),
@@ -186,7 +191,7 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
                 it.next().ok_or("--add-aligned needs a file")?.clone(),
                 true,
             )),
-            "--title" | "--year" | "--author" | "--note" | "--group" => {
+            "--title" | "--year" | "--author" | "--note" | "--folder" | "--group" => {
                 let field = Field::from_name(&arg[2..]).expect("the five field options");
                 let at = index(it.next(), arg)?;
                 let value = it.next().ok_or_else(|| format!("{arg} needs a value"))?;
@@ -198,6 +203,10 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             "--align" => ops.push(Op::Align(index(it.next(), "--align")?, true)),
             "--unalign" => ops.push(Op::Align(index(it.next(), "--unalign")?, false)),
             "--remove" => ops.push(Op::Remove(index(it.next(), "--remove")?)),
+            "--move" => {
+                let from = index(it.next(), "--move")?;
+                ops.push(Op::Move(from, index(it.next(), "--move")?));
+            }
             "--hide" => ops.push(Op::Hidden(index(it.next(), "--hide")?, true)),
             "--show" => ops.push(Op::Hidden(index(it.next(), "--show")?, false)),
             "--rename" => {
@@ -221,6 +230,23 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
         }
     }
     let cart = cart.ok_or_else(|| format!("no cartridge image given\n{USAGE}"))?;
+
+    // A move's TO is an index in the result, so it is defined only while nothing else in the call
+    // shifts the entries: one move, and no addition or removal beside it (D-060).
+    if ops.iter().any(|op| matches!(op, Op::Move(..))) {
+        if ops.iter().filter(|op| matches!(op, Op::Move(..))).count() > 1 {
+            return Err("--move can be given once per call".into());
+        }
+        let shifting = ops.iter().find_map(|op| match op {
+            Op::Add(_, false) => Some("--add"),
+            Op::Add(_, true) => Some("--add-aligned"),
+            Op::Remove(_) => Some("--remove"),
+            _ => None,
+        });
+        if let Some(other) = shifting {
+            return Err(format!("--move can't be combined with {other}"));
+        }
+    }
 
     let bytes = std::fs::read(&cart).map_err(|e| format!("reading '{cart}': {e}"))?;
     // An explicit menu overwrites the loader slot, so a slot holding no known menu is no reason to
@@ -250,6 +276,15 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
     let held = builder.entries().len();
     for op in &ops {
         let at = match op {
+            Op::Move(from, to) => {
+                if *to >= held {
+                    return Err(format!(
+                        "--move can't place an entry at index {to}; the cartridge holds {held} {}",
+                        if held == 1 { "entry" } else { "entries" }
+                    ));
+                }
+                *from
+            }
             Op::Remove(at)
             | Op::Rename(at, _)
             | Op::Replace(at, _)
@@ -286,7 +321,15 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             Op::Meta(at, field, value) => builder
                 .set_meta(*at, *field, value)
                 .map_err(|e| e.to_string())?,
-            Op::Add(..) | Op::Remove(_) | Op::Import(_) => {}
+            Op::Add(..) | Op::Remove(_) | Op::Move(..) | Op::Import(_) => {}
+        }
+    }
+
+    // A move after the in-place changes, which name entries as given; never beside a removal or
+    // an addition, so its TO is an index in the result.
+    for op in &ops {
+        if let Op::Move(from, to) = op {
+            builder.move_entry(*from, *to);
         }
     }
 
@@ -387,9 +430,19 @@ fn import(path: &str, builder: &CartBuilder) -> Result<Vec<Op>, String> {
             let field = Field::from_name(key).ok_or_else(|| {
                 at(format!(
                     "entry '{name}' has an unknown key '{key}'; the fields are title, year, \
-                     author, note and group"
+                     author, note and folder"
                 ))
             })?;
+            // `group` is the folder's old name (D-060), so a table may not set both.
+            if ops
+                .iter()
+                .any(|op| matches!(op, Op::Meta(i, f, _) if *i == index && *f == field))
+            {
+                return Err(at(format!(
+                    "entry '{name}' sets the {} twice",
+                    field.name()
+                )));
+            }
             let value = match value {
                 Value::String(s) => s.clone(),
                 Value::Integer(i) if field == Field::Year => i.to_string(),
@@ -502,7 +555,7 @@ fn render(l: &Listing, exact: bool) -> String {
                 ("year", &r.year),
                 ("author", &r.author),
                 ("note", &r.note),
-                ("group", &r.group),
+                ("folder", &r.folder),
             ]
             .iter()
             .filter(|(_, v)| !v.is_empty())

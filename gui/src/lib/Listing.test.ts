@@ -181,30 +181,30 @@ test('AC-118 (RENDER): each type badge carries its family', () => {
   });
 });
 
-/** `two.json` with a title and group on entry 0 only. */
+/** `two.json` with a title and folder on entry 0 only. */
 function annotated(): ListingData {
   return {
     ...listing,
     rows: listing.rows.map((r, i) => ({
       ...r,
       title: i === 0 ? 'Hello There' : '',
-      group: i === 0 ? 'Games' : '',
+      folder: i === 0 ? 'Games' : '',
     })),
   };
 }
 
-test('AC-158 (RENDER): each entry shows its title under its name and its group in a column', () => {
+test('AC-158 (RENDER): each entry shows its title under its name, and sits in its folder', () => {
   render(Listing, { props: { listing: annotated(), file: 'two.crt' } });
-  expect(screen.getByRole('columnheader', { name: /group/i })).toBeInTheDocument();
-  const rows = screen.getAllByRole('row').slice(1);
+  // The folder shows as the card the entry sits in (AC-178, D-062), not a column.
+  const rows = screen.getAllByRole('row').filter((r) => r.hasAttribute('data-entry'));
   expect(within(rows[0]).getByText('Hello There')).toBeInTheDocument();
-  expect(within(rows[0]).getByText('Games')).toBeInTheDocument();
+  expect(rows[0].closest('tbody')?.querySelector('[data-folder-row]')?.getAttribute('data-folder-row')).toBe('Games');
   expect(within(rows[1]).queryByText('Hello There')).toBeNull();
 });
 
-test('AC-158 (RENDER): without metadata there is no group column and no title line', () => {
+test('AC-158 (RENDER): without metadata there is no folder column and no title line', () => {
   render(Listing, { props: { listing, file: 'two.crt' } });
-  expect(screen.queryByRole('columnheader', { name: /group/i })).toBeNull();
+  expect(screen.queryByRole('columnheader', { name: /folder/i })).toBeNull();
   const rows = screen.getAllByRole('row').slice(1);
   listing.rows.forEach((r, i) => {
     expect(within(rows[i]).getAllByRole('cell')[1].textContent?.trim()).toBe(r.name);
@@ -228,7 +228,7 @@ test('AC-158 (RENDER): the window says how many records were dropped, and a kept
 
 test('AC-159 (RENDER): selecting an entry offers its five fields, each change a setMeta edit', async () => {
   const { onedit } = editable({ listing: annotated() });
-  const rows = screen.getAllByRole('row').slice(1);
+  const rows = screen.getAllByRole('row').filter((r) => r.hasAttribute('data-entry'));
   expect(screen.queryByRole('button', { name: /edit title/i })).toBeNull();
 
   await fireEvent.click(within(rows[1]).getByText(listing.rows[1].kind));
@@ -245,4 +245,164 @@ test('AC-159 (RENDER): selecting an entry offers its five fields, each change a 
     field: 'title',
     value: 'Ramp',
   });
+});
+
+/** `two` with hello in folder Games and ramp loose, or in the folders given. */
+function foldered(folders: string[] = ['Games', '']): ListingData {
+  return {
+    ...listing,
+    rows: listing.rows.map((r, i) => ({ ...r, folder: folders[i] })),
+  } as unknown as ListingData;
+}
+
+const folderRows = () => screen.getAllByRole('row').filter((r) => r.hasAttribute('data-folder-row'));
+const entryRows = () => screen.getAllByRole('row').filter((r) => r.hasAttribute('data-entry'));
+
+test('AC-175 (RENDER): the listing has no Group or Folder column; the tree shows the folder', () => {
+  render(Listing, { props: { listing: foldered(), file: 'two.crt' } });
+  expect(screen.queryByRole('columnheader', { name: /folder/i })).toBeNull();
+  expect(screen.queryByRole('columnheader', { name: /group/i })).toBeNull();
+  expect(within(folderRows()[0]).getByText('Games')).toBeInTheDocument();
+});
+
+test('AC-178 (RENDER): each folder is a card holding its entries, each number inside the indent', () => {
+  render(Listing, { props: { listing: foldered(), file: 'two.crt' } });
+  const hello = entryRows().find((r) => r.getAttribute('data-entry') === '0')!;
+  const card = hello.closest('tbody')!;
+  expect(card).toHaveClass('card');
+  expect(card.querySelector('[data-folder-row]')).toHaveAttribute('data-folder-row', 'Games');
+  // No number column: the number shares the name's cell, indented under the folder.
+  expect(screen.queryByRole('columnheader', { name: /^#$/ })).toBeNull();
+  const name = within(hello).getByText('0').closest('td')!;
+  expect(name).toHaveClass('nested');
+  expect(within(name).getByText('hello')).toBeInTheDocument();
+  // The loose entry follows under its label, outside every card.
+  const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  expect(ramp.closest('tbody')).not.toHaveClass('card');
+  expect(screen.getByText('// not in a folder')).toBeInTheDocument();
+});
+
+test('AC-178 (RENDER): a cart with folders lists folder rows with their count, then the loose entries', async () => {
+  render(Listing, {
+    props: { listing: foldered(['Games', 'Games']), file: 'two.crt' },
+  });
+  const [games] = folderRows();
+  expect(within(games).getByText('Games')).toBeInTheDocument();
+  expect(within(games).getByText('2')).toBeInTheDocument();
+  expect(entryRows().map((r) => r.getAttribute('data-entry'))).toEqual(['0', '1']);
+
+  // Open on start; the folder's toggle hides and shows its entries.
+  const toggle = within(games).getByRole('button', { name: /games/i });
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect(entryRows()).toHaveLength(0);
+  await fireEvent.click(toggle);
+  expect(entryRows()).toHaveLength(2);
+  cleanup();
+
+  // The loose entry comes after the folder; without folders there are no folder rows.
+  render(Listing, {
+    props: { listing: foldered(['', 'Games']), file: 'two.crt' },
+  });
+  expect(
+    screen
+      .getAllByRole('row')
+      .filter((r) => r.hasAttribute('data-folder-row') || r.hasAttribute('data-entry'))
+      .map((r) => r.getAttribute('data-folder-row') ?? r.getAttribute('data-entry')),
+  ).toEqual(['Games', '1', '0']);
+  cleanup();
+  render(Listing, { props: { listing, file: 'two.crt' } });
+  expect(screen.getAllByRole('row').filter((r) => r.hasAttribute('data-folder-row'))).toHaveLength(0);
+});
+
+function pointer(type: string, el: Element, y: number) {
+  el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: 10, clientY: y, button: 0 }));
+}
+
+/** Drag `from` and release over `over`, with layout faked: jsdom has none. The fakes are taken
+ * back after, since the menus also measure and hit-test. */
+async function drag(from: Element, over: Element) {
+  const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ top: 0, height: 20 } as DOMRect);
+  const hitTest = document.elementFromPoint;
+  document.elementFromPoint = vi.fn(() => over);
+  pointer('pointerdown', from, 5);
+  pointer('pointermove', from, 15);
+  pointer('pointerup', from, 15);
+  document.elementFromPoint = hitTest;
+  rect.mockRestore();
+  // A drop swallows the click that ends it until the next task; let that pass before going on.
+  await new Promise((r) => setTimeout(r, 0));
+}
+
+test('AC-179 (RENDER): dropping an entry on a folder row sends one arrange; a drop that changes nothing sends none', async () => {
+  const { onedit } = editable({ listing: foldered() });
+  const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  await drag(ramp, ramp);
+  expect(onedit).not.toHaveBeenCalled();
+
+  await drag(ramp, folderRows()[0]);
+  expect(onedit).toHaveBeenCalledExactlyOnceWith({
+    kind: 'arrange',
+    folders: [{ name: 'Games', entries: [0, 1] }],
+    loose: [],
+  });
+  vi.restoreAllMocks();
+});
+
+test('AC-182 (RENDER): New folder… asks for a name inline, and committing moves the entry into it', async () => {
+  const { onedit } = editable({ listing: foldered() });
+  const trigger = screen.getByRole('button', { name: /actions for ramp/i });
+  trigger.focus();
+  await fireEvent.keyDown(trigger, { key: 'Enter' });
+  const sub = await screen.findByRole('menuitem', { name: /move to folder/i });
+  sub.focus();
+  await fireEvent.keyDown(sub, { key: 'ArrowRight' });
+  // jsdom has no layout, so the menu's positioning takes the trigger inside the scrolling table as
+  // clipped and hides the open menus with visibility: hidden, which also blanks their accessible
+  // names. They are open all the same, so the item is found by its text.
+  await fireEvent.click(await screen.findByText('New folder…'));
+
+  const input = await screen.findByRole('textbox', { name: /new folder/i });
+  await fireEvent.input(input, { target: { value: 'Tools' } });
+  await fireEvent.keyDown(input, { key: 'Enter' });
+  expect(onedit).toHaveBeenCalledExactlyOnceWith({
+    kind: 'arrange',
+    folders: [
+      { name: 'Games', entries: [0] },
+      { name: 'Tools', entries: [1] },
+    ],
+    loose: [],
+  });
+});
+
+test('AC-182 (RENDER): the right-click menu offers the same moves, and its other items still work', async () => {
+  const { onedit } = editable({ listing: foldered() });
+  const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  await fireEvent.contextMenu(ramp);
+  // Found by text: jsdom hides menus opened inside the scrolling table (see the test above).
+  expect(await screen.findByText('Move to folder')).toBeInTheDocument();
+  await fireEvent.click(screen.getByText('Hide'));
+  expect(onedit).toHaveBeenCalledExactlyOnceWith({ kind: 'setHidden', index: 1, hidden: true });
+
+  await fireEvent.contextMenu(ramp);
+  const sub = await screen.findByText('Move to folder');
+  sub.focus();
+  await fireEvent.keyDown(sub, { key: 'ArrowRight' });
+  await fireEvent.click(await screen.findByText('New folder…'));
+  expect(await screen.findByRole('textbox', { name: /new folder/i })).toBeInTheDocument();
+});
+
+test('AC-184 (RENDER): after a folder field change the entry is listed under its new folder', () => {
+  render(Listing, {
+    props: { listing: foldered(['Games', 'Games']), file: 'two.crt' },
+  });
+  expect(folderRows()).toHaveLength(1);
+  expect(within(folderRows()[0]).getByText('2')).toBeInTheDocument();
+  expect(
+    screen
+      .getAllByRole('row')
+      .filter((r) => r.hasAttribute('data-folder-row') || r.hasAttribute('data-entry'))
+      .map((r) => r.getAttribute('data-folder-row') ?? r.getAttribute('data-entry')),
+  ).toEqual(['Games', '0', '1']);
 });

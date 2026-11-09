@@ -13,7 +13,7 @@ const row: Row = {
   year: '',
   author: '',
   note: '',
-  group: 'Games',
+  folder: 'Games',
 };
 
 async function commit(label: string, value: string) {
@@ -27,7 +27,7 @@ test('AC-159 (RENDER): the selected entry shows its five fields, each change one
   const onedit = vi.fn();
   render(MetaPanel, { props: { row, editable: true, onedit } });
 
-  for (const label of ['Title', 'Year', 'Author', 'Note', 'Group']) {
+  for (const label of ['Title', 'Year', 'Author', 'Note', 'Folder']) {
     expect(screen.getByRole('button', { name: new RegExp(`edit ${label}`, 'i') })).toBeInTheDocument();
   }
   expect(screen.getByText('Old Title')).toBeInTheDocument();
@@ -49,11 +49,11 @@ test('AC-159 (RENDER): the selected entry shows its five fields, each change one
     value: '1985',
   });
 
-  await commit('Group', '');
+  await commit('Folder', '');
   expect(onedit).toHaveBeenLastCalledWith({
     kind: 'setMeta',
     index: row.index,
-    field: 'group',
+    field: 'folder',
     value: '',
   });
   expect(onedit).toHaveBeenCalledTimes(3);
@@ -68,4 +68,26 @@ test('AC-159 (RENDER): on a view-only cart the fields are shown, not offered for
   expect(screen.getByText('Old Title')).toBeInTheDocument();
   expect(screen.getByText('Games')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /edit title/i })).toBeNull();
+});
+
+const inFolder = { ...row, folder: 'Games' } as unknown as Row;
+
+test('AC-175 (RENDER): the panel labels the field Folder and edits field folder', async () => {
+  const onedit = vi.fn();
+  render(MetaPanel, { props: { row: inFolder, editable: true, onedit } });
+  expect(screen.getByRole('button', { name: /edit folder/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /edit group/i })).toBeNull();
+  expect(screen.getByText('Games')).toBeInTheDocument();
+});
+
+test('AC-184 (RENDER): changing the Folder field is a setMeta edit, never an arrange', async () => {
+  const onedit = vi.fn();
+  render(MetaPanel, { props: { row: inFolder, editable: true, onedit } });
+  await commit('Folder', 'Demos');
+  expect(onedit).toHaveBeenCalledExactlyOnceWith({
+    kind: 'setMeta',
+    index: inFolder.index,
+    field: 'folder',
+    value: 'Demos',
+  });
 });

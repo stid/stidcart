@@ -60,6 +60,20 @@ pub enum Edit {
         field: String,
         value: String,
     },
+    /// The whole folder tree after a drag or a move command: every entry once, by its index,
+    /// in folders or loose. Saved in tree order: each folder's entries in turn, then the loose
+    /// ones (D-060, D-061).
+    Arrange {
+        folders: Vec<ArrangeFolder>,
+        loose: Vec<usize>,
+    },
+}
+
+/// One folder of an [`Edit::Arrange`], with its entries in order.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ArrangeFolder {
+    pub name: String,
+    pub entries: Vec<usize>,
 }
 
 /// What the window knows about the open cart. Mirrored by `Document` in `gui/src/lib/types.ts`
@@ -277,12 +291,13 @@ impl Document {
             } => {
                 check_index(&builder, index)?;
                 let field = Field::from_name(&field).ok_or_else(|| {
-                    format!("no metadata field named '{field}'; it is title, year, author, note or group")
+                    format!("no metadata field named '{field}'; it is title, year, author, note or folder")
                 })?;
                 builder
                     .set_meta(index, field, &value)
                     .map_err(|e| e.to_string())?;
             }
+            Edit::Arrange { folders, loose } => arrange(&mut builder, &folders, &loose)?,
             // The menu is the builder's already. The build below refuses one the cart can't
             // carry, in the words `edit --menu` uses, before anything becomes a step.
             Edit::SetMenu { .. } => {}
@@ -359,6 +374,61 @@ impl Document {
 
 /// Bounds-check an index before it reaches the core, whose mutators panic on a bad one — and a
 /// panic inside a command would poison the lock every later command needs. The text is `edit`'s.
+/// Set every entry's folder from the tree, then move the entries into tree order with the moves
+/// `edit --move` makes, so a save equals that sequence of `edit` calls.
+fn arrange(
+    builder: &mut CartBuilder,
+    folders: &[ArrangeFolder],
+    loose: &[usize],
+) -> Result<(), String> {
+    let order: Vec<usize> = folders
+        .iter()
+        .flat_map(|f| f.entries.iter().copied())
+        .chain(loose.iter().copied())
+        .collect();
+    let held = builder.entries().len();
+    let mut sorted = order.clone();
+    sorted.sort_unstable();
+    if sorted != (0..held).collect::<Vec<_>>() {
+        return Err(format!(
+            "the arrangement must name each of the {held} entries once"
+        ));
+    }
+    for (n, f) in folders.iter().enumerate() {
+        if f.name.is_empty() {
+            return Err("a folder needs a name".into());
+        }
+        if folders[..n].iter().any(|g| g.name == f.name) {
+            return Err(format!("a folder named '{}' already exists", f.name));
+        }
+    }
+
+    for f in folders {
+        for &i in &f.entries {
+            builder
+                .set_meta(i, Field::Folder, &f.name)
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    for &i in loose {
+        builder
+            .set_meta(i, Field::Folder, "")
+            .map_err(|e| e.to_string())?;
+    }
+
+    let mut current: Vec<usize> = (0..held).collect();
+    for (to, entry) in order.into_iter().enumerate() {
+        let from = current
+            .iter()
+            .position(|&e| e == entry)
+            .expect("each entry once");
+        builder.move_entry(from, to);
+        let moved = current.remove(from);
+        current.insert(to, moved);
+    }
+    Ok(())
+}
+
 fn check_index(builder: &CartBuilder, index: usize) -> Result<(), String> {
     let held = builder.entries().len();
     if index >= held {

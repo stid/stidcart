@@ -65,9 +65,9 @@ const FIRST: &[(Field, &str)] = &[
     (Field::Year, "1988"),
     (Field::Author, "Epyx"),
     (Field::Note, "Stop the madman"),
-    (Field::Group, "Games"),
+    (Field::Folder, "Games"),
 ];
-const THIRD: &[(Field, &str)] = &[(Field::Title, "Turbo Assembler"), (Field::Group, "Tools")];
+const THIRD: &[(Field, &str)] = &[(Field::Title, "Turbo Assembler"), (Field::Folder, "Tools")];
 
 /// The cart `three()` with metadata on entries 0 and 2.
 fn annotated() -> CartBuilder {
@@ -223,7 +223,7 @@ fn ac_154_records_that_no_longer_match_are_dropped_and_counted() {
     assert!(l
         .rows
         .iter()
-        .all(|r| r.title.is_empty() && r.group.is_empty()));
+        .all(|r| r.title.is_empty() && r.folder.is_empty()));
 
     let loaded = read::load(&bytes).unwrap();
     assert!(metas(&loaded).iter().all(Meta::is_empty));
@@ -389,7 +389,7 @@ fn ac_155_metadata_over_16_kb_is_refused_naming_the_sizes() {
                 (Field::Year, "1984"),
                 (Field::Author, &"A".repeat(24)),
                 (Field::Note, &"N".repeat(48)),
-                (Field::Group, "Games"),
+                (Field::Folder, "Games"),
             ],
         );
     }

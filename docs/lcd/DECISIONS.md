@@ -8,7 +8,93 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-060 -->
+<!-- Next id: D-063 -->
+
+---
+
+## D-062 · 2026-11-08 · The folder tree is drawn as grouped cards, with no Folder column
+
+- **Context:** folder-editor, after the user tried the tree in the app: folder rows looked like
+  entry rows, and an entry's number sat in the left column, outside its folder's indent, so the
+  nesting didn't read. Three directions were drawn on a design canvas in the stid design system
+  (directory listing, section bands, grouped cards), plus drag states; the user chose grouped
+  cards, asked for the numbers to move inside the indent, and approved dropping the Folder column
+  (2026-11-08).
+- **Decision:**
+  - With any folder, each folder is a stid card (hairline border, `--radius-lg`, the mantle
+    surface) whose header holds the chevron, the name and a count pill; its entries sit inside,
+    indented under the name. Entries in no folder follow under a `// not in a folder` label.
+  - In the tree an entry's number moves into the name cell, inside the indent, and there is no
+    `#` or Folder column. The entry panel still shows and edits the folder. A cart with no folder
+    keeps the flat list as before.
+  - Dragging: a lifted copy of the row or folder header follows the pointer, and the source fades.
+    Dropping into a folder lights its whole card. A folder's insertion line runs above or below
+    the whole card. The end strip for no folder is dashed. The drop rules stay as D-061 has them.
+- **Alternatives rejected:** a directory listing (mono `name/` folder bands with `├─` guides) and
+  section bands (mono caps headings): the user preferred the cards' grouping. Keeping the Folder
+  column: in the tree it only repeats what the card shows.
+- **Scope:** `gui/src/lib/Listing.svelte`, `gui/src/lib/rowDrag.ts`, their tests; spec AC-175,
+  AC-178 amended
+- **Status:** active · refines D-060, D-061; canvas https://claude.ai/artifact/21eX5WRUmSu77f8zxzMmjY
+
+---
+
+## D-061 · 2026-11-08 · The window sends a folder tree as one edit, dragged by pointer events
+
+- **Context:** folder-editor plan. Every tree operation (D-060) must save the cart in tree order
+  and equal `edit`'s `--folder`/`--move` result. The recon (2026-11-08, tauri-runtime-wry 2.12.1,
+  wry 0.57.0, tauri#14373) found that with Tauri's native drag-drop handler on, which the Finder
+  drop needs for file paths, WKWebView never delivers HTML5 `dragover`/`drop` to the page.
+- **Decision:**
+  - One window edit, `Arrange { folders: [{name, entries}], loose }`. The Document checks that it
+    names every entry once, with non-empty, distinct folder names, then sets each entry's folder
+    and moves the entries into flattened order with the one new core primitive,
+    `CartBuilder::move_entry`, which `edit --move` also uses. Tree order holds by construction.
+  - The frontend builds the tree from the listing rows, applies the gesture as a pure tree
+    operation and sends `toArrange(tree)`. An unchanged tree sends nothing.
+  - Dragging is hand-rolled on pointer events: pointer capture, a 4 px threshold,
+    `elementFromPoint` with a pure two-band hit test. Tauri's `dragDropEnabled` stays on. Rows
+    disable native element drags. The user chose hand-rolled over a library (2026-11-08).
+  - The code renames `Field::Group` and the listing's `group` to folder. The format doc, the
+    stored bytes and the menu source keep "group", the name of the byte layout.
+- **Alternatives rejected:** a flat permutation plus a folder per entry (it can express a
+  scattered order, so tree order would rest on frontend care); one Rust edit per gesture (puts the
+  view's tree rules in Rust, four edits for one); HTML5 drag and drop or `dragDropEnabled: false`
+  (no drop events, or no Finder paths); @dnd-kit/svelte (pre-1.0, a new dependency, and dropping
+  onto a row unconfirmed).
+- **Scope:** `crates/stidcart-core/src/lib.rs` (`move_entry`), `meta.rs`, `listing.rs`, the CLI's
+  `edit`, `gui/src-tauri/src/document.rs`, `gui/src/lib/` (tree, drag, menus, listing)
+- **Status:** active · refines D-060
+
+---
+
+## D-060 · 2026-11-08 · The group field is a folder, and the window edits folders as a tree
+
+- **Context:** folder-editor. The metadata's "group" (D-054) is always shown as a folder by our
+  menu (D-057), so filling it in as a label makes folders by accident, and the window shows it only
+  as a column. The user asked whether to keep group as metadata and add folders, or make it a
+  folder edited by drag and drop (2026-11-08).
+- **Decision:**
+  - The field is renamed Folder everywhere a user sees it: `edit --folder` (`--group` kept as an
+    alias), the import key `folder` (`group` still accepted), `list`, the window. No stored byte
+    changes.
+  - With any folder, the window shows a tree in our menu's order. Drags and the entry menu's
+    move commands are tree operations, and after one the directory is written in tree order
+    (each folder's entries together, folders in tree order, then the rest). The panel's Folder
+    field, `--folder` and the import stay metadata edits and re-order nothing.
+  - A folder is created by moving an entry into it, never empty. The tree shows whatever menu
+    the cart carries.
+  - Re-order gets a CLI form, `edit --move FROM TO`, once per invocation and refused next to
+    `--add`/`--remove`, so the window still edits only what `edit` does (D-035's oracle).
+- **Alternatives rejected:** keeping group as a label beside folders, via a per-cart "show as
+  folders" switch or a separate genre field (both change the metadata layout, and the user found
+  it too heavy); moving only the dragged entry and leaving folders scattered in the directory
+  (EasyLoader's order and the tree would disagree); empty folders in the window (they would vanish
+  on save); a tree only under our menu (folders survive a switch to EasyLoader, so they'd be
+  hidden while still stored); window-only re-order (breaks "the window edits what `edit` does").
+- **Scope:** CLI `edit` and import, `list`, the window's listing and entry panel, the core's entry
+  order
+- **Status:** active · refines D-054 (the field's name) and D-057 (its meaning)
 
 ---
 
@@ -171,7 +257,7 @@
     stores, a group number and four length-prefixed PETSCII fields.
   - A set whose payload would pass 16384 bytes is refused, naming both sizes
     (`BuildError::MetadataTooLarge`). This adds a refusal; it weakens nothing.
-  - On read, META is the *last* hidden program slot whose name is `STIDCART.META` and whose
+  - On read, META is the _last_ hidden program slot whose name is `STIDCART.META` and whose
     payload starts with the magic. A record attaches when its 16 bytes equal its slot's raw name
     bytes. META is always written last, so a record's index is the directory slot.
   - A kept (unknown or malformed) META is written back byte for byte. A build is refused when
