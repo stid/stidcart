@@ -4639,6 +4639,8 @@ fn ac_171_the_up_row_is_always_listed_first() {
     }
     let dir = scratch("ac171");
     let f = folder_cart(&dir);
+    // "!" ($21) sorts before "." ($2E): a ".." sorted with the entries would come second under A-Z.
+    edit(&f.cart, &["--title", "3", "!k8"]);
     let s = screens_after(
         &dir,
         &f.cart,
@@ -4665,9 +4667,9 @@ fn ac_171_the_up_row_is_always_listed_first() {
     assert_not_listed(&s[2], &["demo a", "k8"], "no match");
     assert_back_at(&s[3], 6, DEMOS, 2, "RETURN on '..' with no match");
     for (n, names, what) in [
-        (4, &["demo a", "k8"][..], "A-Z"),
+        (4, &["!k8", "demo a"][..], "A-Z"),
         (5, &["demo a"][..], "programs"),
-        (6, &["k8"][..], "cartridges"),
+        (6, &["!k8"][..], "cartridges"),
     ] {
         assert_up_first(&s[n], folder_badge, what);
         assert_listed_in_order(&s[n], names, what);
@@ -4678,7 +4680,7 @@ fn ac_171_the_up_row_is_always_listed_first() {
     assert_back_at(&s[7], 6, DEMOS, 2, "RETURN on '..' listing cartridges");
     assert_up_first(&s[8], folder_badge, "HOME");
     assert_eq!(selected_rows(&s[8]), vec![5], "HOME: '..' is not selected");
-    assert_selected(&s[9], "k8", "CLR");
+    assert_selected(&s[9], "demo a", "CLR");
     assert_eq!(row_name(&s[9], 5), up_row(), "CLR: '..' moved");
 }
 
@@ -4702,6 +4704,7 @@ fn ac_172_the_up_row_is_not_an_entry() {
     // Eight presses from an entry: a pick that could land on ".." would, about half the time.
     let f5_from = groups.len();
     groups.extend(std::iter::repeat_n(vec![key::F5], 8));
+    groups.push(vec![key::HOME, key::F5]); // from "..": either entry, never ".."
     groups.push(vec![key::DEL]); // back out by DEL
     groups.push(vec![key::RETURN, key::STOP]); // in and out by RUN/STOP
     let s = screens_after(&dir, &f.cart, &groups);
@@ -4727,8 +4730,13 @@ fn ac_172_the_up_row_is_not_an_entry() {
         assert_selected(screen, next, &format!("F5 press {}", k + 1));
         last = next;
     }
-    assert_back_at(&s[f5_from + 8], 5, "games", 2, "DEL with no text");
-    assert_back_at(&s[f5_from + 9], 5, "games", 2, "RUN/STOP");
+    let picked = selected_rows(&s[f5_from + 8]);
+    assert!(
+        picked == [6] || picked == [7],
+        "F5 on '..': rows {picked:?} selected, not one of the two entries"
+    );
+    assert_back_at(&s[f5_from + 9], 5, "games", 2, "DEL with no text");
+    assert_back_at(&s[f5_from + 10], 5, "games", 2, "RUN/STOP");
 
     // The first entry under "..", started and soft-reset: it comes back, not "..".
     let d = boot_or_panic(

@@ -91,3 +91,7 @@ CLR selects the last entry.
   1674 → 1484 bytes. AC-170..AC-172 green; gate 310 passed, GUI gate green.
 - 2026-11-08 — S5: README's key and stick tables, the folders section and the test list name
   `..`. Gates as S4 (no code change since).
+- 2026-11-08 — Tests tightened: AC-171 titles k8 "!k8" ($21 sorts before "."), so a `..` sorted
+  with the entries would land second; AC-172 presses F5 on `..` too (either entry, never `..`).
+  Green; gate 310 passed. F5 on `..` with one entry selects it, which reads against AC-140's
+  "one entry or none: nothing" if `..` counts as not an entry; left for the reconcile.
