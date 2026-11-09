@@ -33,6 +33,13 @@
   filter is empty (no way out with the stick while a filter is set); landing on `..` when a folder
   opens (one more move before every start).
 - **Scope:** `menu/src/menu.s`, the boot tests
+- **As built:** `..` is a folder row for group 0 at the head of the list, so the existing
+  folder-row paths (start, saving and restoring the state) skip it with no extra code; a byte at
+  `$C141` keeps it out of the counts and F5's range. Row 22 reads "0 of N" while `..` is
+  selected, "no matches" sits on the row under it, SHIFT+RETURN on it does nothing, and F7's help
+  gains "`..` return or fire: go up". In a folder with one entry, F5 on `..` selects that entry: F5
+  moves to a listed entry other than the selected one, and `..` isn't one (AC-140 still holds for
+  entries). Opening a folder, typing, F1 and F3 select the first entry.
 - **Status:** active · refines D-057
 
 ---

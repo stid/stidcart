@@ -12,7 +12,7 @@
 
 - **Lane:** Standard
 - **Goal:** Inside a folder our menu lists a `..` row first; RETURN or fire on it goes back to the top level, so the joystick can leave a folder (D-058)
-- **Next action:** S6 — audit, reconcile into SPEC, closeout, PR (merge only on the user's yes)
+- **Next action:** PR open; merge only on the user's yes
 - **Branch:** feat/menu-folder-up · **Updated:** 2026-11-08
 
 ## STEPS
@@ -22,7 +22,7 @@
 - [x] S3 — failing boot tests in `menu_boot.rs` for AC-170..AC-172
 - [x] S4 — implement in `menu/src/menu.s`, rebuild `menu.bin`/`menu.lbl`, the replaced build's fingerprint joins `EARLIER_STIDCART_BUILDS`
 - [x] S5 — `menu/README.md`, the F7 help, gates with `STIDCART_REQUIRE_TOOLS=1`
-- [ ] S6 — audit, reconcile, closeout, PR (merge only on the user's yes)
+- [x] S6 — audit, reconcile, closeout, PR (merge only on the user's yes)
 
 ## DECISIONS (this work-item)
 
@@ -95,3 +95,8 @@ CLR selects the last entry.
   with the entries would land second; AC-172 presses F5 on `..` too (either entry, never `..`).
   Green; gate 310 passed. F5 on `..` with one entry selects it, which reads against AC-140's
   "one entry or none: nothing" if `..` counts as not an entry; left for the reconcile.
+- 2026-11-08 — audit: PASS (test-presence). `AC-170 (none)`..`AC-172 (none)` are in
+  `crates/stidcart-cli/tests/menu_boot.rs`, green at c624322 with `STIDCART_REQUIRE_TOOLS=1` (root
+  310/0, cargo 1.97.1; `gui-gate.sh` green). Closeout line appended; the as-built details and the
+  F5-from-`..` call are folded into D-058.
+- 2026-11-08 — reconciled: folded AC-170..AC-172 → SPEC.md/none (one new row).
