@@ -23,7 +23,7 @@ function doc(overrides: Partial<Document> = {}): Document {
 }
 
 function setup(d: Document | null) {
-  const props = { doc: d, onadd: vi.fn(), onopen: vi.fn() };
+  const props = { doc: d, onadd: vi.fn(), onopen: vi.fn(), onnewfolder: vi.fn() };
   render(Toolbar, { props });
   return props;
 }
@@ -70,4 +70,16 @@ test('AC-122 (RENDER): the title bar carries the stidcart mark, with or without 
   cleanup();
   setup(doc());
   expect(markBands()).toEqual(raster);
+});
+
+test('AC-192 (RENDER): New Folder sits beside Add… on an editable cart and asks for a folder', async () => {
+  const { onnewfolder } = setup(doc());
+  const buttons = screen.getAllByRole('button').map((b) => b.textContent?.trim());
+  expect(buttons.indexOf('New Folder')).toBe(buttons.indexOf('Add…') - 1);
+  await fireEvent.click(screen.getByRole('button', { name: /new folder/i }));
+  expect(onnewfolder).toHaveBeenCalledOnce();
+
+  cleanup();
+  setup(doc({ readOnly: 'reserved region EAPI differs from the embedded firmware' }));
+  expect(screen.queryByRole('button', { name: /new folder/i })).toBeNull();
 });

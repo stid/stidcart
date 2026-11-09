@@ -13,11 +13,14 @@
   // svelte-ignore state_referenced_locally
   const viewer = createViewer(host);
 
+  /** The open cart's listing, which owns its folder tree: New Folder acts there (D-063). */
+  let listingView = $state<ReturnType<typeof Listing> | null>(null);
+
   // Shortcuts (⌘N, ⌘O, ⌘S, ⌘⇧S, ⌘Z, ⌘⇧Z) arrive only through the native menu. The webview sees
   // the same keydown too, so handling it here as well would run each command twice (T2 spike).
   onMount(() => {
     host.onDrop((paths) => void viewer.drop(paths));
-    host.onMenu((id) => void viewer.menu(id));
+    host.onMenu((id) => (id === 'new-folder' ? void listingView?.newFolder() : void viewer.menu(id)));
     host.onCloseRequested(() => viewer.requestClose());
     host.onExitRequested(() => void viewer.requestQuit());
   });
@@ -35,6 +38,7 @@
       opened={viewer.state.kind !== 'empty'}
       onadd={(aligned) => void viewer.add(aligned)}
       onopen={() => void viewer.pick()}
+      onnewfolder={() => void listingView?.newFolder()}
     />
   </header>
   <div class="raster" data-raster aria-hidden="true">
@@ -45,6 +49,7 @@
     {#if doc}
       {#key viewer.generation}
         <Listing
+          bind:this={listingView}
           listing={doc.listing}
           file={doc.file}
           readOnly={doc.readOnly}
@@ -52,6 +57,7 @@
           rows={doc.rows}
           onedit={(e) => viewer.edit(e)}
           onreplace={(index) => void viewer.replace(index)}
+          onadd={(aligned) => void viewer.add(aligned)}
         />
       {/key}
     {:else if viewer.state.kind === 'error'}

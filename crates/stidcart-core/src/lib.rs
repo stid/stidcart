@@ -36,7 +36,7 @@ pub use read::{inspect, load, CartInfo, ReadError};
 use directory::{DirEntry, EntryType, ENTRY_LEN, MAX_ENTRIES};
 use image::{BANK_SIZE, N_BANKS};
 use menu::Menu;
-use meta::{Field, KeptMeta, Meta, MetaError};
+use meta::{Field, FolderError, KeptMeta, Meta, MetaError};
 use place::Placer;
 use reserved::{Mode, DEFAULT_EF_NAME, DIRECTORY_OFFSET};
 
@@ -311,6 +311,9 @@ pub struct CartBuilder {
     header_name: String,
     menu: Menu,
     entries: Vec<Entry>,
+    /// The cart's folders in order, empty ones included; every entry's folder is one of them
+    /// (D-063).
+    folders: Vec<String>,
     /// A metadata entry in a layout this build can't read, with the entry names as loaded: written
     /// back byte for byte while those names stay a prefix of the entries (D-055).
     kept: Option<(KeptMeta, Vec<String>)>,
@@ -329,6 +332,7 @@ impl CartBuilder {
             header_name: format!("stidcart {}", env!("CARGO_PKG_VERSION")),
             menu: Menu::default(),
             entries: Vec::new(),
+            folders: Vec::new(),
             kept: None,
         }
     }
@@ -366,7 +370,7 @@ impl CartBuilder {
     }
 
     pub fn with_entry(mut self, entry: impl Into<Entry>) -> Self {
-        self.entries.push(entry.into());
+        self.push(entry);
         self
     }
 
@@ -381,8 +385,15 @@ impl CartBuilder {
     }
 
     /// Append an entry. The directory keeps input order, so it lands last in the menu.
+    /// Append an entry. A folder it carries that the cart doesn't have joins after the others, so
+    /// every entry's folder stays one of the cart's (D-063).
     pub fn push(&mut self, entry: impl Into<Entry>) {
-        self.entries.push(entry.into());
+        let entry = entry.into();
+        let folder = entry.meta().get(Field::Folder);
+        if !folder.is_empty() && !self.folders.iter().any(|f| f == folder) {
+            self.folders.push(folder.to_string());
+        }
+        self.entries.push(entry);
     }
 
     /// Remove the entry at `index` and hand it back.
@@ -420,7 +431,115 @@ impl CartBuilder {
                 reason: kept.reason.clone(),
             });
         }
-        self.entries[index].meta_mut().set(field, value)
+        self.entries[index].meta_mut().set(field, value)?;
+        // A folder the cart doesn't have yet joins after the others (D-063).
+        if field == Field::Folder && !value.is_empty() && !self.folders.iter().any(|f| f == value) {
+            self.folders.push(value.to_string());
+        }
+        Ok(())
+    }
+
+    /// The cart's folders in order, empty ones included (D-063).
+    pub fn folders(&self) -> &[String] {
+        &self.folders
+    }
+
+    /// Refuse folder changes on a cart whose metadata is kept as stored (D-055).
+    fn folders_editable(&self) -> Result<(), FolderError> {
+        match &self.kept {
+            Some((kept, _)) => Err(FolderError::Invalid(MetaError::Kept {
+                reason: kept.reason.clone(),
+            })),
+            None => Ok(()),
+        }
+    }
+
+    /// A name a new folder may take: valid, and not one the cart has.
+    fn check_new_folder(&self, name: &str) -> Result<(), FolderError> {
+        if name.is_empty() {
+            return Err(FolderError::Empty);
+        }
+        meta::check(Field::Folder, name).map_err(FolderError::Invalid)?;
+        if self.folders.iter().any(|f| f == name) {
+            return Err(FolderError::Exists(name.to_string()));
+        }
+        Ok(())
+    }
+
+    /// Add an empty folder after the others.
+    pub fn add_folder(&mut self, name: &str) -> Result<(), FolderError> {
+        self.folders_editable()?;
+        self.check_new_folder(name)?;
+        if self.folders.len() == 255 {
+            return Err(FolderError::TooMany);
+        }
+        self.folders.push(name.to_string());
+        Ok(())
+    }
+
+    /// Remove a folder; its entries stay in the cart with no folder.
+    pub fn remove_folder(&mut self, name: &str) -> Result<(), FolderError> {
+        self.folders_editable()?;
+        let at = self.folder_at(name)?;
+        self.folders.remove(at);
+        for e in &mut self.entries {
+            if e.meta().get(Field::Folder) == name {
+                e.meta_mut()
+                    .set(Field::Folder, "")
+                    .expect("an empty value always sets");
+            }
+        }
+        Ok(())
+    }
+
+    /// Put a folder at position `to` of the cart's folder order.
+    pub fn move_folder(&mut self, name: &str, to: usize) -> Result<(), FolderError> {
+        self.folders_editable()?;
+        let at = self.folder_at(name)?;
+        if to >= self.folders.len() {
+            return Err(FolderError::Position {
+                to,
+                len: self.folders.len(),
+            });
+        }
+        let folder = self.folders.remove(at);
+        self.folders.insert(to, folder);
+        Ok(())
+    }
+
+    /// Replace the folder order in one go, as the window's arrange does: every name valid and
+    /// distinct. Entries in a folder the list drops lose it.
+    pub fn set_folders(&mut self, names: Vec<String>) -> Result<(), FolderError> {
+        self.folders_editable()?;
+        let old = std::mem::take(&mut self.folders);
+        for n in &names {
+            if let Err(e) = self.check_new_folder(n) {
+                self.folders = old;
+                return Err(e);
+            }
+            self.folders.push(n.clone());
+        }
+        for e in &mut self.entries {
+            let f = e.meta().get(Field::Folder).to_string();
+            if !f.is_empty() && !self.folders.contains(&f) {
+                e.meta_mut()
+                    .set(Field::Folder, "")
+                    .expect("an empty value always sets");
+            }
+        }
+        Ok(())
+    }
+
+    /// The cart's folders as read, without the checks a new folder gets.
+    pub(crate) fn set_folders_loaded(&mut self, names: Vec<String>) {
+        self.folders = names;
+    }
+
+    fn folder_at(&self, name: &str) -> Result<usize, FolderError> {
+        self.folders
+            .iter()
+            .position(|f| f == name)
+            .ok_or_else(|| FolderError::Unknown(name.to_string()))
     }
 
     /// An entry's metadata as read from an image, which the walk has already validated.
@@ -434,8 +553,9 @@ impl CartBuilder {
         self.kept = Some((kept, names));
     }
 
-    /// The metadata entry a build writes last, or `None` when no entry has metadata (D-054). The
-    /// layout is `docs/format/`'s "stidcart extension: entry metadata".
+    /// The metadata entry a build writes last, or `None` when no entry has metadata and the cart
+    /// has no folder (D-054, D-063). The layout is `docs/format/`'s "stidcart extension: entry
+    /// metadata".
     fn meta_entry(&self) -> Result<Option<Entry>, BuildError> {
         let data = if let Some((kept, names)) = &self.kept {
             let same = self.entries.len() >= names.len()
@@ -458,10 +578,10 @@ impl CartBuilder {
                     meta: e.meta(),
                 })
                 .collect();
-            if records.is_empty() {
+            if records.is_empty() && self.folders.is_empty() {
                 return Ok(None);
             }
-            let data = meta::encode(&records);
+            let data = meta::encode(&self.folders, &records);
             let size = data.len() - 2;
             if size > meta::MAX_PAYLOAD {
                 return Err(BuildError::MetadataTooLarge {

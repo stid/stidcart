@@ -14,7 +14,16 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 use crate::document::DocumentDto;
 
 /// The ids the window listens for, as the `menu` event's payload.
-const IDS: [&str; 7] = ["new", "open", "save", "save-as", "undo", "redo", "quit"];
+const IDS: [&str; 8] = [
+    "new",
+    "open",
+    "new-folder",
+    "save",
+    "save-as",
+    "undo",
+    "redo",
+    "quit",
+];
 
 /// The items whose enabled state follows the open cart.
 pub struct DocumentItems {
@@ -51,6 +60,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
     let file = SubmenuBuilder::new(app, "File")
         .item(&item("new", "New", "CmdOrCtrl+N")?)
         .item(&item("open", "Open…", "CmdOrCtrl+O")?)
+        .separator()
+        // Acts on the open cart's folder tree; the window ignores it with no editable cart (D-063).
+        .item(&item("new-folder", "New Folder", "CmdOrCtrl+Shift+N")?)
         .separator()
         .item(&save)
         .item(&save_as)
@@ -100,4 +112,30 @@ pub fn sync(app: &AppHandle, doc: Option<&DocumentDto>) {
         .save
         .set_enabled(editable && doc.is_some_and(|d| d.dirty));
     let _ = items.save_as.set_enabled(editable);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::IDS;
+
+    /// Every id the frontend's `MenuId` names is forwarded; one missing here is a menu item that does
+    /// nothing (found live for File ▸ New Folder, D-063).
+    #[test]
+    fn every_menu_id_the_frontend_knows_is_forwarded() {
+        let types =
+            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../src/lib/types.ts"))
+                .expect("types.ts");
+        let line = types
+            .lines()
+            .find(|l| l.starts_with("export type MenuId ="))
+            .expect("the MenuId type");
+        let ids: Vec<&str> = line.split('\'').skip(1).step_by(2).collect();
+        assert!(!ids.is_empty());
+        for id in ids {
+            assert!(
+                IDS.contains(&id),
+                "menu id '{id}' is not forwarded to the window"
+            );
+        }
+    }
 }

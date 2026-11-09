@@ -355,13 +355,13 @@ test('AC-182 (RENDER): New folder… asks for a name inline, and committing move
   const trigger = screen.getByRole('button', { name: /actions for ramp/i });
   trigger.focus();
   await fireEvent.keyDown(trigger, { key: 'Enter' });
-  const sub = await screen.findByRole('menuitem', { name: /move to folder/i });
+  const sub = await screen.findByRole('menuitem', { name: /^move to$/i });
   sub.focus();
   await fireEvent.keyDown(sub, { key: 'ArrowRight' });
   // jsdom has no layout, so the menu's positioning takes the trigger inside the scrolling table as
   // clipped and hides the open menus with visibility: hidden, which also blanks their accessible
   // names. They are open all the same, so the item is found by its text.
-  await fireEvent.click(await screen.findByText('New folder…'));
+  await fireEvent.click(await screen.findByText('New Folder with Entry'));
 
   const input = await screen.findByRole('textbox', { name: /new folder/i });
   await fireEvent.input(input, { target: { value: 'Tools' } });
@@ -381,15 +381,15 @@ test('AC-182 (RENDER): the right-click menu offers the same moves, and its other
   const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
   await fireEvent.contextMenu(ramp);
   // Found by text: jsdom hides menus opened inside the scrolling table (see the test above).
-  expect(await screen.findByText('Move to folder')).toBeInTheDocument();
+  expect(await screen.findByText('Move to')).toBeInTheDocument();
   await fireEvent.click(screen.getByText('Hide'));
   expect(onedit).toHaveBeenCalledExactlyOnceWith({ kind: 'setHidden', index: 1, hidden: true });
 
   await fireEvent.contextMenu(ramp);
-  const sub = await screen.findByText('Move to folder');
+  const sub = await screen.findByText('Move to');
   sub.focus();
   await fireEvent.keyDown(sub, { key: 'ArrowRight' });
-  await fireEvent.click(await screen.findByText('New folder…'));
+  await fireEvent.click(await screen.findByText('New Folder with Entry'));
   expect(await screen.findByRole('textbox', { name: /new folder/i })).toBeInTheDocument();
 });
 
@@ -405,4 +405,84 @@ test('AC-184 (RENDER): after a folder field change the entry is listed under its
       .filter((r) => r.hasAttribute('data-folder-row') || r.hasAttribute('data-entry'))
       .map((r) => r.getAttribute('data-folder-row') ?? r.getAttribute('data-entry')),
   ).toEqual(['Games', '0', '1']);
+});
+
+/** `two` with hello in Games and an empty folder Spare after it, as the cart lists them. */
+function withSpare(): ListingData {
+  return { ...foldered(), folders: ['Games', 'Spare'] } as unknown as ListingData;
+}
+
+test('AC-189 (RENDER): an empty folder is a card of its own that reads empty and takes a drop', () => {
+  render(Listing, { props: { listing: withSpare(), file: 'two.crt' } });
+  expect(folderRows().map((r) => r.getAttribute('data-folder-row'))).toEqual(['Games', 'Spare']);
+  const spare = folderRows()[1];
+  expect(within(spare).getByText('0')).toBeInTheDocument();
+  const drop = spare.closest('tbody')!.querySelector('[data-folder-drop]')!;
+  expect(drop).toHaveAttribute('data-folder-drop', 'Spare');
+  expect(drop).toHaveTextContent(/empty · drag entries here/);
+});
+
+test('AC-192 (RENDER): New Folder adds an empty "new folder" after the others and opens its name', async () => {
+  const onedit = vi.fn(async () => true);
+  const { component, rerender } = render(Listing, {
+    props: {
+      listing: withSpare(),
+      file: 'two.crt',
+      readOnly: null,
+      rows: listing.rows.map(() => ({ alignable: false })),
+      onedit,
+      onreplace: vi.fn(),
+    },
+  });
+  await component.newFolder();
+  expect(onedit).toHaveBeenCalledExactlyOnceWith({
+    kind: 'arrange',
+    folders: [
+      { name: 'Games', entries: [0] },
+      { name: 'Spare', entries: [] },
+      { name: 'new folder', entries: [] },
+    ],
+    loose: [1],
+  });
+  // The cart answers with the folder; its name opens for typing, as Finder does.
+  await rerender({ listing: { ...withSpare(), folders: ['Games', 'Spare', 'new folder'] } as unknown as ListingData });
+  expect(await screen.findByRole('textbox', { name: /name of folder new folder/i })).toBeInTheDocument();
+});
+
+test('AC-192 (RENDER): a right-click on the list\'s empty space offers New Folder', async () => {
+  const { onedit } = editable({ listing: withSpare() });
+  await fireEvent.contextMenu(document.querySelector('[data-empty-space]')!);
+  await fireEvent.click(await screen.findByText('New Folder'));
+  expect(onedit).toHaveBeenCalledOnce();
+  expect(onedit.mock.calls[0][0]).toMatchObject({ kind: 'arrange' });
+  expect((onedit.mock.calls[0][0] as { folders: { name: string }[] }).folders.map((f) => f.name)).toEqual([
+    'Games',
+    'Spare',
+    'new folder',
+  ]);
+});
+
+test('AC-193 (RENDER): Delete Folder sends one arrange that moves its entries out', async () => {
+  const { onedit } = editable({ listing: withSpare() });
+  const trigger = screen.getByRole('button', { name: /actions for folder games/i });
+  trigger.focus();
+  await fireEvent.keyDown(trigger, { key: 'Enter' });
+  await fireEvent.click(await screen.findByText('Delete Folder'));
+  expect(onedit).toHaveBeenCalledExactlyOnceWith({
+    kind: 'arrange',
+    folders: [{ name: 'Spare', entries: [] }],
+    loose: [1, 0],
+  });
+});
+
+test('AC-195 (RENDER): the inspector sits beside the list, empty until an entry is selected', async () => {
+  editable({ listing: withSpare() });
+  const inspector = screen.getByRole('complementary', { name: /entry details/i });
+  expect(inspector).toHaveTextContent(/select an entry/i);
+  // Beside the list, not under it: the two share one row.
+  const table = screen.getByRole('table');
+  expect(inspector.parentElement).toBe(table.closest('.table-wrap')!.parentElement);
+  await fireEvent.click(within(entryRows()[0]).getByText('PRG'));
+  expect(inspector).toHaveTextContent('// entry 0');
+  expect(within(inspector).getByRole('combobox', { name: /folder/i })).toHaveValue('Games');
 });

@@ -2,7 +2,10 @@ import { expect, test } from 'vitest';
 import two from './fixtures/two.json';
 import type { Row } from './types';
 import {
+  addFolder,
   buildTree,
+  deleteFolder,
+  untitledName,
   indexAfter,
   moveEntry,
   moveFolder,
@@ -84,8 +87,11 @@ test('AC-179 (RENDER): an entry moves into a folder, out to the top level, or be
     ],
     loose: [1, 0, 4],
   });
-  // The last entry out of a folder takes the folder with it.
-  expect(moveEntry(tree, 2, { end: true }).folders.map((f) => f.name)).toEqual(['Games']);
+  // AC-193 (RENDER): the last entry out of a folder leaves the folder in place (D-063).
+  expect(moveEntry(tree, 2, { end: true }).folders).toEqual([
+    { name: 'Games', entries: [0, 3] },
+    { name: 'Demos', entries: [] },
+  ]);
   // Dropping an entry where it already is changes nothing.
   expect(sameTree(moveEntry(tree, 0, { before: 3 }), tree)).toBe(true);
   expect(sameTree(moveEntry(tree, 1, { into: 'Demos' }), tree)).toBe(false);
@@ -131,4 +137,39 @@ test('AC-183 (RENDER): a renamed folder keeps its place and its entries', () => 
     ],
     loose: [1, 4],
   });
+});
+
+test('AC-189 (RENDER): the tree starts from the cart\'s folders in its order, empty ones included', () => {
+  expect(buildTree(scattered, ['Demos', 'Spare', 'Games'])).toEqual({
+    folders: [
+      { name: 'Demos', entries: [2] },
+      { name: 'Spare', entries: [] },
+      { name: 'Games', entries: [0, 3] },
+    ],
+    loose: [1, 4],
+  });
+});
+
+test('AC-192 (RENDER): a new folder is empty, goes after the others, and takes the first free untitled name', () => {
+  const tree = buildTree(scattered, ['Games', 'Demos']);
+  expect(untitledName(tree)).toBe('new folder');
+  const one = addFolder(tree, untitledName(tree));
+  expect(one.folders.map((f) => [f.name, f.entries.length])).toEqual([
+    ['Games', 2],
+    ['Demos', 1],
+    ['new folder', 0],
+  ]);
+  expect(untitledName(one)).toBe('new folder 2');
+  expect(untitledName(addFolder(one, 'new folder 2'))).toBe('new folder 3');
+});
+
+test('AC-193 (RENDER): deleting a folder moves its entries to the end of the loose ones', () => {
+  const tree = buildTree(scattered, ['Games', 'Demos']);
+  expect(deleteFolder(tree, 'Games')).toEqual({
+    folders: [{ name: 'Demos', entries: [2] }],
+    loose: [1, 4, 0, 3],
+  });
+  // An entry dropped into an empty folder goes in.
+  const spare = addFolder(tree, 'Spare');
+  expect(moveEntry(spare, 4, { into: 'Spare' }).folders[2]).toEqual({ name: 'Spare', entries: [4] });
 });

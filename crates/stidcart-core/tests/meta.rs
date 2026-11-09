@@ -182,13 +182,15 @@ fn ac_153_without_metadata_the_bytes_are_unchanged() {
         );
     }
 
-    // Set, then cleared again: no trace of it.
+    // Set, then cleared again: no trace of it. A folder outlives its last entry (D-063), so it is
+    // removed too.
     let plain = three().build().unwrap();
     let mut b = three();
     set_all(&mut b, 1, FIRST);
     for (f, _) in FIRST {
         b.set_meta(1, *f, "").unwrap();
     }
+    b.remove_folder("Games").unwrap();
     assert!(
         b.build().unwrap() == plain,
         "cleared metadata writes no entry"

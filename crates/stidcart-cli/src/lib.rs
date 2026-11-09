@@ -57,6 +57,9 @@ usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT].
   --note N TEXT   set its note (at most 48)
   --folder N TEXT put it in a folder (at most 16; --group N TEXT also works); an
                   empty TEXT clears any of these
+  --new-folder NAME   add an empty folder after the cart's folders
+  --remove-folder NAME  remove a folder; its entries stay, in no folder
+  --move-folder NAME TO  put a folder at position TO of the cart's folder order
   --import FILE   set metadata from a TOML file of [[entry]] tables, each naming an
                   entry by its stored name (case ignored) with any of title, year,
                   author, note and folder; any problem refuses the whole file
@@ -156,6 +159,10 @@ enum Op {
     Meta(usize, Field, String),
     /// A TOML file of metadata, resolved against the cart as given into [`Op::Meta`]s.
     Import(String),
+    /// The cart's folder list, by name (D-063).
+    NewFolder(String),
+    RemoveFolder(String),
+    MoveFolder(String, usize),
 }
 
 /// Change an existing image and write it back.
@@ -196,6 +203,16 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
                 let at = index(it.next(), arg)?;
                 let value = it.next().ok_or_else(|| format!("{arg} needs a value"))?;
                 ops.push(Op::Meta(at, field, value.clone()));
+            }
+            "--new-folder" => ops.push(Op::NewFolder(
+                it.next().ok_or("--new-folder needs a name")?.clone(),
+            )),
+            "--remove-folder" => ops.push(Op::RemoveFolder(
+                it.next().ok_or("--remove-folder needs a name")?.clone(),
+            )),
+            "--move-folder" => {
+                let name = it.next().ok_or("--move-folder needs a name")?.clone();
+                ops.push(Op::MoveFolder(name, index(it.next(), "--move-folder")?));
             }
             "--import" => ops.push(Op::Import(
                 it.next().ok_or("--import needs a file")?.clone(),
@@ -291,7 +308,11 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             | Op::Hidden(at, _)
             | Op::Align(at, _)
             | Op::Meta(at, ..) => *at,
-            Op::Add(..) | Op::Import(_) => continue,
+            Op::Add(..)
+            | Op::Import(_)
+            | Op::NewFolder(_)
+            | Op::RemoveFolder(_)
+            | Op::MoveFolder(..) => continue,
         };
         if at >= held {
             return Err(format!(
@@ -321,6 +342,11 @@ fn edit(args: &[String]) -> Result<Option<String>, String> {
             Op::Meta(at, field, value) => builder
                 .set_meta(*at, *field, value)
                 .map_err(|e| e.to_string())?,
+            Op::NewFolder(name) => builder.add_folder(name).map_err(|e| e.to_string())?,
+            Op::RemoveFolder(name) => builder.remove_folder(name).map_err(|e| e.to_string())?,
+            Op::MoveFolder(name, to) => {
+                builder.move_folder(name, *to).map_err(|e| e.to_string())?
+            }
             Op::Add(..) | Op::Remove(_) | Op::Move(..) | Op::Import(_) => {}
         }
     }
@@ -530,7 +556,18 @@ fn render(l: &Listing, exact: bool) -> String {
     let mut out = String::new();
     out.push_str(&format!("cart: {}\n", l.cart));
     out.push_str(&format!("built by: {}\n", l.built_by));
-    out.push_str(&format!("menu: {}\n\n", l.menu));
+    out.push_str(&format!("menu: {}\n", l.menu));
+    // The cart's folders in order with their entry counts, empty ones included (D-063); a cart
+    // without folders prints no line, so the listing reads as before.
+    if !l.folders.is_empty() {
+        let folders: Vec<String> = l
+            .folders
+            .iter()
+            .map(|f| format!("{f} ({})", l.rows.iter().filter(|r| &r.folder == f).count()))
+            .collect();
+        out.push_str(&format!("folders: {}\n", folders.join("  ")));
+    }
+    out.push('\n');
 
     if l.rows.is_empty() {
         out.push_str("  (no entries)\n");

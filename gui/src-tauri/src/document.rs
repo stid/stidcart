@@ -372,10 +372,8 @@ impl Document {
     }
 }
 
-/// Bounds-check an index before it reaches the core, whose mutators panic on a bad one — and a
-/// panic inside a command would poison the lock every later command needs. The text is `edit`'s.
-/// Set every entry's folder from the tree, then move the entries into tree order with the moves
-/// `edit --move` makes, so a save equals that sequence of `edit` calls.
+/// Set the cart's folder list and every entry's folder from the tree, then move the entries into
+/// tree order with the moves `edit --move` makes, so a save equals that sequence of `edit` calls.
 fn arrange(
     builder: &mut CartBuilder,
     folders: &[ArrangeFolder],
@@ -394,14 +392,11 @@ fn arrange(
             "the arrangement must name each of the {held} entries once"
         ));
     }
-    for (n, f) in folders.iter().enumerate() {
-        if f.name.is_empty() {
-            return Err("a folder needs a name".into());
-        }
-        if folders[..n].iter().any(|g| g.name == f.name) {
-            return Err(format!("a folder named '{}' already exists", f.name));
-        }
-    }
+    // The tree's folders, empty ones included, become the cart's folder list in that order; the
+    // names are checked as `edit --new-folder` checks them (D-063).
+    builder
+        .set_folders(folders.iter().map(|f| f.name.clone()).collect())
+        .map_err(|e| e.to_string())?;
 
     for f in folders {
         for &i in &f.entries {
@@ -429,6 +424,8 @@ fn arrange(
     Ok(())
 }
 
+/// Bounds-check an index before it reaches the core, whose mutators panic on a bad one — and a
+/// panic inside a command would poison the lock every later command needs. The text is `edit`'s.
 fn check_index(builder: &CartBuilder, index: usize) -> Result<(), String> {
     let held = builder.entries().len();
     if index >= held {

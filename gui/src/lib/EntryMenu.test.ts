@@ -92,47 +92,62 @@ async function open() {
   await fireEvent.keyDown(trigger, { key: 'Enter' });
 }
 
-/** Open "Move to folder" and list what it offers. */
+/** Open "Move to" and list its choices: the folders and "Not in a folder", each checked or not. */
 async function folderChoices() {
   await open();
-  const sub = await screen.findByRole('menuitem', { name: /move to folder/i });
+  const sub = await screen.findByRole('menuitem', { name: /^move to$/i });
   sub.focus();
   await fireEvent.keyDown(sub, { key: 'ArrowRight' });
-  const menus = await screen.findAllByRole('menu');
-  return within(menus[menus.length - 1])
-    .getAllByRole('menuitem')
-    .map((i) => i.textContent?.trim());
+  await screen.findAllByRole('menuitemradio');
+  return screen
+    .getAllByRole('menuitemradio')
+    .map((i) => `${i.getAttribute('aria-checked') === 'true' ? '✓ ' : ''}${i.textContent?.replace('✓', '').trim()}`);
 }
 
-test('AC-182 (RENDER): Move to folder lists the folders, No folder only inside one, and New folder…', async () => {
+test('AC-194 (RENDER): Move to lists every folder with the entry\'s own checked, then Not in a folder', async () => {
   withMoves({ ...hello, folder: 'Games' } as Row, ['Games', 'Demos'], true, true);
-  expect(await folderChoices()).toEqual(['Games', 'Demos', 'No folder', 'New folder…']);
+  expect(await folderChoices()).toEqual(['✓ Games', 'Demos', 'Not in a folder']);
+  expect(screen.getByRole('menuitem', { name: /new folder with entry/i })).toBeInTheDocument();
 
   cleanup();
   withMoves({ ...hello, folder: '' } as Row, ['Games'], true, true);
-  expect(await folderChoices()).toEqual(['Games', 'New folder…']);
+  expect(await folderChoices()).toEqual(['Games', '✓ Not in a folder']);
 });
 
-test('AC-182 (RENDER): each move is one request; Move up and Move down are disabled at the edges', async () => {
+test('AC-194 (RENDER): a choice is one request, the checked one none; Move up and Move down form their own group', async () => {
   const p = withMoves({ ...hello, folder: '' } as Row, ['Games'], false, true);
   await folderChoices();
-  await fireEvent.click(screen.getByRole('menuitem', { name: 'Games' }));
-  expect(p.onmove).toHaveBeenCalledExactlyOnceWith({
-    kind: 'folder',
-    name: 'Games',
-  });
+  await fireEvent.click(screen.getByRole('menuitemradio', { name: /games/i }));
+  expect(p.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'folder', name: 'Games' });
 
   cleanup();
-  const q = withMoves({ ...hello, folder: '' } as Row, ['Games'], false, true);
+  const q = withMoves({ ...hello, folder: 'Games' } as Row, ['Games'], false, true);
   await folderChoices();
-  await fireEvent.click(screen.getByRole('menuitem', { name: /new folder/i }));
-  expect(q.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'newFolder' });
+  await fireEvent.click(screen.getByRole('menuitemradio', { name: /games/i }));
+  expect(q.onmove).not.toHaveBeenCalled();
 
   cleanup();
   const r = withMoves({ ...hello, folder: 'Games' } as Row, ['Games'], false, true);
+  await folderChoices();
+  await fireEvent.click(screen.getByRole('menuitemradio', { name: /not in a folder/i }));
+  expect(r.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'noFolder' });
+
+  cleanup();
+  const t = withMoves({ ...hello, folder: '' } as Row, ['Games'], false, true);
+  await folderChoices();
+  await fireEvent.click(screen.getByRole('menuitem', { name: /new folder with entry/i }));
+  expect(t.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'newFolder' });
+
+  cleanup();
+  const u = withMoves({ ...hello, folder: 'Games' } as Row, ['Games'], false, true);
   await open();
-  expect(await screen.findByRole('menuitem', { name: /move up/i })).toHaveAttribute('aria-disabled', 'true');
+  const up = await screen.findByRole('menuitem', { name: /move up/i });
+  expect(up).toHaveAttribute('aria-disabled', 'true');
+  // Up and down sit between separators of their own, apart from Move to.
+  const menu = up.closest('[role="menu"]')!;
+  const kids = Array.from(menu.children).map((c) => (c.getAttribute('role') === 'separator' ? '|' : c.textContent?.trim()));
+  expect(kids.join(',')).toContain('|,Move up,Move down,|');
   await fireEvent.click(screen.getByRole('menuitem', { name: /move down/i }));
-  expect(r.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'down' });
-  expect(r.onedit).not.toHaveBeenCalled();
+  expect(u.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'down' });
+  expect(u.onedit).not.toHaveBeenCalled();
 });

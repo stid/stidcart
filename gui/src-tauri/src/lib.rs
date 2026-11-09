@@ -28,6 +28,8 @@ pub struct ListingDto {
     /// The C64-side menu the cart boots into, as `listing` names it (D-038).
     pub menu: String,
     pub rows: Vec<RowDto>,
+    /// The cart's folders in order, empty ones included (D-063).
+    pub folders: Vec<String>,
     pub free: usize,
     pub free_text: String,
     /// Metadata records dropped because their entry no longer matches (AC-154).
@@ -65,6 +67,7 @@ impl From<&Listing> for ListingDto {
             built_by: l.built_by.clone(),
             menu: l.menu.clone(),
             rows: l.rows.iter().map(RowDto::from).collect(),
+            folders: l.folders.clone(),
             free: l.free,
             free_text: l.free_text(),
             meta_dropped: l.meta_dropped,

@@ -128,3 +128,18 @@ test('AC-179 (RENDER): a drag keeps the text unselected all the way, not only wh
   pointer('pointerup', a, 10, 32);
   expect(window.getSelection()!.rangeCount).toBe(0);
 });
+
+test('AC-193 (RENDER): an empty folder\'s drop row takes the entry into that folder', () => {
+  const { a } = table();
+  const spare = document.createElement('tr');
+  spare.setAttribute('data-folder-drop', 'Spare');
+  document.querySelector('tbody')!.append(spare);
+  spare.getBoundingClientRect = () => ({ top: 40, height: 20 }) as DOMRect;
+  document.elementFromPoint = vi.fn(() => spare);
+  const ondrop = vi.fn();
+  dragRow({ kind: 'entry', index: 0 }, ondrop)(a);
+  pointer('pointerdown', a, 10, 10);
+  pointer('pointermove', a, 10, 50);
+  pointer('pointerup', a, 10, 50);
+  expect(ondrop).toHaveBeenCalledExactlyOnceWith({ kind: 'entry', index: 0 }, { into: 'Spare' });
+});

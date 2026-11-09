@@ -8,7 +8,38 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-063 -->
+<!-- Next id: D-064 -->
+
+---
+
+## D-063 · 2026-11-08 · The cart owns an ordered folder list; folders may be empty
+
+- **Context:** folder-browser. Trying the folder tree, the user found that folders vanished with
+  their last entry and that making one meant picking an entry first. They asked for a stable
+  structure with empty folders, a file-browser New Folder action, clearer menus and the details
+  on the right, and said the project isn't public: no compatibility with earlier stidcart builds,
+  only with carts from other tools (2026-11-08).
+- **Decision:**
+  - The cart keeps its folders as an ordered list, independent of its entries. Moving the last
+    entry out or removing it leaves the folder. Delete Folder moves a folder's entries out.
+  - The stored folder table is that list, in order, empty folders included. Group numbers are
+    positions in it. The metadata entry is written when an entry has metadata or the cart has a
+    folder. It stays layout version 1, with no compatibility code for earlier stidcart carts.
+  - `edit` gains `--new-folder`, `--remove-folder` and `--move-folder`. `--folder` and the import
+    still create a folder they name. `list` prints the folders.
+  - The window has New Folder (button, File ▸ New Folder ⇧⌘N, right-click on empty space), empty
+    folder cards that take drops, "Move to" with a check on the current folder, Delete Folder,
+    and the details as an inspector on the right whose Folder field picks from the cart's folders.
+  - Our C64 menu is unchanged: it already lists groups in number order and hides a group with no
+    visible entry.
+- **Alternatives rejected:** a new layout version (nothing to stay compatible with); a folder list
+  only in the window (lost on save); deleting a folder with its entries (destructive); keeping
+  "folders exist only while used" (D-060), which the user found confusing.
+- **Scope:** `docs/format/`, `crates/stidcart-core` (`meta.rs`, `lib.rs`, `read.rs`,
+  `listing.rs`), the CLI, `gui/src-tauri`, `gui/src/lib`; canvas
+  https://claude.ai/artifact/21eX5WRUmSu77f8zxzMmjY
+- **Status:** active · supersedes D-060's "a folder is created by moving an entry into it, never
+  empty"; the rest of D-060, D-061 and D-062 stand
 
 ---
 

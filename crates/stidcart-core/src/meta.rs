@@ -137,6 +137,41 @@ pub enum MetaError {
     },
 }
 
+/// Why a change to the cart's folder list is refused (D-063).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FolderError {
+    /// The name breaks the folder rules, or the cart's metadata is kept as stored.
+    Invalid(MetaError),
+    Empty,
+    Exists(String),
+    Unknown(String),
+    Position {
+        to: usize,
+        len: usize,
+    },
+    /// The folder table holds at most 255 names.
+    TooMany,
+}
+
+impl std::fmt::Display for FolderError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FolderError::Invalid(e) => e.fmt(f),
+            FolderError::Empty => write!(f, "a folder needs a name"),
+            FolderError::Exists(name) => write!(f, "a folder named '{name}' already exists"),
+            FolderError::Unknown(name) => write!(f, "the cart has no folder named '{name}'"),
+            FolderError::Position { to, len } => write!(
+                f,
+                "no folder position {to}; the cart has {len} {}",
+                if *len == 1 { "folder" } else { "folders" }
+            ),
+            FolderError::TooMany => write!(f, "a cart holds at most 255 folders"),
+        }
+    }
+}
+
+impl std::error::Error for FolderError {}
+
 impl std::fmt::Display for MetaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -177,16 +212,11 @@ pub(crate) struct Record<'a> {
     pub meta: &'a Meta,
 }
 
-/// The entry's data for `records`, which run in ascending index: the load address, then the
-/// payload. The caller checks the payload against [`MAX_PAYLOAD`].
-pub(crate) fn encode(records: &[Record]) -> Vec<u8> {
-    let mut groups: Vec<&str> = Vec::new();
-    for r in records {
-        let g = r.meta.get(Field::Folder);
-        if !g.is_empty() && !groups.contains(&g) {
-            groups.push(g);
-        }
-    }
+/// The entry's data for the cart's `folders`, in order (empty ones included), and `records`, which
+/// run in ascending index: the load address, then the payload. A record's group number is its
+/// folder's position in `folders` (D-063). The caller checks the payload against [`MAX_PAYLOAD`].
+pub(crate) fn encode(folders: &[String], records: &[Record]) -> Vec<u8> {
+    let groups: Vec<&str> = folders.iter().map(String::as_str).collect();
 
     let mut out = LOAD_ADDRESS.to_le_bytes().to_vec();
     out.extend_from_slice(MAGIC);
@@ -227,8 +257,9 @@ pub(crate) fn encode(records: &[Record]) -> Vec<u8> {
 pub(crate) enum Decoded {
     /// No magic: an ordinary program that happens to share the name.
     NotMeta,
-    /// Layout version 1: each record's index, stored name bytes and fields, in stored order.
-    Records(Vec<(usize, [u8; NAME_LEN], Meta)>),
+    /// Layout version 1: the cart's folders in stored order, then each record's index, stored name
+    /// bytes and fields, in stored order.
+    Records(Vec<String>, Records),
     /// The magic, in a layout this build can't read.
     Kept(KeptMeta),
 }
@@ -253,14 +284,14 @@ pub(crate) fn decode(data: &[u8]) -> Decoded {
         None => return kept("the layout version is missing".into()),
     }
     match parse_v1(payload) {
-        Ok(records) => Decoded::Records(records),
+        Ok((folders, records)) => Decoded::Records(folders, records),
         Err(why) => kept(format!("layout version 1 doesn't parse: {why}")),
     }
 }
 
 type Records = Vec<(usize, [u8; NAME_LEN], Meta)>;
 
-fn parse_v1(p: &[u8]) -> Result<Records, String> {
+fn parse_v1(p: &[u8]) -> Result<(Vec<String>, Records), String> {
     if p.len() < HEADER_LEN {
         return Err("the header is cut short".into());
     }
@@ -310,7 +341,7 @@ fn parse_v1(p: &[u8]) -> Result<Records, String> {
         records.push((index, name, meta));
         at += len;
     }
-    Ok(records)
+    Ok((groups, records))
 }
 
 #[cfg(test)]
@@ -335,18 +366,21 @@ mod tests {
     fn the_layout_is_the_one_the_format_doc_gives() {
         let a = meta(&[(Field::Title, "Ab"), (Field::Folder, "Games")]);
         let b = meta(&[(Field::Year, "1984"), (Field::Folder, "Games")]);
-        let data = encode(&[
-            Record {
-                index: 0,
-                name: name(b"ONE"),
-                meta: &a,
-            },
-            Record {
-                index: 3,
-                name: name(b"TWO"),
-                meta: &b,
-            },
-        ]);
+        let data = encode(
+            &["Games".to_string()],
+            &[
+                Record {
+                    index: 0,
+                    name: name(b"ONE"),
+                    meta: &a,
+                },
+                Record {
+                    index: 3,
+                    name: name(b"TWO"),
+                    meta: &b,
+                },
+            ],
+        );
         let mut want = vec![0x00, 0x40];
         want.extend_from_slice(b"STIDMETA");
         want.extend_from_slice(&[1, 1, 2, 29, 0]);
@@ -360,7 +394,8 @@ mod tests {
         assert_eq!(data, want);
 
         match decode(&data) {
-            Decoded::Records(r) => {
+            Decoded::Records(folders, r) => {
+                assert_eq!(folders, ["Games"]);
                 assert_eq!(r[0], (0, name(b"ONE"), a));
                 assert_eq!(r[1], (3, name(b"TWO"), b));
             }
@@ -377,11 +412,14 @@ mod tests {
     #[test]
     fn a_damaged_version_1_payload_is_kept() {
         let a = meta(&[(Field::Title, "Ab")]);
-        let mut data = encode(&[Record {
-            index: 0,
-            name: name(b"ONE"),
-            meta: &a,
-        }]);
+        let mut data = encode(
+            &[],
+            &[Record {
+                index: 0,
+                name: name(b"ONE"),
+                meta: &a,
+            }],
+        );
         data.truncate(data.len() - 2);
         assert!(matches!(decode(&data), Decoded::Kept(k) if k.reason.contains("doesn't parse")));
     }

@@ -4771,3 +4771,56 @@ fn ac_172_the_up_row_is_not_an_entry() {
         "1 of 2   a-z order   all kinds"
     ));
 }
+
+// folder-browser (AC-191, D-063) ------------------------------------------------------------------
+
+/// AC-191 (none): our menu lists a cart's folders in the cart's folder order, not the order entries
+/// first use them, and shows no row for an empty folder. The menu itself is unchanged: it lists
+/// groups by number and skips one with no visible entry, and the folder table is now the cart's
+/// ordered folder list (D-063).
+#[test]
+fn ac_191_folders_follow_the_carts_order_and_an_empty_one_is_hidden() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-191: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac191");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "bravo", "loose one"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "order", &[], &inputs);
+    // alpha (first entry) is in "games", bravo in "tools"; the order puts tools first and an
+    // empty "spare" between them.
+    edit(
+        &cart,
+        &[
+            "--folder",
+            "0",
+            "games",
+            "--folder",
+            "1",
+            "tools",
+            "--new-folder",
+            "spare",
+            "--move-folder",
+            "tools",
+            "0",
+            "--move-folder",
+            "spare",
+            "1",
+        ],
+    );
+    let top = &screens_after(&dir, &cart, &[vec![]]).remove(0);
+    assert_eq!(
+        row_name(top, 5),
+        folder_row("tools", 1),
+        "the cart's first folder first"
+    );
+    assert_eq!(
+        row_name(top, 6),
+        folder_row("games", 1),
+        "the empty folder is skipped"
+    );
+    assert_eq!(row_name(top, 7), vice::screen_text("loose one"));
+    assert!(row_name(top, 8).is_empty(), "a fourth row is listed");
+    assert_not_listed(top, &["spare"], "the top level");
+}
