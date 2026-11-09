@@ -8,7 +8,37 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-060 -->
+<!-- Next id: D-061 -->
+
+---
+
+## D-060 · 2026-11-08 · The group field is a folder, and the window edits folders as a tree
+
+- **Context:** folder-editor. The metadata's "group" (D-054) is always shown as a folder by our
+  menu (D-057), so filling it in as a label makes folders by accident, and the window shows it only
+  as a column. The user asked whether to keep group as metadata and add folders, or make it a
+  folder edited by drag and drop (2026-11-08).
+- **Decision:**
+  - The field is renamed Folder everywhere a user sees it: `edit --folder` (`--group` kept as an
+    alias), the import key `folder` (`group` still accepted), `list`, the window. No stored byte
+    changes.
+  - With any folder, the window shows a tree in our menu's order. Drags and the entry menu's
+    move commands are tree operations, and after one the directory is written in tree order
+    (each folder's entries together, folders in tree order, then the rest). The panel's Folder
+    field, `--folder` and the import stay metadata edits and re-order nothing.
+  - A folder is created by moving an entry into it, never empty. The tree shows whatever menu
+    the cart carries.
+  - Re-order gets a CLI form, `edit --move FROM TO`, once per invocation and refused next to
+    `--add`/`--remove`, so the window still edits only what `edit` does (D-035's oracle).
+- **Alternatives rejected:** keeping group as a label beside folders, via a per-cart "show as
+  folders" switch or a separate genre field (both change the metadata layout, and the user found
+  it too heavy); moving only the dragged entry and leaving folders scattered in the directory
+  (EasyLoader's order and the tree would disagree); empty folders in the window (they would vanish
+  on save); a tree only under our menu (folders survive a switch to EasyLoader, so they'd be
+  hidden while still stored); window-only re-order (breaks "the window edits what `edit` does").
+- **Scope:** CLI `edit` and import, `list`, the window's listing and entry panel, the core's entry
+  order
+- **Status:** active · refines D-054 (the field's name) and D-057 (its meaning)
 
 ---
 
@@ -171,7 +201,7 @@
     stores, a group number and four length-prefixed PETSCII fields.
   - A set whose payload would pass 16384 bytes is refused, naming both sizes
     (`BuildError::MetadataTooLarge`). This adds a refusal; it weakens nothing.
-  - On read, META is the *last* hidden program slot whose name is `STIDCART.META` and whose
+  - On read, META is the _last_ hidden program slot whose name is `STIDCART.META` and whose
     payload starts with the magic. A record attaches when its 16 bytes equal its slot's raw name
     bytes. META is always written last, so a record's index is the directory slot.
   - A kept (unknown or malformed) META is written back byte for byte. A build is refused when
