@@ -118,10 +118,11 @@ hidden entry, `STIDCART.META`, which the menu reads once at boot.
 - Folder rows ignore the kind filter and stay in the cart's own folder order, also under A-Z. You
   set that order in the app or with `edit --move-folder`.
 
-A cart whose metadata the menu can't use boots as a cart without any: no `STIDCART.META` entry, one
-whose payload doesn't start with the magic, a layout version other than 1, a payload over 16 KB, or
-a record that runs past the end. A record whose stored name differs from its entry's is ignored, so
-a cart re-ordered by another tool shows names, not wrong titles.
+If the menu can't read a cart's titles and folders, it shows the cart as one without any: plain
+names, no folders. That happens when the hidden `STIDCART.META` entry is missing, damaged, larger
+than 16 KB, or written in a layout this build of the menu doesn't know. A title whose stored name
+no longer matches its entry is ignored, so a cart reordered by another tool shows names, not wrong
+titles.
 
 ## Coming back after a reset
 

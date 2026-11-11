@@ -92,13 +92,20 @@ folder = "Tools"
 ## What goes on a cart
 
 An entry is a program (`.prg`) or a cartridge image. A cartridge is recognised by its content, not
-its file name: generic 8K, 16K and Ultimax images, Ocean (up to 512 KiB), and EasyFlash multi-bank
-("xbank") cartridges in all three modes. An xbank cartridge can be as large as the flash allows.
+its file name: generic 8K, 16K and Ultimax images, Ocean (up to 512 KB), and EasyFlash multi-bank
+("xbank") cartridges of the 8K, 16K and Ultimax kinds. An xbank cartridge can be as large as the flash allows.
 A cart can hold only one Ocean entry, and a cart with one has to use EasyLoader: build it with
 `--menu easyloader`.
 
 Cartridges are placed first and programs fill the gaps between them, the way ndefpack places them.
-`--align` asks for an xbank cartridge to start on a 64 KB boundary.
+`--align` places an xbank cartridge on a 64 KB boundary, which is every 8th bank. ndefpack has the
+same option. Use it if a cartridge doesn't start without it.
+
+A hidden entry (`--hide`) stays on the cart, but neither menu lists it. `list` and the app still
+show it, flagged `H`, and `--show` brings it back.
+
+Sizes are in bytes, KB and MB as `list` prints them, where 1 KB is 1024 bytes. An EasyFlash holds
+1 MB.
 
 ## How edits are saved
 
@@ -160,10 +167,12 @@ menu, `edit --menu` gets past that by replacing it.
 
 Both refuse two things:
 
-- a cart with an EasyFlash subdirectory entry (type `0x1A`). ndefpack refuses it too, and nothing
-  documents its layout.
-- a cart whose directory is in the older EasyFS1 format. Read as EasyFS2, every entry would show
-  the wrong bank, so there is no accurate listing to give.
+- a cart with an entry of the kind the format calls an EasyFlash subdirectory (type `0x1A`).
+  ndefpack refuses it too, and nothing documents how such an entry is laid out.
+- a cart whose list of entries is in EasyFS1, the older of the two directory formats EasyFlash
+  carts have used. stidcart reads and writes the current one, EasyFS2. Read that way, every entry
+  of an old cart would show the wrong bank, so there is no accurate listing to give.
 
-Hidden entries load, edit and save back as hidden. The subdirectory bit on an xbank entry is
-carried through every operation, and `list` marks it `S`.
+Hidden entries load, edit and save back as hidden. An xbank entry can also carry a "subdirectory"
+flag that some other tool set. stidcart doesn't use it, keeps it through every operation, and
+`list` marks it `S`.

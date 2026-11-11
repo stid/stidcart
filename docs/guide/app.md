@@ -14,7 +14,8 @@ can't describe shows the same reason `list` gives.
 The window edits what `edit` edits:
 - Drop programs or cartridge images on an open cart, or use Add… / Add Aligned….
 - Rename an entry by clicking its name. Its "⋯" or right-click menu replaces, hides or shows,
-  aligns or removes it.
+  aligns or removes it. A hidden entry stays on the cart but neither menu lists it; aligning
+  places a multi-bank cartridge on a 64 KB boundary (see [cli.md](cli.md#what-goes-on-a-cart)).
 - Click the cart name or the header name to change either one.
 - Click an entry to show it in the inspector beside the list: its number, name, kind and size, and
   its title, year, author, note and folder. Click a field to change it, or pick its folder. Each

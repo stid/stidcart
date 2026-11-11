@@ -53,6 +53,7 @@ Answered by the user 2026-11-10:
 
 ## LOG (append-only; not read on resume)
 
+- 2026-11-10 — after the PR opened, at the user's request: sizes are KB (1024) throughout cli.md, hide and align described by effect only (user's choice, no use case claimed), EasyFS1/EasyFS2 and the subdirectory terms put in plain words.
 - 2026-11-10 — polished menu.md (screen section, menu comparison table), app.md (Folders section), CONTRIBUTING (write-path history in plain terms); README points to stid.me. The user chose to leave CLAUDE.md's gate rule as it is.
 - 2026-11-10 — S6 reader test run (fresh subagent). Fixed: unknown-loader contradiction in cli.md, full option list added to cli.md, Ocean needs EasyLoader stated, EAPI/EasyProg/ndeft explained. Left for a later pass: menu.md's long screen-layout paragraph and raw row numbers, no single stidcart-menu-vs-EasyLoader comparison, CONTRIBUTING's "why the write path came first" still in internal terms, app.md's dense folder bullets.
 - 2026-11-10 — S3 and S5 done: docs/guide/menu.md split out of menu/README.md, cli.md rewritten, Cargo descriptions fixed, both gates green.
