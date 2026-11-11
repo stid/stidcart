@@ -8,12 +8,12 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** make every README and doc page consistent and readable for public C64/EasyFlash hobbyists before the repo goes public (it stays PRIVATE until the user's explicit ok)
-- **Next action:** take the user's corrections to the README draft (S2). Then S3: write `docs/guide/menu.md` from `menu/README.md`'s user sections and edit `cli.md` / `app.md`, which so far hold the old README's text moved as it was. The app screenshot needs the user's hands off the keyboard, or the user takes it
+- **Next action:** take the user's corrections to the README draft (S2). Then S3: write `docs/guide/menu.md` from `menu/README.md`'s user sections and edit `cli.md` / `app.md`, which so far hold the old README's text moved as it was.
 - **Branch:** docs/docs-pass  ·  **Updated:** 2026-11-10
 
 ## STEPS
 - [x] S1 — agree the doc structure with the user (README vs docs/guide vs CONTRIBUTING vs menu/README)
-- [ ] S2 — README.md rewritten section by section with the user; no D-/AC- numbers  ← next (first full draft committed 2026-11-10, awaiting the user's read; app screenshot missing)
+- [ ] S2 — README.md rewritten section by section with the user; no D-/AC- numbers  ← next (first full draft committed 2026-11-10, awaiting the user's read)
 - [ ] S3 — user guide pages in docs/ carry the CLI, desktop app and menu detail moved out of the READMEs
 - [ ] S4 — CONTRIBUTING.md: build, gate, toolchain pin, LCD process, AI-assisted disclosure, hobby expectations
 - [ ] S5 — stale statements fixed: menu/README opt-in/EasyLoader default (D-064), group→folder (D-060), stidcart-cli "test harness", GUI Cargo "viewer" description

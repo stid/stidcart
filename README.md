@@ -9,6 +9,10 @@ for the C64 side. I use it with an EasyFlash 3.
 
 *The menu, captured in VICE.*
 
+![The stidcart desktop app with a cart open: three folders of entries, and the selected entry's title, year, author, note and folder beside the list](docs/guide/img/app.png)
+
+*The desktop app, with the same cart open.*
+
 ## Why I wrote this
 
 I have an EasyFlash 3 and a recent Mac, and every time I wanted to put a new set of programs on
