@@ -65,3 +65,4 @@
 2026-11-08 · default-stidcart-menu · 3 signals · Standard · hard:no · risk:no
 2026-11-08 · default-stidcart-menu · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0 (paused once at the user's usage limit, resumed)
 2026-11-08 · credits-licensing-pass · 1 signals · Quick · hard:no · risk:no
+2026-11-10 · docs-pass · 2 signals · Standard · hard:no · risk:no

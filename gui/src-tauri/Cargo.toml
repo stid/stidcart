@@ -4,7 +4,7 @@ version = "0.29.0"
 edition = "2021"
 license = "GPL-2.0-or-later"
 repository = "https://github.com/stid/stidcart"
-description = "Desktop viewer for EasyFlash cartridge images"
+description = "Desktop app that builds and edits EasyFlash cartridge images"
 
 # Its own workspace, excluded from the root one, so the root gate (`--workspace`) never compiles
 # webkit (D-030). The root rust-toolchain.toml still binds it: rustup walks up the directories.
