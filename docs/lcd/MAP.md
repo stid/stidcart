@@ -4,7 +4,7 @@
 > you) don't re-derive the project's shape every session — and don't reinvent a place that already
 > exists. Update it in the same commit as any change that makes it wrong. Keep under ~150 lines.
 
-**Generated:** 2026-08-10 · **Last refined:** 2026-11-08
+**Generated:** 2026-08-10 · **Last refined:** 2026-11-10
 
 ---
 
@@ -34,7 +34,8 @@ this MAP is structural. Read `SPEC.md`'s surface section before scoping a change
 | fixtures | `fixtures/` | Frozen `ndeft`-built carts, their input PRGs, and the exact command line that produced each | Generated output, scratch carts, anything not reproducible from a recorded command |
 | tests | `crates/*/tests/` + inline `#[cfg(test)]` | Cargo collects both automatically; no registration step | — |
 | docs | `docs/lcd/` | The LCD artifact root (D-014): this MAP, DECISIONS, the SPEC capability index, per-work-item folders under `work/<slug>/`, and the vendored audit scripts in `ci/` | Format documentation (that's `docs/format/`); prose that duplicates `README.md` or `SPEC.md`; anything non-LCD directly in `docs/lcd/` — the tree is the artifact root, not a general docs folder |
-| format | `docs/format/` | The EasyFlash binary format spec (D-018) — the source for every offset in `stidcart-core`, and the only place a format fact is stated | Anything about *this tool's* behaviour or decisions (`SPEC.md`, `DECISIONS.md`); prose that isn't the format itself. `docs/` holds these two subtrees and nothing loose |
+| format | `docs/format/` | The EasyFlash binary format spec (D-018) — the source for every offset in `stidcart-core`, and the only place a format fact is stated | Anything about *this tool's* behaviour or decisions (`SPEC.md`, `DECISIONS.md`); prose that isn't the format itself |
+| guide | `docs/guide/` | The user guide the README links to: the command line and the desktop app, with their images in `img/`. `docs/` holds these three subtrees and nothing loose | Contributor material (`CONTRIBUTING.md`), menu internals (`menu/README.md`), decision or AC numbers |
 
 ## Entry points
 
