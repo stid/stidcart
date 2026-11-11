@@ -19,19 +19,28 @@ The window edits what `edit` edits:
 - Click an entry to show it in the inspector beside the list: its number, name, kind and size, and
   its title, year, author, note and folder. Click a field to change it, or pick its folder. Each
   change is one undoable edit, refused in `edit`'s words when invalid.
-- New Folder (in the title bar, File ▸ New Folder ⇧⌘N, or a right-click on the list's empty space)
-  adds an empty folder and opens its name. A folder's menu renames, moves or deletes it; deleting
-  moves its entries out, never removes them.
-- With any folder, the list shows the cart as our menu does: folder rows, each with its entries,
-  then the entries in no folder. Drag an entry onto a folder, between rows, or to the strip at the
-  bottom to take it out of its folder; drag a folder row to move the whole folder. An empty folder
-  takes a drop too. The entry menu has Move to (every folder, the current one checked, Not in a
-  folder, New Folder with Entry), Move up and Move down. After any of these the cart is saved in that order, so EasyLoader's flat list
-  follows it too.
 - Choose the menu the cart boots into, EasyLoader or stidcart, from the menu picker under the
-  names. A cart our menu can't run (an Ocean entry, or a program it can't start; see [cli.md](cli.md)) refuses stidcart
-  and names the entry, as `edit --menu` does.
+  names. A cart the stidcart menu can't run (an Ocean entry, or a program it can't start; see
+  [cli.md](cli.md)) refuses it and names the entry, as `edit --menu` does.
 - New (⌘N) starts an empty cart.
+
+## Folders
+
+- New Folder adds an empty folder and opens its name for typing. It is in the title bar, under
+  File (⇧⌘N), and on a right-click in the list's empty space.
+- A folder's own menu renames, moves or deletes it. Deleting a folder moves its entries out of
+  it; it never removes them from the cart.
+- Once a cart has a folder, the list is drawn the way the stidcart menu shows it: each folder
+  with its entries, then the entries in no folder.
+- Drag an entry onto a folder to put it there, or between two rows to place it. Drag it to the
+  strip at the bottom to take it out of its folder. An empty folder takes a drop too.
+- Drag a folder row to move the whole folder.
+- An entry's menu can do the same without dragging: Move to lists every folder, Not in a folder,
+  and New Folder with Entry; Move up and Move down shift it one place.
+
+The cart is saved in the order you see, so EasyLoader's flat list follows it too.
+
+## Saving
 
 Changes stay in memory until you save:
 - Undo and redo cover every edit since the cart was opened, and an "Edited" dot marks unsaved

@@ -6,6 +6,19 @@ works inside, and how to rebuild it, is in [menu/README.md](../../menu/README.md
 
 ![The menu with a folder open and one program selected](img/menu.png)
 
+## The stidcart menu or EasyLoader
+
+A cart boots into one of two menus. You choose with `--menu` or in the app.
+
+|                                        | stidcart menu | EasyLoader |
+| -------------------------------------- | ------------- | ---------- |
+| Folders, titles and details            | yes           | no, a flat list of names |
+| Programs that reach into `$D000-$FFFF` | starts them   | won't start them |
+| A cart with an Ocean cartridge         | can't be used | works |
+
+EasyLoader is the menu EasyFlash carts have used since 2009, by ALeX Kazik. The rest of this page
+is about the stidcart menu.
+
 ## Keys and joystick
 
 | Key             | Does                                                                     |
@@ -37,25 +50,27 @@ second. Fire acts once per press. Anything held when the menu starts does nothin
 go, so a stick resting on fire doesn't start the first entry. The same goes for a direction that
 closed the help screen. Port 1 isn't read, because its lines are shared with the keyboard.
 
-The screen is black, with the stidcart logo at the top: the cartridge mark, its label in
-five colour bands, sits left of a white block-letter logo, and a strip of the same five bands runs
-under the cart name. The cart name sits above 16 list rows. Each
-entry shows a badge for its kind, in the kind's colour: "PRG" for a program, "8K" and "16K" for
-those cartridges, "ULT" for Ultimax, and "XB" for multi-bank. The selected entry sits in a cyan bar. When the list is longer than the screen, the divider to its right becomes a scroll bar: the
-thumb's length is the share of the list in view, and its place is where the view is. The pane on the
-right describes the selection: its type, size, load address (program) or first bank (cartridge),
-and how it starts. Below the list are the position ("17 of 40"), the order in use and the kind
-listed, then the filter text in yellow with the number listed out of the visible entries (inside a
-folder, out of the folder's), then a grey bar naming the keys, `return go  f1 sort  f7 help  run/stop`. Hidden entries are not listed.
-The filter and A-Z both ignore case. The filter takes up to 16 characters, any printable one except
-`"`. A boot starts in the cart's own order, which is the order they were built in, with all
-kinds listed, unless it comes back from a reset (see the last section). The kind filter (F3) combines with the
-text, and changing either lists again from the first match.
+## The screen
+
+- At the top are the cartridge mark, the stidcart logo and the cart's name.
+- The list has 16 rows. Each entry has a badge for its kind: "PRG" for a program, "8K" and "16K"
+  for those cartridges, "ULT" for Ultimax and "XB" for multi-bank. Hidden entries are not listed.
+- The selected entry sits in a cyan bar. When the list is longer than the screen, the divider to
+  its right becomes a scroll bar.
+- The pane on the right describes the selection: its type, its size, its load address (a program)
+  or first bank (a cartridge), and how it starts.
+- Under the list are the position ("17 of 40"), the order in use and the kind listed. Then comes
+  the filter text, in yellow, with how many entries match. The last line names the main keys.
+
+The filter and A-Z both ignore case. The filter takes up to 16 characters, any printable one
+except `"`. The kind filter (F3) combines with the text, and changing either lists again from the
+first match. The menu starts in the cart's own order with all kinds listed, unless it is coming
+back from a reset (see the last section).
 
 A move that leaves the view (CRSR, a page, HOME/CLR, F5) scrolls only as far as it takes to show the
 selection, so one page down from the top puts it on the last row. F5 mixes the CIA timer, the raster
 line and the jiffy clock, which differ at every key press a person makes. The help screen keeps the
-logo and the cart name and replaces rows 5-24; the key that ends it, RUN/STOP and RETURN included,
+logo and the cart name and replaces everything under it; the key that ends it, RUN/STOP and RETURN included,
 does nothing else.
 
 A program that loads at or below `$0801` is started with `RUN`, and any other with `SYS` to its load
@@ -95,8 +110,8 @@ hidden entry, `STIDCART.META`, which the menu reads once at boot.
   long for the row is cut to leave room for the count.
 - Inside a folder the first row is `..`, with the folder badge. RETURN or fire on it goes back to
   the top level as DEL and RUN/STOP do, so the joystick can leave a folder. It stays first
-  under A-Z, the kind filter and filter text, even when nothing matches. It isn't an entry: rows
-  22-23 don't count it, so on it the position reads 0, F5 never picks it, and a reset never comes
+  under A-Z, the kind filter and filter text, even when nothing matches. It isn't an entry: the
+  position and the match count leave it out, so on it the position reads 0, F5 never picks it, and a reset never comes
   back to it. HOME selects it and CLR the last entry.
 - Text typed at the top level searches every entry, in every folder, by name or title, and lists
   the matches without folders.

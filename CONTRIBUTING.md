@@ -62,17 +62,19 @@ fact changes there first, and then in the code, in the same pull request.
 
 ## Why the write path came first
 
-`ndeft` is the only implementation known to produce images that boot on real EasyFlash hardware,
-so it works as a differential oracle: build the same inputs with both, compare bytes. That oracle
-**decays** — parity only applies where this tool is trying to produce identical output, and stops
-applying the moment broader compatibility or custom firmware lands. Its value is highest at the
-first commit, so it gets spent there.
+stidcart could build carts before it could open them, and that order was deliberate.
 
-The write path also has no bug-compatibility question. Reading someone else's cart does: ndefpack
-has documented quirks in its loader (an empty directory rejected, the CHIP magic never checked,
-wide 16k xbank carts unreadable) that a new implementation may or may not want to reproduce. This
-one reads wide xbank carts.
-Building the write path first defers that decision instead of pre-empting it.
+ndefpack's `ndeft` was the only tool I knew whose images boot on real EasyFlash hardware. So the
+first test was simple: build the same inputs with both tools and compare the bytes. That check is
+only worth something while stidcart is trying to produce the same output as ndefpack. Once it does
+things ndefpack can't, such as its own menu, there is nothing to compare against, and those parts
+are tested by booting them in VICE and on the real cartridge. The comparison was most useful at
+the start, so the work started there.
+
+Reading carts raised a question that writing them did not: how far to copy ndefpack's quirks. Its
+loader rejects an empty directory, never checks the CHIP magic, and can't read wide 16K xbank
+carts. Building the write path first left time to decide those one at a time. stidcart reads wide
+xbank carts, for one.
 
 ## Licensing of contributions
 

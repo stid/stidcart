@@ -21,6 +21,9 @@ just for me. It grew a desktop app and its own menu for the C64, and at some poi
 worth sharing. It is a hobby project, nothing commercial. If it saves another Commodore owner an
 evening, that is all I want from it.
 
+It is one small part of a wider hobby: I collect, repair and build vintage computers. There is
+more about that, and my other projects, at [stid.me](https://stid.me).
+
 ## What it does
 
 - Builds an EasyFlash image from `.prg` files and cartridge images: generic 8K, 16K and Ultimax,

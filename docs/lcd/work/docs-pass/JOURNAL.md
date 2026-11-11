@@ -8,16 +8,16 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** make every README and doc page consistent and readable for public C64/EasyFlash hobbyists before the repo goes public (it stays PRIVATE until the user's explicit ok)
-- **Next action:** get the user's read of README (voice) and CONTRIBUTING.md, then run the gate and open the PR. Reader-test findings not yet acted on are in the LOG
+- **Next action:** PR is open; take the user's review comments. Merge only on the user's word. The repo stays private
 - **Branch:** docs/docs-pass  ·  **Updated:** 2026-11-10
 
 ## STEPS
 - [x] S1 — agree the doc structure with the user (README vs docs/guide vs CONTRIBUTING vs menu/README)
-- [ ] S2 — README.md rewritten; no D-/AC- numbers. Drafted with screenshots and the user's four answers applied; the user has not yet said the voice is right
-- [x] S3 — user guide pages in docs/guide/ (cli.md, app.md, menu.md) carry the CLI, desktop app and menu detail moved out of the READMEs. cli.md rewritten into headed sections; app.md and menu.md are the old text with decision numbers stripped
-- [ ] S4 — CONTRIBUTING.md: build, gate, toolchain pin, LCD process, AI-assisted disclosure, hobby expectations. Drafted; needs the user's read
-- [x] S5 — stale statements fixed: menu/README default menu, group→folder in the menu guide, cli "test harness", GUI "viewer" (both Cargo descriptions and the MAP)
-- [ ] S6 — reader test with a fresh subagent; consistency sweep across all pages; gate green; PR  ← next
+- [x] S2 — README.md rewritten; no D-/AC- numbers. The user's answers applied, and a pointer to stid.me added at their request
+- [x] S3 — user guide pages in docs/guide/ (cli.md, app.md, menu.md)
+- [x] S4 — CONTRIBUTING.md: build, gate, toolchain pin, AI disclosure, hobby expectations
+- [x] S5 — stale statements fixed
+- [x] S6 — reader test, fixes, the four polish items, PR opened  ← the user reads the PR next
 
 ## DECISIONS (this work-item)
 - Docs only, no behaviour change; no ACs, so no audit.
@@ -53,6 +53,7 @@ Answered by the user 2026-11-10:
 
 ## LOG (append-only; not read on resume)
 
+- 2026-11-10 — polished menu.md (screen section, menu comparison table), app.md (Folders section), CONTRIBUTING (write-path history in plain terms); README points to stid.me. The user chose to leave CLAUDE.md's gate rule as it is.
 - 2026-11-10 — S6 reader test run (fresh subagent). Fixed: unknown-loader contradiction in cli.md, full option list added to cli.md, Ocean needs EasyLoader stated, EAPI/EasyProg/ndeft explained. Left for a later pass: menu.md's long screen-layout paragraph and raw row numbers, no single stidcart-menu-vs-EasyLoader comparison, CONTRIBUTING's "why the write path came first" still in internal terms, app.md's dense folder bullets.
 - 2026-11-10 — S3 and S5 done: docs/guide/menu.md split out of menu/README.md, cli.md rewritten, Cargo descriptions fixed, both gates green.
 - 2026-11-10 — README first draft; old README detail moved unedited (decision numbers stripped) into docs/guide/cli.md, docs/guide/app.md and CONTRIBUTING.md; menu screenshot captured in VICE from a demo cart of fixture inputs. An attempt to screenshot the app typed into the user's other terminal session when focus moved; stopped, not retried.
