@@ -3,6 +3,11 @@
 Reference cartridge images produced by `ndeft` (ndefpack 1.0.1), frozen here so the byte-parity
 check keeps working after that tool is gone. Nothing in the test suite invokes `ndeft`.
 
+Every reference image (`*.crt` not starting `in_`) carries the firmware `ndeft` embeds: EAPI, the
+boot code and the EasyLoader menu. Those regions are zlib-licensed, by Thomas 'skoe' Giesel and
+ALeX Kazik with Hannu Nuotio's changes; see `../firmware/README.md`. The inputs below are
+synthetic and contain nobody else's code.
+
 Captured **2026-08-10** with `ndeft` built from `stid/ndefpack@d77724b`, run from inside this
 directory so the derived entry names are bare file stems.
 

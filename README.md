@@ -3,10 +3,12 @@
 C64 cartridge tooling in Rust. Builds EasyFlash multicart images; target hardware is the
 EasyFlash 3.
 
-Successor to [ndefpack](https://github.com/stid/ndefpack) (Hannu Nuotio, 2012), which is a
-knowledge base here rather than an upstream. No code is shared. The binary format was extracted
-from ndefpack's C sources into a written spec before this repo existed — that spec is
-`docs/format/easyflash-cart-format.md`, and it is the reference for everything in `stidcart-core`.
+Successor to [ndefpack](https://ndefpack.sourceforge.net/) by Hannu Nuotio (2011-2012), which is
+a knowledge base here rather than an upstream. No ndefpack code is copied into stidcart. The binary
+format was extracted from ndefpack's GPL C sources into a written spec before this repo existed.
+That spec is `docs/format/easyflash-cart-format.md`, and it is the reference for everything in
+`stidcart-core`. Because the work started from those sources, stidcart is treated as a derivative
+of ndefpack and shares its license (see Licensing).
 
 ## State
 
@@ -71,7 +73,7 @@ entry gets a corrupted bank, so there is no accurate description to give (D-017)
 crates/stidcart-core/   library: format, placement, firmware. No I/O policy, no globals.
 crates/stidcart-cli/    binary `stidcart`: the test harness, not a product.
 gui/                    desktop app: Tauri 2 + Svelte 5, its own Cargo workspace (gui/src-tauri)
-firmware/               zlib-licensed C64-side blobs (see firmware/README.md)
+firmware/               EasyLoader and EAPI, zlib, with their source (see firmware/README.md)
 menu/                   our own C64 menu, GPL 6502, committed assembled (see menu/README.md)
 fixtures/               ndeft-built carts, frozen, with the exact command line for each
 ```
@@ -176,6 +178,14 @@ distribution.
 
 ## Licensing
 
-GPL-2.0-or-later (`COPYING`), because the core was written from ndefpack's GPL C sources and is a
-derivative work. `firmware/` is zlib and stays that way — that boundary is load-bearing.
-The Geist fonts bundled in `gui/src/fonts/` are under the SIL Open Font License 1.1 (`OFL.txt` there).
+stidcart is GPL-2.0-or-later (`COPYING`). It was written from a spec extracted from ndefpack's
+GPL sources, so it is treated as a derivative work of ndefpack and keeps its license.
+
+Two parts are under other licenses:
+- `firmware/` holds EasyLoader (ALeX Kazik, altered by Hannu Nuotio) and EAPI (Thomas 'skoe'
+  Giesel) under the zlib license, with their source. Every cart carries EAPI and the boot code;
+  the EasyLoader menu only when it is chosen. No code crosses between that directory and the rest.
+- The Geist fonts bundled in `gui/src/fonts/` are under the SIL Open Font License 1.1 (`OFL.txt`
+  there).
+
+`CREDITS.md` lists everyone whose work this builds on.

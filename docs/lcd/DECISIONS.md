@@ -8,9 +8,29 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-066 -->
+<!-- Next id: D-067 -->
 
 ---
+
+## D-066 · 2026-11-08 · EasyLoader stays embedded, with its source and its real credits
+
+- **Context:** preparing the repo to go public. The question was whether to keep embedding
+  EasyLoader or make users import it. The audit also found `firmware/README.md` calling the blobs
+  "copied unmodified" while crediting only ALeX Kazik and skoe: they are byte-identical to
+  ndefpack 1.0.1's, but that EasyLoader is Hannu Nuotio's altered build (ACME port, `$FF` fill,
+  fire-release delay), and zlib asks for altered versions to be marked. No source was shipped, and
+  the original Bitbucket repo is gone.
+- **Decision:** (user's choice, Claude's recommendation) keep embedding. `firmware/src/` holds the
+  ndefpack 1.0.1 `src/fw/` source unchanged, taken from the `ndefpack-1.0.1` tag on SourceForge
+  (identical to the private fork's baseline), minus ndefpack's build glue. It is never built
+  here; the `.prg` files stay the embedded data. `firmware/README.md` credits all three authors
+  and marks the version as altered; `CREDITS.md` lists everyone; the README stops linking the
+  private `stid/ndefpack` fork and states the derivative-work position once.
+- **Alternatives rejected:** an external import. zlib already allows bundling, and every cart
+  carries EAPI and the boot code whatever its menu, so importing would only move the 8 KiB menu
+  slot while breaking the `ndeft` parity fixtures, `--menu easyloader`, Ocean carts and editing
+  EasyLoader carts. Linking the source instead of including it: SourceForge is the only copy left.
+- **Scope:** `firmware/`, `CREDITS.md`, `README.md`, `fixtures/MANIFEST.md`, `docs/lcd/MAP.md`
 
 ## D-065 · 2026-11-08 · The Claude workflows leave before the repo goes public
 
