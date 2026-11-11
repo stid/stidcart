@@ -8,7 +8,7 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** make every README and doc page consistent and readable for public C64/EasyFlash hobbyists before the repo goes public (it stays PRIVATE until the user's explicit ok)
-- **Next action:** load `anthropic-skills:doc-coauthoring`, re-ask the 8 OPEN QUESTIONS below, then agree the structure (S1)
+- **Next action:** load `anthropic-skills:doc-coauthoring`, get the user's ok on the structure and README outline proposed in chat (S1), then draft the README section by section (S2)
 - **Branch:** docs/docs-pass  ·  **Updated:** 2026-11-10
 
 ## STEPS
@@ -21,17 +21,21 @@
 
 ## DECISIONS (this work-item)
 - Docs only, no behaviour change; no ACs, so no audit.
+- User brief (2026-11-10): hobby, non-commercial. Started as a private tool because other EasyFlash tools were a constant struggle to get running, especially on new Macs; shared because it seemed worth sharing. The only aim is a contribution to the Commodore community.
+- The community is careful about copyright. The docs answer that with exact credits and licences stated once, plainly, and an open invitation to report a missed credit. No defensive or legalistic tone.
 
 ## OPEN QUESTIONS
-Stage 1 of doc-coauthoring, asked 2026-11-10, unanswered. Re-ask these first:
-1. Main reader: EF3 owners who only build carts, or also tinkerers? (proposal: users; CONTRIBUTING for tinkerers)
-2. What should a reader do after reading: download and try, build from source, or just know it exists?
-3. Install: source-only, or prebuilt GitHub downloads (unsigned macOS app)? Which platforms are really used?
-4. Voice: first person or neutral; tell the short "why this exists" (ndefpack revival) story?
-5. Screenshots: user photo of the menu on the breadbin + app screenshot, or capture in VICE / on the Mac?
-6. AI disclosure: one README line + detail in CONTRIBUTING, or more up front?
-7. Contributions: PRs welcome, or "issues welcome, PRs maybe, no promises"?
-8. Structure OK? README short · docs/guide/{cli,app,menu}.md · CONTRIBUTING.md · menu/README.md internals only · docs/format unchanged
+Answered by the user's general brief (2026-11-10); the readings marked "inferred" are Claude's, not the user's words:
+- Q1 reader: people like the user, who want to manage an EasyFlash cart and struggle to get other tools running, especially on new Macs (inferred: users first, CONTRIBUTING for tinkerers).
+- Q4 voice: first person, and tell the short story (inferred from how the user told it).
+- Q6/credits tone: plain and modest, "nothing to pretend". Credits say: if I missed someone, tell me and I will add them.
+Answered by the user 2026-11-10:
+- Q3 install: source only (Rust + Node, `scripts/install.sh` on macOS). No promise of prebuilt downloads.
+- Platforms: developed and used on macOS; Linux builds in CI but is not used day to day; Windows untried; reports welcome.
+- Q5 screenshots: Claude captures both (menu in VICE, app window on the Mac) and leaves a marked spot for a breadbin photo.
+- Q7 contributions: issues welcome (bugs, missed credits, compatibility reports); PRs looked at when time allows, no promises.
+Still open:
+- Q8 structure and the README outline, proposed in chat 2026-11-10, awaiting the user's ok
 
 ## EDIT BOUNDARY (paths this work may touch)
 - `README.md`
@@ -48,4 +52,5 @@ Stage 1 of doc-coauthoring, asked 2026-11-10, unanswered. Re-ask these first:
 
 ## LOG (append-only; not read on resume)
 
+- 2026-11-10 — stage 1 context gathered: user brief plus answers on install, platforms, screenshots, contributions. Structure proposed.
 - 2026-11-10 — triaged Standard (2 signals). Branch cut from main at de881bf (credits PR #64 merged).
