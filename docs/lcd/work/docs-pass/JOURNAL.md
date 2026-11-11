@@ -35,6 +35,7 @@ Answered by the user 2026-11-10:
 - Q5 screenshots: Claude captures both (menu in VICE, app window on the Mac) and leaves a marked spot for a breadbin photo.
 - Q7 contributions: issues welcome (bugs, missed credits, compatibility reports); PRs looked at when time allows, no promises.
 - Q8 structure and README outline: ok (2026-11-10).
+- README checks answered 2026-11-10: AI wording "Most of the code was written by Claude Code... I set the direction, make the decisions and test on real hardware"; flashing is EasyProg from SD or disk; tested on the EF3 only, not an original EasyFlash; the menu's return after reset works with the EF3's RESET button on the breadbin.
 - Docs-only commits (Markdown, images) skip the local gate; the Cargo.toml edit and the pre-PR run keep it (told to the user 2026-11-10, who had asked why tests ran for a docs change).
 
 ## EDIT BOUNDARY (paths this work may touch)

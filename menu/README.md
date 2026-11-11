@@ -120,8 +120,8 @@ RUN/STOP with a folder row selected leaves nothing to come back to, so the next 
 top. If the kind filter would hide that entry, all kinds are listed. A power cycle starts at
 the top, and so does a reset after a program that wrote the menu's state (an EAPI or xbank game
 may). The state is checked before it is used, so state that was damaged or written for another cart
-starts at the top too (D-053). This is proven in VICE; whether an EasyFlash 3's own RESET button
-keeps the state on real hardware is untested.
+starts at the top too (D-053). This works in VICE and with an
+EasyFlash 3's own RESET button on a real C64.
 
 ## How it starts
 

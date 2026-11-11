@@ -6,8 +6,8 @@ time, and I can't promise to merge them or to answer quickly.
 
 ## How it is written
 
-I write stidcart with an AI coding assistant, Claude Code. I decide what it should do, and the
-results are checked by the tests described here and on my own C64. The files the assistant works
+Most of the code was written by Claude Code, an AI coding assistant. I set the direction, make the
+decisions and test on real hardware; the tests described here check the rest. The files the assistant works
 from are in the repo and stay there: `CLAUDE.md`, `.claude/` and `docs/lcd/`, which holds the
 project map, the current-state spec and the log of every design decision with the alternatives
 rejected.

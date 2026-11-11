@@ -75,7 +75,8 @@ stidcart edit my.crt --add another.prg --folder 0 Games
 `build` makes the image, `list` shows what is on it, and `edit` changes it in place. In the app,
 choose New, drop your files on the window and save.
 
-Write `my.crt` to the cartridge the way you write any EasyFlash image, or try it first in VICE:
+To put `my.crt` on the cartridge, copy it to an SD card or a disk and flash it with EasyProg on
+the C64. You can try it first in VICE:
 
 ```bash
 x64sc -cartcrt my.crt
@@ -121,6 +122,7 @@ the SIL Open Font License 1.1.
 
 ## How it is made
 
-I write stidcart with an AI coding assistant. The details, and how to build and test it, are in
+Most of the code was written by Claude Code, an AI coding assistant. I set the direction, make the
+decisions and test on real hardware. More on that, and how to build and test it, is in
 [CONTRIBUTING.md](CONTRIBUTING.md). The cart format is written down in
 [docs/format/easyflash-cart-format.md](docs/format/easyflash-cart-format.md).
