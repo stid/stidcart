@@ -37,7 +37,7 @@ second. Fire acts once per press. Anything held when the menu starts does nothin
 go, so a stick resting on fire doesn't start the first entry. The same goes for a direction that
 closed the help screen. Port 1 isn't read, because its lines are shared with the keyboard.
 
-The screen is black and wears the stidcart brand: the cartridge mark, its label in
+The screen is black, with the stidcart logo at the top: the cartridge mark, its label in
 five colour bands, sits left of a white block-letter logo, and a strip of the same five bands runs
 under the cart name. The cart name sits above 16 list rows. Each
 entry shows a badge for its kind, in the kind's colour: "PRG" for a program, "8K" and "16K" for
@@ -83,7 +83,7 @@ hidden entry, `STIDCART.META`, which the menu reads once at boot.
 
 - An entry with a title shows the title in its row instead of its name, cut to the row's 16
   characters. A-Z sorts by what the rows show.
-- The pane shows the name as before, then the facts on every row instead of every other row, then
+- The pane shows the name, then the type, size and start facts on consecutive rows, then
   the title in full, the year, the author and the note. Each starts on a row of its own and wraps
   every 16 characters, so all of them fit at their longest. An entry with no title, year, author
   or note keeps the usual pane.

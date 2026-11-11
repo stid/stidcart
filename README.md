@@ -24,7 +24,8 @@ evening, that is all I want from it.
 ## What it does
 
 - Builds an EasyFlash image from `.prg` files and cartridge images: generic 8K, 16K and Ultimax,
-  Ocean, and multi-bank EasyFlash cartridges.
+  Ocean, and multi-bank EasyFlash cartridges. (A cart with an Ocean cartridge has to use
+  EasyLoader.)
 - Opens an existing EasyFlash image, including ones made with other tools, and shows what is on
   it and how much space is free.
 - Edits a cart: add, remove, rename, replace, hide and reorder entries.
@@ -61,7 +62,8 @@ cargo install --path crates/stidcart-cli --locked
 ```
 
 I develop and use stidcart on a Mac. The command-line tool and the app also build on Linux in
-CI, but I don't use them there day to day. I have never tried Windows. If you run it on either,
+CI, but I don't use them there day to day; [CONTRIBUTING.md](CONTRIBUTING.md) has what the app
+needs to build there. I have never tried Windows. If you run it on either,
 I would like to hear how it went.
 
 ## Your first cart
@@ -75,8 +77,8 @@ stidcart edit my.crt --add another.prg --folder 0 Games
 `build` makes the image, `list` shows what is on it, and `edit` changes it in place. In the app,
 choose New, drop your files on the window and save.
 
-To put `my.crt` on the cartridge, copy it to an SD card or a disk and flash it with EasyProg on
-the C64. You can try it first in VICE:
+To put `my.crt` on the cartridge, copy it to an SD card or a disk and flash it with EasyProg, the
+EasyFlash flashing program, on the C64. You can try it first in VICE:
 
 ```bash
 x64sc -cartcrt my.crt
@@ -110,7 +112,7 @@ stidcart builds on other people's work:
   format. stidcart copies none of its code, but it was written from a description of the format
   taken from ndefpack's GPL sources, so I treat it as a derivative work and keep the same license.
 - EasyFlash and EAPI are by Thomas 'skoe' Giesel. EasyLoader is by ALeX Kazik, in the version
-  Hannu Nuotio altered for ndefpack. Every cart stidcart builds carries EAPI and the boot code,
+  Hannu Nuotio altered for ndefpack. Every cart stidcart builds carries EAPI (the routines that write to the flash) and the boot code,
   and EasyLoader when you choose it. They are in `firmware/`, unchanged, under their own zlib
   license and with their source.
 

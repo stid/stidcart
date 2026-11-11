@@ -8,7 +8,7 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** make every README and doc page consistent and readable for public C64/EasyFlash hobbyists before the repo goes public (it stays PRIVATE until the user's explicit ok)
-- **Next action:** S6 reader test of README + docs/guide with a fresh subagent, fix what it finds, then get the user's read of README and CONTRIBUTING before opening the PR
+- **Next action:** get the user's read of README (voice) and CONTRIBUTING.md, then run the gate and open the PR. Reader-test findings not yet acted on are in the LOG
 - **Branch:** docs/docs-pass  ·  **Updated:** 2026-11-10
 
 ## STEPS
@@ -53,6 +53,7 @@ Answered by the user 2026-11-10:
 
 ## LOG (append-only; not read on resume)
 
+- 2026-11-10 — S6 reader test run (fresh subagent). Fixed: unknown-loader contradiction in cli.md, full option list added to cli.md, Ocean needs EasyLoader stated, EAPI/EasyProg/ndeft explained. Left for a later pass: menu.md's long screen-layout paragraph and raw row numbers, no single stidcart-menu-vs-EasyLoader comparison, CONTRIBUTING's "why the write path came first" still in internal terms, app.md's dense folder bullets.
 - 2026-11-10 — S3 and S5 done: docs/guide/menu.md split out of menu/README.md, cli.md rewritten, Cargo descriptions fixed, both gates green.
 - 2026-11-10 — README first draft; old README detail moved unedited (decision numbers stripped) into docs/guide/cli.md, docs/guide/app.md and CONTRIBUTING.md; menu screenshot captured in VICE from a demo cart of fixture inputs. An attempt to screenshot the app typed into the user's other terminal session when focus moved; stopped, not retried.
 - 2026-11-10 — stage 1 context gathered: user brief plus answers on install, platforms, screenshots, contributions. Structure proposed.

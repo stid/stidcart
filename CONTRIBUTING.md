@@ -7,12 +7,15 @@ time, and I can't promise to merge them or to answer quickly.
 ## How it is written
 
 Most of the code was written by Claude Code, an AI coding assistant. I set the direction, make the
-decisions and test on real hardware; the tests described here check the rest. The files the assistant works
+decisions and test on real hardware; the automated tests check the rest. The files the assistant works
 from are in the repo and stay there: `CLAUDE.md`, `.claude/` and `docs/lcd/`, which holds the
 project map, the current-state spec and the log of every design decision with the alternatives
 rejected.
 
 ## Layout
+
+`ndeft` is ndefpack's command-line tool. It built the reference carts in `fixtures/` once and is
+not needed to build or test stidcart.
 
 ```
 crates/stidcart-core/   library: format, placement, firmware. No I/O policy, no globals.
