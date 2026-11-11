@@ -3,6 +3,8 @@
 The app does in a window what `stidcart edit` does on the command line, and saves the same bytes.
 Installing it is in the [README](../../README.md#getting-it). The shortcuts here are the macOS ones.
 
+![The app with a cart open and one entry selected](img/app.png)
+
 ## Using it
 
 Open a `.crt` with Open…, ⌘O or by dropping it on the window. It shows the cart name, the

@@ -87,7 +87,7 @@ More detail:
 - [The command line](docs/guide/cli.md): every command, and the file for setting many titles at
   once.
 - [The desktop app](docs/guide/app.md).
-- [The menu on the C64](menu/README.md#using-it): its keys, the joystick, folders, and the few
+- [The menu on the C64](docs/guide/menu.md): its keys, the joystick, folders, and the few
   programs it can't start.
 
 ## Status
