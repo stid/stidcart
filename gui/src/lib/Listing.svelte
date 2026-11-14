@@ -712,8 +712,10 @@
     border-bottom: 1px solid var(--border);
   }
 
-  /* Not the selected row: this outranks the selection rule and would wipe its highlight (#68). */
-  .tree tbody tr:not([aria-selected='true']):hover {
+  /* Cards tint their own cells on hover. Entries outside a folder are left to the flat list's
+     row rules, so they keep its rollover and its selection highlight (#68). */
+  .tree tbody:not(.loose) tr:hover,
+  .tree .loose tr:not([data-entry]):hover {
     background: none;
   }
 
