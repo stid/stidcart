@@ -1,0 +1,140 @@
+{
+  "info": {
+    "file": "two.crt",
+    "lineBytes": 16,
+    "lines": 65536,
+    "regions": [
+      {
+        "entry": null,
+        "family": null,
+        "kind": "loader",
+        "label": "Menu loader",
+        "len": 8192,
+        "start": 0
+      },
+      {
+        "entry": null,
+        "family": null,
+        "kind": "directory",
+        "label": "Directory",
+        "len": 6144,
+        "start": 8192
+      },
+      {
+        "entry": null,
+        "family": null,
+        "kind": "eapi",
+        "label": "EAPI",
+        "len": 768,
+        "start": 14336
+      },
+      {
+        "entry": null,
+        "family": null,
+        "kind": "name",
+        "label": "Cart name",
+        "len": 24,
+        "start": 15104
+      },
+      {
+        "entry": null,
+        "family": null,
+        "kind": "boot",
+        "label": "Boot code",
+        "len": 1256,
+        "start": 15128
+      },
+      {
+        "entry": 1,
+        "family": "prg",
+        "kind": "entry",
+        "label": "1 · ramp (PRG)",
+        "len": 3002,
+        "start": 16384
+      },
+      {
+        "entry": 0,
+        "family": "prg",
+        "kind": "entry",
+        "label": "0 · hello (PRG)",
+        "len": 102,
+        "start": 19386
+      }
+    ],
+    "selected": 0
+  },
+  "lines": [
+    {
+      "addr": 47856,
+      "bank": 0,
+      "bytes": [
+        240,
+        161,
+        172,
+        241,
+        223,
+        174,
+        240,
+        223,
+        173,
+        183,
+        223,
+        96,
+        255,
+        255,
+        255,
+        255
+      ],
+      "half": "H",
+      "text": "...........`...."
+    },
+    {
+      "addr": 47872,
+      "bank": 0,
+      "bytes": [
+        101,
+        102,
+        45,
+        110,
+        65,
+        77,
+        69,
+        58,
+        84,
+        87,
+        79,
+        32,
+        69,
+        78,
+        84,
+        82
+      ],
+      "half": "H",
+      "text": "EF-Name:two entr"
+    },
+    {
+      "addr": 47888,
+      "bank": 0,
+      "bytes": [
+        73,
+        69,
+        83,
+        0,
+        0,
+        0,
+        0,
+        0,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255
+      ],
+      "half": "H",
+      "text": "ies............."
+    }
+  ]
+}

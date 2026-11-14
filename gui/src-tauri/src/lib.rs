@@ -6,6 +6,7 @@
 //! [`document::Document`], held here for the one window (D-035).
 
 pub mod document;
+pub mod hex;
 mod menu;
 
 use std::path::Path;
