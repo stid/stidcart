@@ -137,6 +137,8 @@ jobs:
             [StructLayout(LayoutKind.Sequential)] public struct GUITHREADINFO { public int cbSize; public int flags; public IntPtr hwndActive, hwndFocus, hwndCapture, hwndMenuOwner, hwndMoveSize, hwndCaret; public RECT rcCaret; }
             [DllImport("user32.dll")] public static extern bool GetGUIThreadInfo(uint t, ref GUITHREADINFO g);
             [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int n);
+            [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+            public static void Chord(bool shift, byte vk) { keybd_event(0x11, 0, 0, UIntPtr.Zero); if (shift) keybd_event(0x10, 0, 0, UIntPtr.Zero); keybd_event(vk, 0, 0, UIntPtr.Zero); keybd_event(vk, 0, 2, UIntPtr.Zero); if (shift) keybd_event(0x10, 0, 2, UIntPtr.Zero); keybd_event(0x11, 0, 2, UIntPtr.Zero); }
             public static string FocusClass() { var g = new GUITHREADINFO(); g.cbSize = Marshal.SizeOf(g); GetGUIThreadInfo(0, ref g); var s = new System.Text.StringBuilder(256); GetClassName(g.hwndFocus, s, 256); return g.hwndFocus + " " + s; }
           }
           "@
@@ -166,24 +168,28 @@ jobs:
             [Win]::Click($r.L + $dx, $r.T + $dy)
             Start-Sleep -Seconds 2
           }
-          function Where([string]$when) { "$when; main is $main; keyboard focus: $([Win]::FocusClass())" }
-          Focus 12; Where 'after a click on the title bar'
+          function Report([string]$when) { "$when; main is $main; keyboard focus: $([Win]::FocusClass())" }
+          function Chord([bool]$shift, [char]$key) { [Win]::Chord($shift, [byte]$key); Start-Sleep -Seconds 2 }
+          Focus 12; Report 'after a click on the title bar'
           Shot '01-empty'
-          Keys '%f'; Shot '02-alt-f'; Keys '{ESC}'; Keys '{ESC}'
-          Keys '^n'; Where 'after Ctrl+N from the title bar'; Shot '03-ctrl-n-from-title-bar'
-          At 24 40; Where 'with File open by a click'; Shot '04-file-menu-by-click'
-          Keys '{ESC}'; Where 'after the menu closed'
-          Keys '^n'; Shot '05-ctrl-n-after-menu'
-          At 190 40; Shot '06-help-menu-by-click'; Keys '{ENTER}'; Start-Sleep -Seconds 2; Shot '07-about'; Keys '{ENTER}'
-          At 679 469; Where 'after a click on New Cart'; Shot '08-new-cart-by-click'
-          Focus -30; Where 'after a click in the page'
-          Keys '^+n'; Shot '09-ctrl-shift-n-from-page'
-          Keys '{ENTER}'; Shot '10-entered'
-          Keys '^z'; Shot '11-ctrl-z'
-          Keys '^+h'; Start-Sleep -Seconds 5; Shot '12-ctrl-shift-h'
+          At 679 469; Report 'after a click on New Cart'; Shot '02-new-cart-by-click'
+          At 103 164; Report 'after a click on the name'; Keys 'abc'; Shot '03-typing-a-name'; Keys '{ENTER}'; Shot '04-name-entered'
+          Focus -30; Report 'after a click in the page'
+          Chord $true 'N'; Shot '05-ctrl-shift-n-keybd'
+          Keys '^+n'; Shot '06-ctrl-shift-n-sendkeys'
+          Keys '{ESC}'
+          At 24 40; At 76 117; Report 'after File, New Folder by click'; Shot '07-new-folder-by-menu'; Keys '{ENTER}'
+          Chord $false 'Z'; Shot '08-ctrl-z'
+          At 190 40; At 210 63; Start-Sleep -Seconds 2; Shot '09-about'; Keys '{ENTER}'
+          Focus -30
+          Chord $true 'H'; Start-Sleep -Seconds 5; Shot '10-ctrl-shift-h'
           Focus 12
-          Keys '^q'; Start-Sleep -Seconds 3; Shot '13-ctrl-q'
-          Keys '{ESC}'; Shot '14-after-esc'
+          At 93 40; Shot '11-view-menu'; At 110 63; Start-Sleep -Seconds 5; Shot '12-hex-by-menu'
+          Focus 12
+          Chord $false 'Q'; Start-Sleep -Seconds 3; Shot '13-ctrl-q'
+          Keys '{ESC}'
+          At 24 40; At 50 231; Start-Sleep -Seconds 3; Shot '14-exit-by-menu'
+          Keys '{ESC}'; Shot '15-after-esc'
           Get-Process stidcart-gui -ErrorAction SilentlyContinue | Format-Table Id, MainWindowTitle
           Get-Process stidcart-gui -ErrorAction SilentlyContinue | Stop-Process -Force
       - uses: actions/upload-artifact@v7
