@@ -75,8 +75,9 @@ A release is built by `.github/workflows/release.yml` from a tag on `main`.
    `docs/lcd/ci/release-version.sh` prints the version and fails if they do not.
 2. Once it is merged, tag that commit `v` plus the version and push the tag:
    `git tag v0.31.0 && git push origin v0.31.0`.
-3. The workflow builds the command for macOS and Linux and the macOS app, and attaches them with
-   a `SHA256SUMS` file to a draft release. Read the draft, try a download, then publish it.
+3. The workflow builds the command for macOS and Linux, the macOS app as a `.dmg` and the Linux
+   app as an AppImage and a `.deb`, and attaches them with a `SHA256SUMS` file to a draft release.
+   Read the draft, try a download, then publish it.
 
 The workflow refuses a tag that names another version or a commit that is not on `main`. A pull
 request that changes the workflow runs the same build as a dry run: nothing is released, and the
