@@ -4,8 +4,8 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** The gate runs only the test groups a change can affect, locally and in CI, with one flag for the whole suite.
-- **Next action:** merge PR #80, then check the Scope step of the next PR that does not touch `ci.yml`: it is the first scoped run in CI. Then close out
-- **Branch:** feat/test-scopes  ·  **Updated:** 2026-11-14 21:00
+- **Next action:** done. PR #80 merged 2026-11-14
+- **Branch:** feat/test-scopes  ·  **Updated:** 2026-11-14 22:00
 
 ## STEPS
 - [x] S1 — `crates/stidcart-cli/tests/scope.rs` (failing), then `docs/lcd/ci/scope.sh`: changed paths in, `rust=` `vice=` `gui=` out
@@ -52,3 +52,4 @@
 - 2026-11-14 20:30 — S1, S2 done. Locally `menu_boot` takes 51s in full, 17s with `STIDCART_VICE=cart`, 0s with `none`. An unknown base made `scope.sh` print a scope and exit 0 (errexit does not reach a command substitution in bash 3.2); fixed with `|| exit 1` and pinned by a test.
 - 2026-11-14 21:00 — S3..S5 done → DECISIONS D-071. `ci-scope.sh` added so the two jobs share the event handling.
 - 2026-11-14 21:40 — PR #80 green, scope `rust=true vice=full gui=true` in both jobs as expected for a `ci.yml` change. `menu_boot` took 243s there; earlier runs that day took 118s, 169s, 215s and 243s, so the first measurement was the fast end, not the norm.
+- 2026-11-14 22:00 — PR #80 merged. Closed out. No ACs to fold: the work has no product surface, and the one SPEC row it touches (AC-94) was updated in the PR. The closeout PR changes only `docs/lcd/`, so it is the first scoped run in CI.
