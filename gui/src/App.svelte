@@ -58,6 +58,8 @@
           onedit={(e) => viewer.edit(e)}
           onreplace={(index) => void viewer.replace(index)}
           onadd={(aligned) => void viewer.add(aligned)}
+          onselect={(index) => host.selectEntry(index)}
+          onhex={(index) => void host.showHex(index)}
         />
       {/key}
     {:else if viewer.state.kind === 'error'}

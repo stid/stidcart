@@ -36,6 +36,8 @@
     onedit,
     onreplace,
     onadd,
+    onselect,
+    onhex,
   }: {
     listing: Listing;
     file: string;
@@ -50,6 +52,10 @@
     onreplace?: (index: number) => void;
     /** Given, the empty space's menu also offers Add… and Add Aligned…. */
     onadd?: (aligned: boolean) => void;
+    /** Told the selected entry whenever it changes, null for none. */
+    onselect?: (index: number | null) => void;
+    /** Given, an entry's menu offers the hex viewer at that entry. */
+    onhex?: (index: number) => void;
   } = $props();
 
   /** The menus a cart can boot into, by the names the listing shows (D-042). */
@@ -65,6 +71,7 @@
   /** The row whose metadata the panel shows, chosen by clicking it (D-054). */
   let selected = $state<number | null>(null);
   const selectedRow = $derived(listing.rows.find((r) => r.index === selected));
+  $effect(() => onselect?.(selected));
 
   /** An exact byte count, for the hover on a size the listing shows rounded (D-044). */
   function exact(bytes: number): string {
@@ -173,6 +180,7 @@
         canUp: canStep(tree, index, -1),
         canDown: canStep(tree, index, 1),
         onmove: (m: EntryMove) => moved(index, m),
+        onhex,
       }}
       <EntryMenu {row} {actions} onedit={edit} onrename={(n) => (renaming = n)} {onreplace} {...menu}>
         {#snippet children(props)}

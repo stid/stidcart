@@ -25,6 +25,9 @@ const IDS: [&str; 8] = [
     "quit",
 ];
 
+/// View ▸ Hex Viewer. Handled here, not forwarded: it opens a window, which is this side's job.
+const HEX: &str = "hex";
+
 /// The items whose enabled state follows the open cart.
 pub struct DocumentItems {
     save: MenuItem<Wry>,
@@ -78,12 +81,15 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&PredefinedMenuItem::paste(app, None)?)
         .item(&PredefinedMenuItem::select_all(app, None)?)
         .build()?;
+    let view = SubmenuBuilder::new(app, "View")
+        .item(&item(HEX, "Hex Viewer", "CmdOrCtrl+Shift+H")?)
+        .build()?;
     let window = SubmenuBuilder::new(app, "Window")
         .item(&PredefinedMenuItem::minimize(app, None)?)
         .build()?;
 
     let menu = MenuBuilder::new(app)
-        .items(&[&app_menu, &file, &edit, &window])
+        .items(&[&app_menu, &file, &edit, &view, &window])
         .build()?;
     Ok((menu, DocumentItems { save, save_as }))
 }
@@ -97,6 +103,10 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         let id = event.id().0.as_str();
         if IDS.contains(&id) {
             let _ = app.emit("menu", id);
+        } else if id == HEX {
+            if let Err(e) = crate::show_hex_window(app) {
+                eprintln!("stidcart: opening the hex viewer: {e}");
+            }
         }
     });
     Ok(())

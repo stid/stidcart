@@ -41,6 +41,28 @@ The window edits what `edit` edits:
 
 The cart is saved in the order you see, so EasyLoader's flat list follows it too.
 
+## Looking at the bytes
+
+View ▸ Hex Viewer (⇧⌘H) opens a second window with the cart's bytes, 16 to a row. It only shows
+them; nothing there can be changed.
+
+- Rows run bank by bank, the low half (ROML) of each bank and then the high half (ROMH). Each row
+  starts with its bank and half, then the address the C64 sees: `$8000` to `$9FFF` in ROML,
+  `$A000` to `$BFFF` in ROMH. The top bar names the bank at the top of the view.
+- The column on the right reads each byte as a character, the way names are stored, with `.` for
+  anything that isn't one.
+- Bytes are tinted by what they belong to: the menu loader, the directory, EAPI, the cart name
+  and the boot code each have a colour (the key is at the bottom), and an entry's bytes wear the
+  colour of its type badge. Untinted bytes are unused. Point at a byte to read its address and
+  owner.
+- Select an entry in the main window and the hex window moves to its first byte. An entry's menu
+  has Show in Hex Viewer, and Jump to… in the hex window lists every owner.
+- Whole cart / Selected entry at the top switches between the whole image and the bytes of the
+  entry selected in the main window on their own. An entry's rows count from `$0000` at its
+  first byte: a program reads as the file you added, load address first, and a cartridge bank
+  by bank.
+- The window shows the cart as it would be saved now, so it changes with every edit and undo.
+
 ## Saving
 
 Changes stay in memory until you save:

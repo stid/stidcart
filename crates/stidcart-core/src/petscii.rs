@@ -18,12 +18,17 @@ pub fn petscii_to_ascii(bytes: &[u8]) -> String {
     bytes
         .iter()
         .take_while(|&&b| b != 0)
-        .map(|&b| match b {
-            0xc1..=0xda => (b & 0x7f) as char,
-            b if b & 0x80 != 0 || b <= 0x1f => '.',
-            b => swap_case(b) as char,
-        })
+        .map(|&b| to_char(b))
         .collect()
+}
+
+/// One PETSCII byte as ASCII, as [`petscii_to_ascii`] reads it; NUL is a control code here.
+pub fn to_char(b: u8) -> char {
+    match b {
+        0xc1..=0xda => (b & 0x7f) as char,
+        b if b & 0x80 != 0 || b <= 0x1f => '.',
+        b => swap_case(b) as char,
+    }
 }
 
 fn swap_case(b: u8) -> u8 {

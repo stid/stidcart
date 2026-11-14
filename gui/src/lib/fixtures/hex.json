@@ -1,0 +1,302 @@
+{
+  "entryLines": [
+    {
+      "bytes": [
+        1,
+        8,
+        3,
+        10,
+        17,
+        24,
+        31,
+        38,
+        45,
+        52,
+        59,
+        66,
+        73,
+        80,
+        87,
+        94
+      ],
+      "offset": 0,
+      "text": ".......&-4;bipw^"
+    },
+    {
+      "bytes": [
+        101,
+        108,
+        115,
+        122,
+        129,
+        136,
+        143,
+        150,
+        157,
+        164,
+        171,
+        178,
+        185,
+        192,
+        199,
+        206
+      ],
+      "offset": 16,
+      "text": "ELSZ..........GN"
+    },
+    {
+      "bytes": [
+        213,
+        220,
+        227,
+        234,
+        241,
+        248,
+        4,
+        11,
+        18,
+        25,
+        32,
+        39,
+        46,
+        53,
+        60,
+        67
+      ],
+      "offset": 32,
+      "text": "U......... '.5<c"
+    },
+    {
+      "bytes": [
+        74,
+        81,
+        88,
+        95,
+        102,
+        109,
+        116,
+        123,
+        130,
+        137,
+        144,
+        151,
+        158,
+        165,
+        172,
+        179
+      ],
+      "offset": 48,
+      "text": "jqx_FMT{........"
+    },
+    {
+      "bytes": [
+        186,
+        193,
+        200,
+        207,
+        214,
+        221,
+        228,
+        235,
+        242,
+        249,
+        5,
+        12,
+        19,
+        26,
+        33,
+        40
+      ],
+      "offset": 64,
+      "text": ".AHOV.........!("
+    },
+    {
+      "bytes": [
+        47,
+        54,
+        61,
+        68,
+        75,
+        82,
+        89,
+        96,
+        103,
+        110,
+        117,
+        124,
+        131,
+        138,
+        145,
+        152
+      ],
+      "offset": 80,
+      "text": "/6=dkry`GNU|...."
+    },
+    {
+      "bytes": [
+        159,
+        166,
+        173,
+        180,
+        187,
+        194
+      ],
+      "offset": 96,
+      "text": ".....B"
+    }
+  ],
+  "info": {
+    "entries": [
+      {
+        "family": "prg",
+        "index": 0,
+        "label": "0 · hello (PRG)",
+        "size": 102,
+        "sizeText": "102 bytes"
+      },
+      {
+        "family": "prg",
+        "index": 1,
+        "label": "1 · ramp (PRG)",
+        "size": 3002,
+        "sizeText": "2.9 KB"
+      }
+    ],
+    "file": "two.crt",
+    "lineBytes": 16,
+    "lines": 65536,
+    "regions": [
+      {
+        "entry": null,
+        "family": null,
+        "kind": "loader",
+        "label": "Menu loader",
+        "len": 8192,
+        "start": 0
+      },
+      {
+        "entry": null,
+        "family": null,
+        "kind": "directory",
+        "label": "Directory",
+        "len": 6144,
+        "start": 8192
+      },
+      {
+        "entry": null,
+        "family": null,
+        "kind": "eapi",
+        "label": "EAPI",
+        "len": 768,
+        "start": 14336
+      },
+      {
+        "entry": null,
+        "family": null,
+        "kind": "name",
+        "label": "Cart name",
+        "len": 24,
+        "start": 15104
+      },
+      {
+        "entry": null,
+        "family": null,
+        "kind": "boot",
+        "label": "Boot code",
+        "len": 1256,
+        "start": 15128
+      },
+      {
+        "entry": 1,
+        "family": "prg",
+        "kind": "entry",
+        "label": "1 · ramp (PRG)",
+        "len": 3002,
+        "start": 16384
+      },
+      {
+        "entry": 0,
+        "family": "prg",
+        "kind": "entry",
+        "label": "0 · hello (PRG)",
+        "len": 102,
+        "start": 19386
+      }
+    ],
+    "selected": 0
+  },
+  "lines": [
+    {
+      "addr": 47856,
+      "bank": 0,
+      "bytes": [
+        240,
+        161,
+        172,
+        241,
+        223,
+        174,
+        240,
+        223,
+        173,
+        183,
+        223,
+        96,
+        255,
+        255,
+        255,
+        255
+      ],
+      "half": "H",
+      "text": "...........`...."
+    },
+    {
+      "addr": 47872,
+      "bank": 0,
+      "bytes": [
+        101,
+        102,
+        45,
+        110,
+        65,
+        77,
+        69,
+        58,
+        84,
+        87,
+        79,
+        32,
+        69,
+        78,
+        84,
+        82
+      ],
+      "half": "H",
+      "text": "EF-Name:two entr"
+    },
+    {
+      "addr": 47888,
+      "bank": 0,
+      "bytes": [
+        73,
+        69,
+        83,
+        0,
+        0,
+        0,
+        0,
+        0,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255
+      ],
+      "half": "H",
+      "text": "ies............."
+    }
+  ]
+}

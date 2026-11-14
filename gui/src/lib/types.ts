@@ -118,4 +118,81 @@ export interface Host {
   saveAs(path: string): Promise<Document>;
   /** Quit, the unsaved-changes question already answered. */
   exit(): Promise<void>;
+  /** The listing's selection changed; an open hex window moves to that entry. */
+  selectEntry(entry: number | null): void;
+  /** Open the hex viewer at an entry, or bring it forward. */
+  showHex(entry: number): Promise<void>;
+}
+
+/** A run of bytes with one owner, as the hex view marks it. Mirrors `RegionDto` in
+ * gui/src-tauri/src/hex.rs; ./fixtures/hex.json pins the two together. */
+export interface HexRegion {
+  /** Position of the first byte: row × bytes per row + column. */
+  start: number;
+  len: number;
+  /** `loader`, `directory`, `eapi`, `name`, `boot`, `entry` or `meta`. */
+  kind: string;
+  /** The owner in words. */
+  label: string;
+  /** An entry's kind family, which picks its colour as in the listing (D-045). */
+  family: string | null;
+  /** An entry's index, as the listing numbers it. */
+  entry: number | null;
+}
+
+/** The hex view of the open cart, at the step the editor is on. */
+export interface HexInfo {
+  file: string;
+  /** Rows in the whole view, and bytes in each. */
+  lines: number;
+  lineBytes: number;
+  /** In order, never overlapping. */
+  regions: HexRegion[];
+  /** The entry selected in the listing, if any. */
+  selected: number | null;
+  /** Every entry, as the listing numbers them: what the single-entry view can show. */
+  entries: HexEntry[];
+}
+
+export interface HexEntry {
+  index: number;
+  /** The words its regions are named with. */
+  label: string;
+  family: string;
+  /** Bytes in the entry, and that figure as the listing reads it. */
+  size: number;
+  sizeText: string;
+}
+
+/** One row of a single entry's bytes. */
+export interface HexEntryLine {
+  /** Offset of the row's first byte from the entry's first. */
+  offset: number;
+  /** A full row, or fewer bytes in the entry's last. */
+  bytes: number[];
+  text: string;
+}
+
+export interface HexLine {
+  bank: number;
+  /** `L` or `H`. */
+  half: string;
+  /** The C64 address of the row's first byte. */
+  addr: number;
+  bytes: number[];
+  /** One character per byte. */
+  text: string;
+}
+
+/** Everything the hex window needs from the desktop shell. The real one is host.ts. */
+export interface HexHost {
+  /** Rejects with the reason when no cart is open. */
+  info(): Promise<HexInfo>;
+  lines(first: number, count: number): Promise<HexLine[]>;
+  /** Rows of one entry alone, counted from its first byte. */
+  entryLines(entry: number, first: number, count: number): Promise<HexEntryLine[]>;
+  /** The cart is another one, or another step of it. */
+  onChanged(cb: () => void): void;
+  /** The listing's selection moved to this entry. */
+  onGoto(cb: (entry: number | null) => void): void;
 }

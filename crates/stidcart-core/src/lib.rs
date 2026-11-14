@@ -19,6 +19,7 @@ pub mod cartridge;
 pub mod crt;
 pub mod directory;
 pub mod firmware;
+pub mod hexmap;
 pub mod image;
 pub mod listing;
 pub mod menu;

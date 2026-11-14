@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-11-08 (folder-browser)
+**Last compacted:** 2026-11-13 (hex-viewer)
 
 ---
 
@@ -64,6 +64,7 @@
 | After an edit the listing describes the cart as saving would write it: the whole set is re-placed, so an untouched entry may show a new position, and the free bytes are recomputed | AC-71 | D-035 (gui-edit) · D-011 |
 | Edits stay in memory: undo/redo walk every edit since opening (in a focused text field they act on its text), an Edited marker shows when the cart differs from the state last saved or opened, ⌘S replaces the file only when there are changes, ⌘⇧S writes elsewhere and adopts that file, an untitled cart saves through Save As, and a failed save leaves the destination whole and the changes unsaved | AC-72..AC-77 | D-033 · D-035 (gui-edit) |
 | Closing the window, quitting from the app (⌘Q, its Quit item), opening another cart or New with unsaved changes asks Save / Don't Save / Cancel; only the first two go ahead, and a dismissed or failed save stops. macOS ending the app (Dock Quit, logout) does not ask | AC-78 | D-033 · D-036 (gui-edit) |
+| View ▸ Hex Viewer (⇧⌘H) opens a second, read-only window on the open cart's flash image as saving would write it: 16 bytes a row, bank by bank with ROML before ROMH, each row labelled with bank, half and C64 address (`$8000` up in ROML, `$A000` up in ROMH) and followed by a text column, one character per byte in the names' PETSCII mapping with `.` for the unprintable. Bytes are tinted by owner (menu loader, directory, EAPI, cart name, boot code, the metadata entry, and each entry in its kind family's colour; unowned bytes plain), pointing at a byte names its address and owner, and Jump to… lists every owner. A Whole cart / Selected entry switch (whole cart first) shows instead only the selected entry's bytes, first to last, rows counted from `$0000`, under its name and size, with no tints, key or jump list: a program as the file it was added from, a cartridge in bank order; with none selected it asks for one, and switching back lands on that entry. Selecting an entry in the listing moves an open hex window to its first byte (in the entry view, shows that entry), and an entry's menu offers Show in Hex Viewer (editable carts only; a view-only cart has no entry menu). The window follows every edit, undo, redo, open and New keeping its place, says so when no cart is open, fetches and draws only the rows in view, and closes with the main window | AC-200..AC-206 | D-067 · D-068 (hex-viewer) |
 
 ### Internal (surface: none)
 

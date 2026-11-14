@@ -14,6 +14,7 @@
     onrename,
     onreplace,
     onmove,
+    onhex,
     folders = [],
     canUp = false,
     canDown = false,
@@ -26,6 +27,8 @@
     onreplace: (index: number) => void;
     /** Given, the menu offers the moves a drag makes: to a folder, out of one, up and down. */
     onmove?: (move: EntryMove) => void;
+    /** Given, the menu offers the hex viewer at this entry. */
+    onhex?: (index: number) => void;
     /** The cart's folders, in the tree's order. */
     folders?: string[];
     /** Whether the entry can go up or down within its folder, or among the loose entries. */
@@ -111,6 +114,10 @@
     <DropdownMenu.Item class="menu-item" disabled={!canDown} onSelect={() => onmove({ kind: 'down' })}
       >Move down</DropdownMenu.Item
     >
+  {/if}
+  {#if onhex}
+    <DropdownMenu.Separator class="menu-separator" />
+    <DropdownMenu.Item class="menu-item" onSelect={() => onhex(row.index)}>Show in Hex Viewer</DropdownMenu.Item>
   {/if}
   <DropdownMenu.Separator class="menu-separator" />
   <DropdownMenu.Item class="menu-item danger" onSelect={() => onedit({ kind: 'remove', index: row.index })}

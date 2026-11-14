@@ -39,6 +39,8 @@ function fakeHost(openDocument: Host['openDocument']) {
     save: vi.fn(async () => clean),
     saveAs: vi.fn(async () => clean),
     exit: vi.fn(async () => {}),
+    selectEntry: vi.fn(),
+    showHex: vi.fn(async () => {}),
   };
   return { host, drop: (paths: string[]) => dropped(paths) };
 }
@@ -71,4 +73,15 @@ test('AC-121 (RENDER): the raster bands stay when a file is refused', async () =
   drop(['/carts/bad.crt']);
   await screen.findByText(/not an EasyFlash cartridge/);
   expect(strip()).toEqual(BANDS);
+});
+
+test('AC-203 (RENDER): selecting an entry tells the host, which moves an open hex window there', async () => {
+  const { host, drop } = fakeHost(async () => clean);
+  render(App, { props: { host } });
+  drop(['/carts/two.crt']);
+  await screen.findByRole('table');
+  expect(host.selectEntry).toHaveBeenLastCalledWith(null);
+
+  screen.getByText(two.rows[1].name).click();
+  await vi.waitFor(() => expect(host.selectEntry).toHaveBeenLastCalledWith(1));
 });

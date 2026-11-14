@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 
 use stidcart_gui::document::{Document, Edit};
-use stidcart_gui::open;
+use stidcart_gui::{hex, open};
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
@@ -54,4 +54,20 @@ fn an_edited_document_serializes_to_the_frontend_golden() {
     })
     .unwrap();
     check("document", serde_json::to_value(doc.dto()).unwrap());
+}
+
+#[test]
+fn the_hex_view_serializes_to_the_frontend_golden() {
+    let doc = Document::open(&fixtures().join("two.crt")).unwrap();
+    // Bank 0 ROMH from `$BAF0`: the end of EAPI, the cart name, the start of the boot code.
+    let lines = hex::lines(&doc, 0x3af, 3).unwrap();
+    check(
+        "hex",
+        serde_json::json!({
+            "info": hex::info(&doc, Some(0)).unwrap(),
+            "lines": lines,
+            // The whole of entry 0 (hello, 102 bytes).
+            "entryLines": hex::entry_lines(&doc, 0, 0, 16).unwrap(),
+        }),
+    );
 }
