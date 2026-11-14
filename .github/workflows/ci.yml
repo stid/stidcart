@@ -92,6 +92,41 @@ jobs:
           STIDCART_VICE: ${{ steps.scope.outputs.vice }}
         run: cargo test --workspace
 
+  # The root tests on Windows, to show the command works there before a Windows build ships
+  # (release roadmap step 2). Not a required check. Format and clippy belong to `gate`, the GUI to
+  # `gui`. STIDCART_REQUIRE_TOOLS stays unset: the emulator boots and the 64tass reassembly skip
+  # here, so the job tests what the command writes and reads, not what VICE makes of it.
+  windows:
+    name: windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        # Git Bash, which the runner image ships: ci-scope.sh and scope.sh are bash scripts.
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # ci-scope.sh compares against the base branch, or the commit before the push.
+          fetch-depth: 0
+
+      - name: Scope
+        id: scope
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: docs/lcd/ci/ci-scope.sh
+
+      # No toolchain argument, as in `gate`: rustup installs what rust-toolchain.toml pins.
+      - name: Install Rust
+        if: steps.scope.outputs.rust == 'true'
+        run: rustup toolchain install --no-self-update
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.scope.outputs.rust == 'true'
+
+      - name: Test
+        if: steps.scope.outputs.rust == 'true'
+        run: cargo test --workspace
+
   # The GUI is its own Cargo workspace (D-030), so `gate` never compiles it. This job runs the
   # same script as the local gate, after installing what Tauri needs to build on Linux.
   gui:
