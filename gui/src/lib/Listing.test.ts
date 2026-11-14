@@ -486,3 +486,11 @@ test('AC-195 (RENDER): the inspector sits beside the list, empty until an entry 
   expect(inspector).toHaveTextContent('// entry 0');
   expect(within(inspector).getByRole('combobox', { name: /folder/i })).toHaveValue('Games');
 });
+
+// jsdom never matches :hover, so this reads the stylesheet: in tree mode the rule that removes
+// the row hover tint must not also apply to the selected row, or it wipes the highlight (#68).
+test('the tree hover reset leaves the selected row alone', async () => {
+  const { default: source } = await import('./Listing.svelte?raw');
+  expect(source).not.toMatch(/\.tree tbody tr:hover\s*\{/);
+  expect(source).toMatch(/\.tree tbody tr:not\(\[aria-selected='true'\]\):hover\s*\{\s*background: none;/);
+});

@@ -712,7 +712,8 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .tree tbody tr:hover {
+  /* Not the selected row: this outranks the selection rule and would wipe its highlight (#68). */
+  .tree tbody tr:not([aria-selected='true']):hover {
     background: none;
   }
 
