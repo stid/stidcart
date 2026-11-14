@@ -1,4 +1,4 @@
-//! `bash` for the tests that run the repo's shell scripts (`scope.rs`). It takes no part in the
+//! `bash` for the tests that run the repo's shell scripts (`scope.rs`, `release_version.rs`). It takes no part in the
 //! VICE boots, so a target uses it alone: `#[path = "support/bash.rs"] mod bash;`.
 
 use std::process::Command;
