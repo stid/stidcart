@@ -7,8 +7,8 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** A `v*` tag builds the command for macOS universal and Linux x86_64 and the macOS app, and attaches them with checksums to a draft GitHub release; "Run workflow" does the same build as a dry run with no release (step 1 of the release roadmap, D-072).
-- **Next action:** PR #84 is ready for the owner to merge (after #83, which carries D-072). Then closeout. The tag path (draft release) has not run yet: the first tag on `main` is its first test.
-- **Branch:** feat/release-workflow  ·  **Updated:** 2026-11-14 21:40
+- **Next action:** done. Merged as #84. The tag path (draft release, tag-is-on-main check) runs for the first time with the first tag on `main`.
+- **Branch:** feat/release-workflow  ·  **Updated:** 2026-11-14 22:40
 
 ## STEPS
 - [x] S1 — `release-version.sh` and its test: the tag must name the version, and the app's manifest must agree
@@ -17,7 +17,7 @@
 - [x] S4 — dry run on the PR, artifacts read: archive contents, universal binaries, version, checksums
 - [x] S5 — docs: CLAUDE.md scope table, CONTRIBUTING (how to cut a release), MAP entry
 - [x] S6 — PR #84
-- [ ] S7 — after merge: closeout, tick step 1 in `docs/release-roadmap.md`  ← next
+- [x] S7 — after merge: closeout, step 1 ticked in `docs/release-roadmap.md`
 
 ## DECISIONS (this work-item)
 - The version check is a script under `docs/lcd/ci/` with a cargo test, so the one rule a release must not break is tested on every gate run that touches it.
@@ -54,3 +54,4 @@
 - 2026-11-14 21:10 — recon digest: tauri-action is at v1 but unconfirmed for our config; macos-latest is macOS 26 arm64; upload-artifact v7, download-artifact v8; Tauri notarizes the .app but not the .dmg (matters for `macos-signing`); Actions billing is per minute in dollars, macOS about ten times Linux, public repos free.
 - 2026-11-14 21:35 — dry run 43637352922 green on the first try, about 3.5 minutes. Downloaded the `release` artifact: checksums verify; both archives hold `stidcart`, `COPYING`, `COPYING.firmware`; the macOS command is x86_64 + arm64 and lists a fixture here; the Linux one is static-pie; the .dmg mounts, the app says 0.30.0, is x86_64 + arm64, ad-hoc signed, and Gatekeeper rejects it, as expected before signing.
 - 2026-11-14 21:40 — not exercised: the tag path (`gh release create --draft`, the tag-is-on-main check). Needs a real tag on `main`.
+- 2026-11-14 22:40 — merged as #84. Closed out; nothing folded into SPEC, as for test-scopes: the work changes how the tools are released, not what they do.

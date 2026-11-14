@@ -7,8 +7,8 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** a `windows` CI job runs the root workspace tests on `windows-latest`, and they pass, so a Windows build of the command can ship later (release roadmap step 2).
-- **Next action:** owner reviews and merges PR #85; then close out (tick step 2 in the release roadmap, archive this work-item).
-- **Branch:** ci/windows-tests  ·  **Updated:** 2026-11-14 21:30
+- **Next action:** done. Merged as #85.
+- **Branch:** ci/windows-tests  ·  **Updated:** 2026-11-14 22:40
 
 ## STEPS
 - [x] S1 — add the `windows` job to `ci.yml` (scope from the Scope step, pinned toolchain, `cargo test --workspace --no-fail-fast`, no `STIDCART_REQUIRE_TOOLS`)
@@ -42,3 +42,4 @@
 - 2026-11-14 — fixes: `.gitattributes` pins the goldens to LF; `tests/support/bash.rs` for scope.rs. Diagnostic step removed.
 - 2026-11-14 — run 3: `windows` green, 42 targets, 357 passed, 0 failed, byte parity against `fixtures/` included. `gate`, `gui`, `audit` green.
 - 2026-11-14 22:15 — merged main, which brought `release_version.rs` and `release-version.sh` (release-workflow, #84). The test now uses the `bash` helper, and the script strips a CR before matching: a Windows checkout can hold the manifests with CRLF line ends, and the table header would not have matched. Pinned by `it_reads_manifests_with_crlf_line_ends`.
+- 2026-11-14 22:40 — merged as #85 with the Windows job green, `release_version` included. Closed out; nothing folded into SPEC.
