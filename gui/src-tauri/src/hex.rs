@@ -9,6 +9,7 @@ use stidcart_core::hexmap::{self, Owner, LINES, LINE_BYTES};
 use stidcart_core::image::Half;
 
 use crate::document::Document;
+use crate::RowDto;
 
 /// The most rows one request answers with. The window asks for what is in view.
 pub const MAX_LINES: usize = 512;
@@ -25,6 +26,30 @@ pub struct HexInfoDto {
     pub regions: Vec<RegionDto>,
     /// The entry selected in the listing, if any.
     pub selected: Option<usize>,
+    /// Every entry, as the listing numbers them: what the single-entry view can show.
+    pub entries: Vec<HexEntryDto>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HexEntryDto {
+    pub index: usize,
+    /// The words its regions are named with.
+    pub label: String,
+    pub family: String,
+    /// Bytes in the entry, and that figure as the listing reads it.
+    pub size: usize,
+    pub size_text: String,
+}
+
+/// One row of a single entry. Mirrored by `HexEntryLine` in `gui/src/lib/types.ts`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HexEntryLineDto {
+    /// Offset of the row's first byte from the entry's first.
+    pub offset: usize,
+    pub bytes: Vec<u8>,
+    pub text: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -72,7 +97,7 @@ pub fn info(doc: &Document, selected: Option<usize>) -> Result<HexInfoDto, Strin
                     let row = &dto.listing.rows[index];
                     (
                         "entry",
-                        format!("{index} · {} ({})", row.name, row.kind),
+                        entry_label(row),
                         Some(row.family.clone()),
                         Some(index),
                     )
@@ -94,7 +119,43 @@ pub fn info(doc: &Document, selected: Option<usize>) -> Result<HexInfoDto, Strin
         line_bytes: LINE_BYTES,
         regions,
         selected,
+        entries: dto
+            .listing
+            .rows
+            .iter()
+            .map(|row| HexEntryDto {
+                index: row.index,
+                label: entry_label(row),
+                family: row.family.clone(),
+                size: row.size_bytes,
+                size_text: row.size.clone(),
+            })
+            .collect(),
     })
+}
+
+fn entry_label(row: &RowDto) -> String {
+    format!("{} · {} ({})", row.index, row.name, row.kind)
+}
+
+/// Up to [`MAX_LINES`] rows of one entry of the cart's current step, from row `first`.
+pub fn entry_lines(
+    doc: &Document,
+    entry: usize,
+    first: usize,
+    count: usize,
+) -> Result<Vec<HexEntryLineDto>, String> {
+    Ok(
+        hexmap::entry_lines(doc.bytes(), entry, first, count.min(MAX_LINES))
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(|l| HexEntryLineDto {
+                offset: l.offset,
+                bytes: l.bytes,
+                text: l.text,
+            })
+            .collect(),
+    )
 }
 
 /// Up to [`MAX_LINES`] rows of the cart's current step, from row `first`.

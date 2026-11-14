@@ -63,6 +63,11 @@ fn the_hex_view_serializes_to_the_frontend_golden() {
     let lines = hex::lines(&doc, 0x3af, 3).unwrap();
     check(
         "hex",
-        serde_json::json!({ "info": hex::info(&doc, Some(0)).unwrap(), "lines": lines }),
+        serde_json::json!({
+            "info": hex::info(&doc, Some(0)).unwrap(),
+            "lines": lines,
+            // The whole of entry 0 (hello, 102 bytes).
+            "entryLines": hex::entry_lines(&doc, 0, 0, 16).unwrap(),
+        }),
     );
 }

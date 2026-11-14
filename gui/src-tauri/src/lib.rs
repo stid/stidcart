@@ -20,7 +20,7 @@ use tauri::{
 };
 
 use document::{Document, DocumentDto, Edit};
-use hex::{HexInfoDto, HexLineDto};
+use hex::{HexEntryLineDto, HexInfoDto, HexLineDto};
 
 /// A listing as the frontend receives it. Mirrored by `Listing` in `gui/src/lib/types.ts` and
 /// pinned by the golden JSON in `gui/src/lib/fixtures/` (`tests/contract.rs`).
@@ -253,6 +253,22 @@ fn hex_lines(
     hex::lines(guard.as_ref().ok_or("no cartridge is open")?, first, count)
 }
 
+#[tauri::command]
+fn hex_entry_lines(
+    entry: usize,
+    first: usize,
+    count: usize,
+    state: State<AppState>,
+) -> Result<Vec<HexEntryLineDto>, String> {
+    let guard = state.doc();
+    hex::entry_lines(
+        guard.as_ref().ok_or("no cartridge is open")?,
+        entry,
+        first,
+        count,
+    )
+}
+
 /// The listing's selection changed: remember it, and move an open hex window there.
 #[tauri::command]
 fn hex_select(entry: Option<usize>, app: AppHandle, state: State<AppState>) {
@@ -313,6 +329,7 @@ pub fn run() {
             save_document_as,
             hex_info,
             hex_lines,
+            hex_entry_lines,
             hex_select,
             show_hex,
             allow_exit,

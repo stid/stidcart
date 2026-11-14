@@ -154,3 +154,38 @@ fn the_view_follows_edits_and_undo() {
         serde_json::to_value(before).unwrap()
     );
 }
+
+/// AC-205 (RENDER): the window is told each entry's name and size, and gets one entry's rows from
+/// offset 0.
+#[test]
+fn one_entry_is_served_on_its_own() {
+    let doc = Document::open(&fixture("two.crt")).unwrap();
+    let info = hex::info(&doc, None).unwrap();
+    assert_eq!(info.entries.len(), 2);
+    let hello = &info.entries[0];
+    assert_eq!(
+        (hello.index, hello.label.as_str(), hello.family.as_str()),
+        (0, "0 · hello (PRG)", "prg")
+    );
+    assert_eq!((hello.size, hello.size_text.as_str()), (102, "102 bytes"));
+
+    let file = std::fs::read(fixture("hello.prg")).unwrap();
+    let rows = hex::entry_lines(&doc, 0, 0, 100).unwrap();
+    assert_eq!(rows.len(), 7);
+    assert_eq!((rows[0].offset, rows[1].offset), (0, 16));
+    assert_eq!(rows[0].bytes, file[..16]);
+    assert_eq!(rows[6].bytes, file[96..]);
+    assert_eq!(rows[6].text.chars().count(), 6);
+    assert!(hex::entry_lines(&doc, 9, 0, 10).unwrap().is_empty());
+}
+
+/// AC-206 (RENDER): one entry's rows are those of the step the editor is on.
+#[test]
+fn the_entry_view_follows_edits() {
+    let mut doc = Document::open(&fixture("two.crt")).unwrap();
+    let ramp = hex::entry_lines(&doc, 1, 0, 4).unwrap()[0].bytes.clone();
+    doc.apply(Edit::Remove { index: 0 }).unwrap();
+    // ramp is entry 0 now.
+    assert_eq!(hex::entry_lines(&doc, 0, 0, 4).unwrap()[0].bytes, ramp);
+    assert_eq!(hex::info(&doc, None).unwrap().entries.len(), 1);
+}

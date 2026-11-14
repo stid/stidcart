@@ -227,3 +227,66 @@ fn regions_are_ordered_and_disjoint_for_every_fixture() {
     }
     assert!(seen > 5);
 }
+
+/// AC-205 (RENDER): one entry's bytes on their own, from offset 0, are the file that was added.
+#[test]
+fn an_entry_reads_back_as_its_file_from_offset_zero() {
+    let cart = fixture("two.crt");
+    let hello = fixture("hello.prg");
+    let rows = hexmap::entry_lines(&cart, 0, 0, usize::MAX).unwrap();
+    assert_eq!(rows.len(), hello.len().div_ceil(LINE_BYTES));
+    for (i, row) in rows.iter().enumerate() {
+        assert_eq!(row.offset, i * LINE_BYTES);
+        let end = (row.offset + LINE_BYTES).min(hello.len());
+        assert_eq!(row.bytes, hello[row.offset..end], "row {i}");
+        assert_eq!(row.text.chars().count(), row.bytes.len());
+    }
+    // 102 bytes: the last row is short, not padded.
+    assert_eq!(rows.last().unwrap().bytes.len(), hello.len() % LINE_BYTES);
+
+    let part = hexmap::entry_lines(&cart, 0, 2, 3).unwrap();
+    assert_eq!(part.len(), 3);
+    assert_eq!(part[0].offset, 2 * LINE_BYTES);
+    assert_eq!(part[0].bytes, rows[2].bytes);
+}
+
+/// AC-205 (RENDER): a program stored across bank halves reads back in one piece.
+#[test]
+fn an_interleaved_entry_reads_back_whole() {
+    let big = fixture("big.prg");
+    let rows = hexmap::entry_lines(&fixture("spill.crt"), 0, 0, usize::MAX).unwrap();
+    let bytes: Vec<u8> = rows.iter().flat_map(|r| r.bytes.clone()).collect();
+    assert_eq!(bytes, big);
+
+    // Half-confined, in an Ocean cart: the same file, continued in the same half.
+    let rows = hexmap::entry_lines(&fixture("cocean.crt"), 0, 0, usize::MAX).unwrap();
+    let bytes: Vec<u8> = rows.iter().flat_map(|r| r.bytes.clone()).collect();
+    assert_eq!(bytes, big);
+}
+
+/// AC-205 (RENDER): a cartridge entry reads in bank order, ROML then ROMH of each bank.
+#[test]
+fn a_cartridge_entry_reads_in_bank_order() {
+    let cart = fixture("cxb16.crt");
+    let image = crt::parse(&cart).unwrap().image;
+    let rows = hexmap::entry_lines(&cart, 1, 0, usize::MAX).unwrap();
+    assert_eq!(rows.len(), 8 * BANK_SIZE / LINE_BYTES);
+    let per_half = BANK_SIZE / LINE_BYTES;
+    assert_eq!(rows[0].bytes, image.bank(1, Half::RomL)[..LINE_BYTES]);
+    assert_eq!(
+        rows[per_half].bytes,
+        image.bank(1, Half::RomH)[..LINE_BYTES]
+    );
+    assert_eq!(
+        rows[2 * per_half].bytes,
+        image.bank(2, Half::RomL)[..LINE_BYTES]
+    );
+    assert_eq!(rows[2 * per_half].offset, 2 * BANK_SIZE);
+}
+
+#[test]
+fn an_entry_the_cart_lacks_has_no_rows() {
+    assert!(hexmap::entry_lines(&fixture("two.crt"), 2, 0, 10)
+        .unwrap()
+        .is_empty());
+}

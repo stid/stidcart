@@ -110,6 +110,61 @@ fn text_char(b: u8) -> char {
     }
 }
 
+/// One row of a single entry's bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EntryLine {
+    /// Offset of the row's first byte from the entry's first.
+    pub offset: usize,
+    /// [`LINE_BYTES`] bytes, fewer in the entry's last row.
+    pub bytes: Vec<u8>,
+    pub text: String,
+}
+
+/// `count` rows of the entry at `index` alone, starting at row `first`; none for an index the
+/// cart lacks.
+///
+/// A program reads back as the file it was added from, load address first. A cartridge reads in
+/// bank order, ROML then ROMH of each of its banks. Refuses what [`read::inspect`] refuses.
+pub fn entry_lines(
+    bytes: &[u8],
+    index: usize,
+    first: usize,
+    count: usize,
+) -> Result<Vec<EntryLine>, ReadError> {
+    let info = read::inspect(bytes)?;
+    let Some(entry) = info.entries.get(index) else {
+        return Ok(Vec::new());
+    };
+    let image = crt::parse(bytes)?.image;
+    let mut claims = Vec::new();
+    claim(entry, Owner::Entry(index), &mut claims);
+    claims.sort_by_key(|c| c.0);
+    let data: Vec<u8> = claims
+        .iter()
+        .flat_map(|&(start, len, _)| {
+            let (bank, within) = (start / (2 * BANK_SIZE), start % (2 * BANK_SIZE));
+            let half = if within < BANK_SIZE {
+                Half::RomL
+            } else {
+                Half::RomH
+            };
+            let at = within % BANK_SIZE;
+            image.bank(bank, half)[at..at + len].iter().copied()
+        })
+        .collect();
+    Ok(data
+        .chunks(LINE_BYTES)
+        .enumerate()
+        .skip(first)
+        .take(count)
+        .map(|(row, chunk)| EntryLine {
+            offset: row * LINE_BYTES,
+            bytes: chunk.to_vec(),
+            text: chunk.iter().map(|&b| text_char(b)).collect(),
+        })
+        .collect())
+}
+
 /// Every owned range of the image, ordered by position and never overlapping.
 ///
 /// Refuses exactly what [`read::inspect`] refuses, so it describes any image the listing does.
