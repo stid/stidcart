@@ -1371,14 +1371,89 @@ fn ac_107_entries_carry_their_kind_icon() {
     }
 }
 
-// AC-108: the pane shows the selection's name, type, size, load address or bank, and how it starts
+/// The pane's rows (D-069): the chip, the title or name, and the three facts at the foot.
+const CHIP_ROW: usize = 5;
+const HEAD_ROW: usize = 7;
+const FACT_ROWS: std::ops::Range<usize> = 18..21;
+
+/// Assert the pane's chip: `label` between two spaces, reversed, in colour `c`, from the pane's
+/// first column of row 5, plain spaces after it, and row 6 blank.
+fn assert_chip(l: &Look, label: &str, c: u8, what: &str) {
+    let text = format!(" {label} ");
+    let from = CHIP_ROW * COLS + PANE_COL;
+    let want: Vec<u8> = vice::screen_text(&text).iter().map(|b| b | 0x80).collect();
+    assert_eq!(
+        l.screen[from..from + text.len()],
+        want,
+        "{what}: the chip is not '{text}' reversed"
+    );
+    assert!(
+        l.colour[from..from + text.len()].iter().all(|&k| k == c),
+        "{what}: the chip is not colour {c}"
+    );
+    assert!(
+        l.screen[from + text.len()..from + 16]
+            .iter()
+            .all(|&b| b == 0x20),
+        "{what}: the chip's row does not end in spaces"
+    );
+    assert_eq!(
+        pane_row(&l.screen, CHIP_ROW + 1),
+        [0x20u8; 16],
+        "{what}: row 6"
+    );
+}
+
+/// Assert the facts in rows 18-20: each label in grey from the pane's first column, its value exact
+/// from column 29 in light grey.
+fn assert_facts(l: &Look, facts: [(&str, &str); 3], what: &str) {
+    for (n, (key, value)) in FACT_ROWS.zip(facts) {
+        let label = l
+            .colours_of(n, PANE_COL, key)
+            .unwrap_or_else(|| panic!("{what}: row {n} has no '{key}'"));
+        assert!(
+            label.iter().all(|&c| c == colour::GREY),
+            "{what}: '{key}' is not grey"
+        );
+        assert!(
+            pane_row(&l.screen, n).starts_with(&vice::screen_text(key)),
+            "{what}: '{key}' does not start row {n} of the pane"
+        );
+        assert_eq!(
+            l.value(n),
+            value_cells(value),
+            "{what}: {key} is not exactly '{value}'"
+        );
+        let cells = n * COLS + VALUE_COL..n * COLS + VALUE_COL + value.len();
+        assert!(
+            l.colour[cells].iter().all(|&c| c == colour::LIGHT_GREY),
+            "{what}: the value of '{key}' is not light grey"
+        );
+    }
+}
+
+/// Assert pane rows `rows` are blank.
+fn assert_pane_blank(l: &Look, rows: std::ops::Range<usize>, what: &str) {
+    for n in rows {
+        assert_eq!(
+            pane_row(&l.screen, n),
+            [0x20u8; 16],
+            "{what}: pane row {n} is not blank"
+        );
+    }
+}
+
+/// AC-210 (none): for an entry the pane shows a chip with its kind in the kind's colour in row 5,
+/// its name in white in row 7, and in rows 18-20 its size, its load address or first bank, and how
+/// it starts, labels in grey and values in light grey. Nothing says "type" and the rows between are
+/// blank. (AC-108 until D-069, when the facts opened the pane and took the kind's colour.)
 #[test]
-fn ac_108_the_pane_describes_the_selection() {
+fn ac_210_the_pane_leads_with_the_kind_and_ends_with_the_facts() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-108: skipping — x64sc is not installed");
+        eprintln!("AC-210: skipping — x64sc is not installed");
         return;
     }
-    let dir = scratch("ac108");
+    let dir = scratch("ac210");
     let low = markers::basic_prg("LOW");
     let high = markers::high_prg("HIGH");
     let eight = markers::cart(CartKind::K8, "EIGHT");
@@ -1403,60 +1478,47 @@ fn ac_108_the_pane_describes_the_selection() {
 
     let looks = looks_after(&dir, &cart, &[vec![], vec![key::DOWN], vec![key::DOWN]]);
     let bank = bank.to_string();
-    for (l, name, facts) in [
+    for (l, name, kind, kind_colour, facts) in [
         (
             &looks[0],
             "low",
-            [
-                ("type", "program"),
-                ("size", "1K"),
-                ("load", "$07F0"),
-                ("start", "RUN"),
-            ],
+            "program",
+            colour::LIGHT_GREEN,
+            [("size", "1K"), ("load", "$07F0"), ("start", "RUN")],
         ),
         (
             &looks[1],
             "high",
-            [
-                ("type", "program"),
-                ("size", "1K"),
-                ("load", "$C000"),
-                ("start", "SYS 49152"),
-            ],
+            "program",
+            colour::LIGHT_GREEN,
+            [("size", "1K"), ("load", "$C000"), ("start", "SYS 49152")],
         ),
         (
             &looks[2],
             "eight",
-            [
-                ("type", "8K cart"),
-                ("size", "8K"),
-                ("bank", bank.as_str()),
-                ("start", "reset"),
-            ],
+            "8K cart",
+            colour::YELLOW,
+            [("size", "8K"), ("bank", bank.as_str()), ("start", "reset")],
         ),
     ] {
-        let at = l
-            .colours_of(6, PANE_COL, name)
-            .unwrap_or_else(|| panic!("the pane does not name '{name}'"));
+        assert_chip(l, kind, kind_colour, name);
+        assert_eq!(
+            pane_row(&l.screen, HEAD_ROW),
+            wrapped(name)[0],
+            "'{name}': row 7 is not the name alone"
+        );
         assert!(
-            at.iter().all(|&c| c == colour::WHITE),
+            l.colours_of(HEAD_ROW, PANE_COL, name)
+                .is_some_and(|c| c.iter().all(|&c| c == colour::WHITE)),
             "'{name}': the name is not white"
         );
-        for (i, (key, value)) in facts.iter().enumerate() {
-            let n = 8 + 2 * i;
-            let label = l
-                .colours_of(n, PANE_COL, key)
-                .unwrap_or_else(|| panic!("'{name}': row {n} has no '{key}'"));
-            assert!(
-                label.iter().all(|&c| c == colour::GREY),
-                "'{name}': '{key}' is not grey"
-            );
-            assert_eq!(
-                l.value(n),
-                value_cells(value),
-                "'{name}': {key} is not exactly '{value}'"
-            );
-        }
+        assert_pane_blank(l, HEAD_ROW + 1..FACT_ROWS.start, name);
+        assert_facts(l, facts, name);
+        let pane: Vec<u8> = LIST_ROWS.flat_map(|n| pane_row(&l.screen, n)).collect();
+        assert!(
+            vice::find(&pane, &vice::screen_text("type")).is_none(),
+            "'{name}': the pane still has a 'type' row"
+        );
     }
 }
 
@@ -3701,20 +3763,24 @@ fn wrapped(text: &str) -> Vec<Vec<u8>> {
         .collect()
 }
 
-/// Assert `text` is in the pane, wrapped, starting at row `from` or below, and return the row after
-/// its last.
-fn assert_wrapped(screen: &[u8], from: usize, text: &str, what: &str) -> usize {
-    let rows = wrapped(text);
-    let start = (from..LIST_ROWS.end)
-        .find(|&n| pane_row(screen, n) == rows[0])
-        .unwrap_or_else(|| panic!("{what}: no pane row from {from} on starts '{text}'"));
-    for (k, r) in rows.iter().enumerate() {
+/// Assert `text` is in the pane wrapped from exactly row `from`, every character in colour `c`, and
+/// return the row after its last.
+fn assert_wrapped_at(l: &Look, from: usize, text: &str, c: u8, what: &str) -> usize {
+    for (k, r) in wrapped(text).iter().enumerate() {
+        let n = from + k;
+        assert_eq!(
+            &pane_row(&l.screen, n),
+            r,
+            "{what}: pane row {n} is not part {k} of '{text}'"
+        );
+        let shown = text.len().min((k + 1) * 16) - k * 16;
+        let cells = n * COLS + PANE_COL..n * COLS + PANE_COL + shown;
         assert!(
-            start + k < LIST_ROWS.end && &pane_row(screen, start + k) == r,
-            "{what}: '{text}' is not wrapped whole across pane rows {start}.."
+            l.colour[cells].iter().all(|&got| got == c),
+            "{what}: '{text}' is not colour {c} in pane row {n}"
         );
     }
-    start + rows.len()
+    from + wrapped(text).len()
 }
 
 /// The pane row at or below `from` whose label is `label`.
@@ -3739,9 +3805,8 @@ fn badge(screen: &[u8], n: usize) -> [u8; 2] {
 }
 
 /// AC-166 (none): an entry with a title shows it in its list row, cut to the row's 16 columns, and
-/// the pane shows the title in full, wrapped to the pane's width, then the year, the author and the
-/// note, below the lines every entry has. Every field is as long as it may be, so all of it must
-/// fit. An entry without metadata looks exactly as on the same cart without any (its row and the
+/// the pane shows every field (in AC-211's order since D-069). Every field is as long as it may be,
+/// so all of it must fit. An entry without metadata looks exactly as on the same cart without any (its row and the
 /// whole pane, characters and colours), also right after the pane showed an entry with metadata.
 /// A-Z sorts by what each row shows.
 #[test]
@@ -3787,18 +3852,22 @@ fn ac_166_titles_in_the_list_and_every_field_in_the_pane() {
         "charlie's row does not show its title"
     );
     assert_not_listed(s, &["alpha", "charlie"], "titled entries");
-    assert!(
-        looks[0]
-            .colours_of(6, PANE_COL, "alpha")
-            .is_some_and(|c| c.iter().all(|&c| c == colour::WHITE)),
-        "the pane does not name alpha in white"
+    // AC-211's order with every field at its longest: it ends on row 16, a row above the facts.
+    assert_chip(&looks[0], "program", colour::LIGHT_GREEN, "alpha");
+    let at = assert_wrapped_at(&looks[0], HEAD_ROW, title, colour::WHITE, "alpha");
+    let at = assert_wrapped_at(&looks[0], at, "alpha", colour::GREY, "alpha");
+    let credit = format!("{author}  1987");
+    let at = assert_wrapped_at(&looks[0], at, &credit, colour::LIGHT_GREY, "alpha");
+    assert_pane_blank(&looks[0], at..at + 1, "alpha");
+    let at = assert_wrapped_at(&looks[0], at + 1, note, colour::GREY, "alpha");
+    assert_eq!(
+        at,
+        FACT_ROWS.start - 1,
+        "the longest fields do not end on row 16"
     );
-    let mut at = 7;
-    for label in ["type", "size", "load", "start"] {
-        at = pane_label(s, at, label, "alpha") + 1;
-    }
-    for field in [title, "1987", author, note] {
-        at = assert_wrapped(s, at, field, "alpha");
+    assert_pane_blank(&looks[0], at..FACT_ROWS.start, "alpha");
+    for (n, label) in FACT_ROWS.zip(["size", "load", "start"]) {
+        assert_eq!(pane_label(s, n, label, "alpha"), n, "alpha: '{label}'");
     }
 
     let after = &looks[1];
@@ -4555,6 +4624,99 @@ fn assert_back_at(s: &[u8], at: usize, name: &str, count: usize, what: &str) {
     );
 }
 
+/// AC-211 (none): with metadata the pane shows from row 7 the title in white, the stored name in
+/// grey, the author, two spaces and the year in light grey (whichever are set), a blank row and the
+/// note in grey, the facts staying in rows 18-20. Without a title the name leads in white. A folder
+/// shows a white "folder" chip and its name; ".." shows the chip, "..", and that it goes back to
+/// the top level.
+#[test]
+fn ac_211_the_pane_orders_metadata_and_names_folders() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-211: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac211");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs =
+        ["alpha", "bravo", "charlie", "delta"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "fields", &[], &inputs);
+    edit(
+        &cart,
+        &[
+            "--title",
+            "0",
+            "RAM Test",
+            "--year",
+            "0",
+            "2026",
+            "--author",
+            "0",
+            "stid",
+            "--note",
+            "0",
+            "Checks all 64 KB",
+            "--title",
+            "1",
+            "Only Year",
+            "--year",
+            "1",
+            "1987",
+            "--author",
+            "2",
+            "nobody",
+            "--note",
+            "3",
+            "just a note",
+        ],
+    );
+    let down = vec![key::DOWN];
+    let looks = looks_after(&dir, &cart, &[vec![], down.clone(), down.clone(), down]);
+    let facts = [("size", "1K"), ("load", "$0801"), ("start", "RUN")];
+
+    let l = &looks[0];
+    assert_chip(l, "program", colour::LIGHT_GREEN, "alpha");
+    let at = assert_wrapped_at(l, HEAD_ROW, "RAM Test", colour::WHITE, "alpha");
+    let at = assert_wrapped_at(l, at, "alpha", colour::GREY, "alpha");
+    let at = assert_wrapped_at(l, at, "stid  2026", colour::LIGHT_GREY, "alpha");
+    assert_pane_blank(l, at..at + 1, "alpha");
+    let at = assert_wrapped_at(l, at + 1, "Checks all 64 KB", colour::GREY, "alpha");
+    assert_pane_blank(l, at..FACT_ROWS.start, "alpha");
+    assert_facts(l, facts, "alpha");
+
+    let l = &looks[1];
+    let at = assert_wrapped_at(l, HEAD_ROW, "Only Year", colour::WHITE, "bravo");
+    let at = assert_wrapped_at(l, at, "bravo", colour::GREY, "bravo");
+    let at = assert_wrapped_at(l, at, "1987", colour::LIGHT_GREY, "bravo");
+    assert_pane_blank(l, at..FACT_ROWS.start, "bravo");
+    assert_facts(l, facts, "bravo");
+
+    let l = &looks[2];
+    let at = assert_wrapped_at(l, HEAD_ROW, "charlie", colour::WHITE, "charlie");
+    let at = assert_wrapped_at(l, at, "nobody", colour::LIGHT_GREY, "charlie");
+    assert_pane_blank(l, at..FACT_ROWS.start, "charlie");
+
+    let l = &looks[3];
+    let at = assert_wrapped_at(l, HEAD_ROW, "delta", colour::WHITE, "delta");
+    assert_pane_blank(l, at..at + 1, "delta");
+    let at = assert_wrapped_at(l, at + 1, "just a note", colour::GREY, "delta");
+    assert_pane_blank(l, at..FACT_ROWS.start, "delta");
+    assert_facts(l, facts, "delta");
+
+    let dir = scratch("ac211-folders");
+    let f = folder_cart(&dir);
+    let looks = looks_after(&dir, &f.cart, &[vec![], vec![key::RETURN, key::UP]]);
+    let l = &looks[0];
+    assert_chip(l, "folder", colour::WHITE, "games");
+    let at = assert_wrapped_at(l, HEAD_ROW, "games", colour::WHITE, "games");
+    assert_pane_blank(l, at..LIST_ROWS.end, "games");
+    let l = &looks[1];
+    assert_chip(l, "folder", colour::WHITE, "'..'");
+    let at = assert_wrapped_at(l, HEAD_ROW, "..", colour::WHITE, "'..'");
+    assert_pane_blank(l, at..at + 1, "'..'");
+    let at = assert_wrapped_at(l, at + 1, "goes back to thetop level", colour::GREY, "'..'");
+    assert_pane_blank(l, at..LIST_ROWS.end, "'..'");
+}
+
 /// AC-170 (none): a folder opens with `..` as its first row, wearing the folder badge, and the first
 /// entry below it selected. RETURN on `..`, and fire on the joystick in port 2, go back to the top
 /// level with the folder that was open selected. The pane on `..` says it goes back to the top level.
@@ -4587,7 +4749,7 @@ fn ac_170_a_folder_starts_with_a_row_that_goes_back_up() {
     assert_selected(&s[1], "demo a", "into demos");
     assert_eq!(selected_rows(&s[2]), vec![5], "UP: '..' is not selected");
     assert_eq!(
-        pane_row(&s[2], 6),
+        pane_row(&s[2], HEAD_ROW),
         wrapped("..")[0],
         "the pane does not name '..'"
     );

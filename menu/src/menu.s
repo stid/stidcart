@@ -83,6 +83,7 @@ LIST    = 5                     ; the first list row
 TRACK_COL = 21                  ; the scroll bar's column
 PANE    = 23                    ; the details pane's first column
 VALUE   = 29                    ; where its values start
+FACTS   = 18                    ; its first row of facts: size, load address or bank, start
 STATUS  = 22                    ; the screen row with the position and the order
 FIND    = 23                    ; the screen row with the filter text and its matches
 HELP    = 24                    ; the screen row with the keys
@@ -157,7 +158,7 @@ pend    = $c134                 ; 2 bytes: one past the metadata payload
 rleft   = $c136                 ; records still to read
 mlen    = $c137                 ; how long a text find searches
 prow    = $c138                 ; the pane row drawn next
-dense   = $c139                 ; non-zero: the selection has a field set, so its facts take every row
+dense   = $c139                 ; non-zero: the selection's metadata has a field set
 blen    = $c13a                 ; before's text lengths
 alen    = $c13b
 wlen    = $c13c                 ; what wrap has left to write
@@ -167,6 +168,9 @@ gno     = $c13f                 ; the folder row's group
 bcode   = $c140                 ; the row's badge code
 nup     = $c141                 ; 1 inside a folder, where shown starts with the ".." row (D-058)
 skip    = $c142                 ; the row F5 must not pick, $FF for none
+flen    = $c143                 ; 4 bytes: the selection's title, year, author and note, their lengths
+flo     = $c147                 ; 4 bytes: where each starts
+fhi     = $c14b                 ; 4 bytes
 srow    = $c150                ; the screen row a list row goes to
 kind    = $c151                 ; the entry's kind: 0 program, 1 8K, 2 16K, 3 Ultimax, 4 multi-bank
 ipen    = $c152                 ; the icon's colour
@@ -2547,35 +2551,45 @@ _cell:
 
 ; --- the details pane --------------------------------------------------------------------------
 
-; Columns 23-38 of rows 6-20, every cell written on every update (D-041): the selection's name in
-; row 6, then type, size, load address or bank, and how it starts, on every other row (AC-108). An
-; entry with metadata has them on every row instead, then a blank row and its title, year, author
-; and note, each wrapped from a row of its own (D-057). A folder row shows its group's name, and
-; ".." that it goes back to the top level (D-058).
+; Columns 23-38 of rows 5-20, every cell written on every update (D-041), in the order a person
+; reads (D-069): a chip in row 5 with the selection's kind, in the kind's colour; from row 7 the
+; title, or the name without one, in white; under a title the stored name, in grey; the author, two
+; spaces and the year; a blank row and the note. Rows 18-20 hold the size, the load address or
+; first bank, and how it starts. A folder row shows a "folder" chip and its group's name, and ".."
+; that it goes back to the top level (D-058).
 draw_pane:
         lda #0
         sta rvs
         sta dense
-        lda #6
+        lda #LIST
         sta prow
         ldx sel
         lda nshown
-        beq _rest
-        cpx nfold
+        bne +
+        jmp blank_rest
++       cpx nfold
         bcs _entry
-        lda shown,x             ; a folder
+        lda shown,x             ; a folder row: its group, 0 for ".."
+        pha
+        lda #WHITE
+        sta ipen
+        lda #<folder_word
+        ldy #>folder_word
+        jsr chip
+        pla
         beq _up
         tax
         jsr group_at
-        jsr pane_name
-_rest:
+        lda #WHITE
+        jsr pane_text
         jmp blank_rest
 _up:
         lda #<up_name
         sta dst
         lda #>up_name
         sta dst+1
-        jsr pane_name
+        lda #WHITE
+        jsr pane_text
         jsr blank_row
         lda #<up_text
         sta dst
@@ -2600,23 +2614,83 @@ _entry:
         cmp #24                 ; longer than its fixed part: some field is set
         rol dense
 +       jsr entry_kind
-        lda ptr
-        sta dst
-        lda ptr+1
-        sta dst+1
-        jsr pane_name
-        jsr pane_gap
-
-        ; type
-        lda #<type_text
-        ldy #>type_text
-        jsr fact
         ldx kind
+        lda kind_colours,x
+        sta ipen
         lda kind_lo,x
         ldy kind_hi,x
-        jsr append
-        jsr value
+        jsr chip
 
+        lda dense
+        beq _plain
+        ldy #19                 ; the title's length; year, author and note follow it the same way
+        ldx #0
+-       lda (rp),y
+        sta flen,x
+        iny
+        tya
+        clc
+        adc rp
+        sta flo,x
+        lda rp+1
+        adc #0
+        sta fhi,x
+        tya
+        clc
+        adc flen,x
+        tay
+        inx
+        cpx #4
+        bne -
+        lda flen
+        beq _plain
+        lda #WHITE              ; the title, then the name it stands for
+        ldx #0
+        jsr field
+        lda #GREY
+        jsr slot_name
+        jmp _credit
+_plain:
+        lda #WHITE
+        jsr slot_name
+        lda dense
+        beq _fill
+_credit:
+        jsr begin               ; the author, two spaces and the year, whichever are set
+        ldx #2
+        jsr add_field
+        lda flen+2
+        beq +
+        lda flen+1
+        beq +
+        lda #" "
+        jsr emit
+        jsr emit
++       ldx #1
+        jsr add_field
+        lda sx
+        beq +
+        sta wlen
+        lda #<sbuf
+        sta dst
+        lda #>sbuf
+        sta dst+1
+        lda #LIGHT_GREY
+        sta pen
+        jsr wrap
++       lda flen+3
+        beq _fill
+        jsr blank_row
+        lda #GREY
+        ldx #3
+        jsr field
+_fill:
+        lda prow
+        cmp #FACTS
+        bcs +
+        jsr blank_row
+        jmp _fill
++
         ; size in KB, rounded up: (bytes + 1023) / 1024
         lda #<size_text
         ldy #>size_text
@@ -2671,7 +2745,7 @@ _program:
         and #$1f
         sta cur
         jsr prg_params
-        sei                     ; the raster handler runs from bank 0, which read_load maps out
+        sei                     ; the interrupt handler runs from bank 0, which read_load maps out
         jsr read_load           ; moves ptr: everything from the slot is read by now
         cli
         lda #<load_text
@@ -2703,45 +2777,71 @@ _sys:
         lda p_load+1
         sta nhi
         jsr dec16
-        jmp _said
+        jmp value
 _run:
         lda #<run_word
         ldy #>run_word
 _say:
         jsr append
-_said:
-        jsr value
-        lda dense
-        beq blank_rest
+        jmp value
 
-        ; the metadata's fields, after a blank row; rp is the record still
-        jsr blank_row
-        ldy #19                 ; the title's length
-        ldx #0
-_field:
-        stx fld
-        lda (rp),y
-        sta wlen
-        iny
-        tya
-        clc
-        adc rp
-        sta dst
-        lda rp+1
-        adc #0
-        sta dst+1
-        tya
-        clc
-        adc wlen
-        sta fy
-        lda field_colours,x
+; Row prow: the text at A (low), Y (high) between two spaces, reversed, in colour ipen. Then a blank
+; row.
+chip:
+        pha
+        jsr begin
+        lda #" "
+        jsr emit
+        pla
+        jsr append
+        lda #" "
+        jsr emit
+        lda #0
+        jsr emit
+        lda ipen
         sta pen
-        jsr wrap
-        ldy fy
-        ldx fld
-        inx
-        cpx #4
-        bne _field
+        lda #$80
+        sta rvs
+        ldx prow
+        lda #PANE
+        jsr at
+        lda #<sbuf
+        ldy #>sbuf
+        jsr say
+        lda #0
+        sta rvs
+        lda #16
+        jsr pad
+        inc prow
+        jmp blank_row
+
+; The selection's field X (0 title, 1 year, 2 author, 3 note), wrapped from row prow in colour A.
+field:
+        sta pen
+        jsr field_at
+        jmp wrap
+
+; dst and wlen = the selection's field X.
+field_at:
+        lda flen,x
+        sta wlen
+        lda flo,x
+        sta dst
+        lda fhi,x
+        sta dst+1
+        rts
+
+; Append the selection's field X to the text.
+add_field:
+        jsr field_at
+        ldy #0
+-       cpy wlen
+        beq +
+        lda (dst),y
+        jsr emit
+        iny
+        bne -
++       rts
 
 ; Blank the pane from row prow to row 20.
 blank_rest:
@@ -2752,9 +2852,14 @@ blank_rest:
         jmp blank_rest
 +       rts
 
-; Row prow: the text at dst, 16 at most, in white. Then the next row.
-pane_name:
-        lda #WHITE
+; Row prow: the name in the slot at ptr, in colour A. Then the next row.
+slot_name:
+        ldx ptr
+        stx dst
+        ldx ptr+1
+        stx dst+1
+; Row prow: the text at dst, 16 at most, in colour A. Then the next row.
+pane_text:
         sta pen
         ldx prow
         lda #PANE
@@ -2777,19 +2882,13 @@ blank_row:
         inc prow
         rts
 
-; Without metadata, a blank row between two facts.
-pane_gap:
-        lda dense
-        bne +
-        jmp blank_row
-+       rts
-
-; The wlen bytes at dst from row prow on, 16 a row, in colour pen, while rows are left.
+; The wlen bytes at dst from row prow on, 16 a row, in colour pen, while rows above the facts are
+; left.
 wrap:
         lda wlen
         beq _done
         lda prow
-        cmp #LIST + ROWS
+        cmp #FACTS
         bcs _done
         tax
         lda #PANE
@@ -2832,12 +2931,11 @@ fact:
         jsr pad
         jmp begin
 
-; Write the value's text in row prow, columns 29-38, in the kind's colour, and move on a fact.
+; Write the value's text in row prow, columns 29-38, in light grey, and move on a row.
 value:
         lda #0
         jsr emit
-        ldy kind
-        lda kind_colours,y
+        lda #LIGHT_GREY
         sta pen
         ldx prow
         lda #VALUE
@@ -2848,7 +2946,7 @@ value:
         lda #10
         jsr pad
         inc prow
-        jmp pane_gap
+        rts
 
 ; --- the status and the filter text ------------------------------------------------------------
 
@@ -3022,8 +3120,6 @@ kind_lo:
         .byte <kind_0, <kind_1, <kind_2, <kind_3, <kind_4
 kind_hi:
         .byte >kind_0, >kind_1, >kind_2, >kind_3, >kind_4
-field_colours:                  ; the pane's title, year, author and note (D-057)
-        .byte WHITE, LIGHT_GREY, LIGHT_GREY, GREY
 kind_0: .null "program"
 kind_1: .null "8K cart"
 kind_2: .null "16K cart"
@@ -3072,6 +3168,8 @@ entry_text:
         .null " entry"
 no_entries:
         .null "no entries"
+folder_word:
+        .null "folder"
 up_name:
         .null ".."
 up_text:                        ; the pane on "..", sixteen a row
@@ -3089,8 +3187,6 @@ cart_order:
         .null "   cart order"
 az_order:
         .null "   a-z order"
-type_text:
-        .null "type"
 size_text:
         .null "size"
 load_text:
