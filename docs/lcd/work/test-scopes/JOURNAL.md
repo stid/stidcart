@@ -4,16 +4,16 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** The gate runs only the test groups a change can affect, locally and in CI, with one flag for the whole suite.
-- **Next action:** S1 — failing tests for `docs/lcd/ci/scope.sh`
-- **Branch:** feat/test-scopes  ·  **Updated:** 2026-11-14 20:00
+- **Next action:** S6 — watch the PR's checks; this PR changes `ci.yml`, so it runs everything. The scoped paths first run for real on the next PR
+- **Branch:** feat/test-scopes  ·  **Updated:** 2026-11-14 21:00
 
 ## STEPS
-- [ ] S1 — `crates/stidcart-cli/tests/scope.rs` (failing), then `docs/lcd/ci/scope.sh`: changed paths in, `rust=` `vice=` `gui=` out  ← next
-- [ ] S2 — `STIDCART_VICE=none|cart|full` in `support/vice.rs` (test first), cart-set boots marked
-- [ ] S3 — `docs/lcd/ci/gate.sh`: scope the local gate, `--all` for everything
-- [ ] S4 — `ci.yml`: both jobs always report, steps run by scope, `workflow_dispatch` runs all
-- [ ] S5 — docs: D-071, CLAUDE.md, CONTRIBUTING.md, lcd-conventions `gate` key, SPEC/MAP if they say otherwise
-- [ ] S6 — gate green, PR
+- [x] S1 — `crates/stidcart-cli/tests/scope.rs` (failing), then `docs/lcd/ci/scope.sh`: changed paths in, `rust=` `vice=` `gui=` out
+- [x] S2 — `STIDCART_VICE=none|cart|full` in `support/vice.rs` (test first), cart-set boots marked
+- [x] S3 — `docs/lcd/ci/gate.sh`: scope the local gate, `--all` for everything
+- [x] S4 — `ci.yml`: both jobs always report, steps run by scope, `workflow_dispatch` runs all
+- [x] S5 — docs: D-071, CLAUDE.md, CONTRIBUTING.md, lcd-conventions `gate` key, SPEC/MAP if they say otherwise
+- [ ] S6 — gate green, PR  ← next
 
 ## DECISIONS (this work-item)
 - Scoped everywhere (PRs, pushes to main, local); the full suite is manual: `gate.sh --all`, "Run workflow" in CI (user, 2026-11-14)
@@ -28,6 +28,7 @@
 ## EDIT BOUNDARY (paths this work may touch)
 - `docs/lcd/ci/scope.sh`
 - `docs/lcd/ci/gate.sh`
+- `docs/lcd/ci/ci-scope.sh`
 - `.github/workflows/ci.yml`
 - `crates/stidcart-cli/tests/scope.rs`
 - `crates/stidcart-cli/tests/support/vice.rs`
@@ -48,3 +49,5 @@
 ## LOG (append-only; not read on resume)
 
 - 2026-11-14 20:00 — Measured on CI run 43630992169: `gate` Test step 130s, of which 118s is the 70 boots in `menu_boot`; `gui` job 2m20s, about 60s of it the gate script. Everything else in the root workspace is about 5s.
+- 2026-11-14 20:30 — S1, S2 done. Locally `menu_boot` takes 51s in full, 17s with `STIDCART_VICE=cart`, 0s with `none`. An unknown base made `scope.sh` print a scope and exit 0 (errexit does not reach a command substitution in bash 3.2); fixed with `|| exit 1` and pinned by a test.
+- 2026-11-14 21:00 — S3..S5 done → DECISIONS D-071. `ci-scope.sh` added so the two jobs share the event handling.

@@ -32,10 +32,21 @@ The Rust toolchain is pinned in `rust-toolchain.toml`, and the pin only binds th
 Homebrew `cargo` ignores the file without saying so.
 
 ```bash
+docs/lcd/ci/gate.sh              # what your working tree changes
+docs/lcd/ci/gate.sh origin/main  # that, plus your branch's commits
+docs/lcd/ci/gate.sh --all        # everything
+```
+
+That is the gate, and CI runs the same one. It runs only the test groups your change can affect:
+nothing for prose, every emulator boot and no desktop app for `menu/`, a set of 17 boots and the
+app for the Rust sources, the app alone for `gui/`. `docs/lcd/ci/scope.sh` holds the rules, and a
+path it does not know runs everything. In full, the root half is
+
+```bash
 cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace
 ```
 
-That is the gate CI runs. The parity test needs only the checked-in fixtures; `ndeft` does not have to be installed. The
+The parity test needs only the checked-in fixtures; `ndeft` does not have to be installed. The
 boot tests need VICE's `x64sc` and the menu's reassembly check needs 64tass. Without them those
 tests skip, except under `STIDCART_REQUIRE_TOOLS=1`, which CI sets, where a missing tool fails.
 
@@ -46,7 +57,7 @@ WebKitGTK packages the CI `gui` job installs.
 ```bash
 cd gui && npm install
 npm run tauri dev          # run the app
-../docs/lcd/ci/gui-gate.sh # its gate: type-check, vitest, build, then clippy and tests
+../docs/lcd/ci/gui-gate.sh # its half of the gate: type-check, vitest, build, then clippy and tests
 ```
 
 `menu/build.sh menu/` reassembles the C64 menu after a change to `menu/src` (it needs 64tass).

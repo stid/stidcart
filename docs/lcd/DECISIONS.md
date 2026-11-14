@@ -8,7 +8,48 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-071 -->
+<!-- Next id: D-072 -->
+
+---
+
+## D-071 · 2026-11-14 · The gate runs the test groups a change can affect
+
+- **Context:** test-scopes. Every change, a README edit included, ran the whole suite: on CI run
+  43630992169 the `gate` job's tests took 130s, 118s of it the 70 boots in `menu_boot`, and the `gui`
+  job 2m20s. The user asked for scopes: nothing for prose, VICE without the app for the menu, a
+  subset of boots when the builder changes and the menu does not.
+- **Decision:**
+  - `docs/lcd/ci/scope.sh` maps changed paths to three values, `rust`, `vice` (none, cart, full)
+    and `gui`. The rules follow what is compiled into what and are pinned by
+    `crates/stidcart-cli/tests/scope.rs`. A path no rule names runs everything.
+  - `menu/` runs the root tests with every boot and leaves the app out: the menu reaches the app
+    only as embedded bytes. Root sources, `firmware/`, the manifests and the toolchain pin run the
+    root tests with the cart set and the app, which is built on both crates. A root test or
+    `fixtures/` runs the root tests alone, a boot test or its harness every boot. `gui/` runs the
+    app alone. `ci.yml` and `docs/lcd/ci/` run everything.
+  - `STIDCART_VICE` carries the boot scope into the tests. Unset is full, so a bare `cargo test`
+    is unchanged, and any other value than the three names panics. The cart set is the 17 boots
+    gated by `vice::require_cart_tool`: the EasyLoader boot (AC-4), the list and the long list
+    (AC-87, AC-88), programs and cartridge kinds starting (AC-89, AC-90, the marker control), high
+    memory (AC-160..AC-162), metadata and folders read off the cart (AC-166, AC-167, AC-169,
+    AC-191) and the hidden metadata entry (AC-155). The user chose this set over five boots and
+    over all of them.
+  - Scoped everywhere: `docs/lcd/ci/gate.sh` locally, pull requests against their base, pushes to
+    `main` against the commit before. The whole suite is `gate.sh --all` or "Run workflow". The
+    user chose this over a full run on every push to `main` and over a weekly one.
+  - `gate` and `gui` stay jobs that always start, with every step after Scope conditional. They are
+    the required checks (D-065), so they must report on every PR, and a failing Scope step fails
+    the job.
+- **Alternatives rejected:** `paths:` filters on the workflow, which leave a required check pending
+  on a PR that does not match. A separate scope job that the two `needs`: when it fails they are
+  skipped, and a skipped required check passes. Naming the cart set in a script as test-name
+  filters: a rename would drop a boot from it without a failure. Splitting the app's gate into
+  frontend and Rust halves: its Rust tests need the built frontend anyway (D-030), and vitest is
+  about 18s.
+- **Scope:** `docs/lcd/ci/scope.sh`, `gate.sh`, `ci-scope.sh`, `.github/workflows/ci.yml`,
+  `crates/stidcart-cli/tests/support/vice.rs`, the three boot targets, `CLAUDE.md`
+- **Status:** active · narrows AC-94 (D-038): the boots still fail rather than skip for a missing
+  tool, and now run only when the scope asks for them
 
 ---
 

@@ -23,7 +23,7 @@ test-discovery-glob: crates/*/tests/*.rs + inline `#[cfg(test)]` modules (root c
 scoped-test: docs/lcd/ci/run-test.sh {path}
 bail: docs/lcd/ci/run-test.sh {path}
 single-test: cargo test --workspace {name}
-gate: cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace && docs/lcd/ci/gui-gate.sh
+gate: docs/lcd/ci/gate.sh origin/main
 eval: n/a — output is byte-exact images compared against frozen fixtures, never scored
 maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace; cargo update --workspace --dry-run
 
@@ -35,6 +35,10 @@ maintenance-bundle: cargo fmt --all --check && cargo clippy --workspace --all-ta
   a bare stem → root cargo, `gui/src-tauri/tests/<stem>.rs` → the GUI workspace's cargo, a
   `*.test.ts` path → `vitest run`. `single-test` stays root-only; for the GUI use
   `cargo test --manifest-path gui/src-tauri/Cargo.toml {name}` or `npx vitest run -t {name}` in `gui/`.
+- **`gate` is scoped to what the branch changes** (D-071): `gate.sh origin/main` asks
+  `docs/lcd/ci/scope.sh` which groups the branch's commits and the working tree can affect, and runs
+  those. Without the argument it covers the working tree alone, the check before a commit; `--all`
+  runs everything. `maintenance-bundle` stays unscoped on purpose.
 - **`gate` covers both workspaces.** `gui-gate.sh` builds the frontend first, because Tauri
   embeds `gui/dist` at compile time, so a bare `cargo test` in `gui/src-tauri` fails without it.
   CI runs the root part as `gate` and the script as `gui`.

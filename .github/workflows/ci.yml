@@ -1,6 +1,11 @@
-# The quality gate from CLAUDE.md ("How to work here"), run on every PR and on main.
-# Keep the steps identical to the command documented there — CI and the local pre-commit
-# check must not drift, or a green local run can still fail the required check.
+# The quality gate from CLAUDE.md ("How to work here"), run on every PR and on main, scoped to
+# what the change can affect (D-071). docs/lcd/ci/scope.sh decides the groups, here and in the
+# local gate (docs/lcd/ci/gate.sh), so a green local run and the required checks cannot drift.
+# Keep the commands below identical to gate.sh's.
+#
+# Both jobs always start and always report, because both are required checks: a job that a
+# path filter never started would leave its check pending forever. What a run does not need is
+# skipped step by step, after the Scope step. "Run workflow" runs everything.
 
 name: CI
 
@@ -8,6 +13,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -28,19 +34,31 @@ jobs:
       STIDCART_REQUIRE_TOOLS: "1"
     steps:
       - uses: actions/checkout@v7
+        with:
+          # ci-scope.sh compares against the base branch, or the commit before the push.
+          fetch-depth: 0
+
+      - name: Scope
+        id: scope
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: docs/lcd/ci/ci-scope.sh
 
       # No toolchain argument on purpose: rustup then installs "the active toolchain",
       # i.e. whatever rust-toolchain.toml pins, with the components and profile it
       # names. Naming `stable` here instead would silently un-pin CI.
       - name: Install Rust
+        if: steps.scope.outputs.rust == 'true'
         run: rustup toolchain install --no-self-update
 
       - uses: Swatinem/rust-cache@v2
+        if: steps.scope.outputs.rust == 'true'
 
       # 64tass reassembles menu/ (AC-93) and VICE boots carts (AC-4, AC-87..AC-92). Both are
       # built from pinned, sha256-checked sources. The key changes with the script, which holds
       # the versions, and with the runner image.
       - name: Cache 64tass and VICE
+        if: steps.scope.outputs.rust == 'true'
         id: menu-tools
         uses: actions/cache@v4
         with:
@@ -48,23 +66,30 @@ jobs:
           key: menu-tools-ubuntu-24.04-${{ hashFiles('docs/lcd/ci/install-menu-tools.sh') }}
 
       - name: Install the build dependencies of 64tass and VICE
-        if: steps.menu-tools.outputs.cache-hit != 'true'
+        if: steps.scope.outputs.rust == 'true' && steps.menu-tools.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config bison flex xa65 dos2unix unzip
 
       - name: Install 64tass and VICE
+        if: steps.scope.outputs.rust == 'true'
         run: |
           docs/lcd/ci/install-menu-tools.sh ~/.cache/stidcart-menu-tools
           echo "$HOME/.cache/stidcart-menu-tools/bin" >> "$GITHUB_PATH"
 
       - name: Format
+        if: steps.scope.outputs.rust == 'true'
         run: cargo fmt --all --check
 
       - name: Clippy
+        if: steps.scope.outputs.rust == 'true'
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Test
+        if: steps.scope.outputs.rust == 'true'
+        env:
+          # none, cart or full: which of the emulator boots this change calls for.
+          STIDCART_VICE: ${{ steps.scope.outputs.vice }}
         run: cargo test --workspace
 
   # The GUI is its own Cargo workspace (D-030), so `gate` never compiles it. This job runs the
@@ -74,24 +99,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # ci-scope.sh compares against the base branch, or the commit before the push.
+          fetch-depth: 0
+
+      - name: Scope
+        id: scope
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: docs/lcd/ci/ci-scope.sh
 
       - name: Install Rust
+        if: steps.scope.outputs.gui == 'true'
         run: rustup toolchain install --no-self-update
 
       - name: Install Linux build dependencies
+        if: steps.scope.outputs.gui == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev
 
       - uses: actions/setup-node@v7
+        if: steps.scope.outputs.gui == 'true'
         with:
           node-version-file: gui/.nvmrc
           cache: npm
           cache-dependency-path: gui/package-lock.json
 
       - uses: Swatinem/rust-cache@v2
+        if: steps.scope.outputs.gui == 'true'
         with:
           workspaces: gui/src-tauri
 
       - name: GUI gate
+        if: steps.scope.outputs.gui == 'true'
         run: docs/lcd/ci/gui-gate.sh
