@@ -16,10 +16,10 @@
 - **Branch:** feat/easyfs1-refusal  ·  **Updated:** 2026-08-12
 
 ## STEPS
-- [x] S1 — Corrected `reference/easyflash-cart-format.md` (vault): the reserved bits `0x60` are the
+- [x] S1 — Corrected the format spec in the private notes: the reserved bits `0x60` are the
       EasyFS1/EasyFS2 version discriminator, not a tolerate-both quirk. Misattribution fixed (Draco
       Cart Maker, `README:82` — not an ndefpack bug, not `NEWS`), writer guidance kept, single-byte
-      bank added. D-017 logged. The vault is not a git repo, so that edit is not in any commit.
+      bank added. D-017 logged. The private notes are not in a git repo, so that edit is not in any commit.
 - [x] S2 — Failing test for AC-14: `inspect`/`load` refuse a first entry with the bits clear.
 - [x] S3 — `directory::is_old_format()` + `Unsupported::OldFormatDirectory`. Replaced
       `decode_tolerates_the_reserved_bits_being_clear` and fixed the doc comments that had copied
@@ -47,7 +47,7 @@
 - none
 
 ## EDIT BOUNDARY (paths this work may touch)
-- `~/Documents/obsidian/stid/reference/easyflash-cart-format.md` (vault — S1 only)
+- the private-notes copy of the format spec (S1 only)
 - `crates/stidcart-core/src/directory.rs`
 - `crates/stidcart-core/src/read.rs`
 - `crates/stidcart-core/tests/read.rs`
@@ -92,7 +92,7 @@ directory, whose slots all carry the bits set, is unaffected by the new check.
   EasyFS1's structural difference for the entries this tool represents is a **single-byte bank** at
   offset 17 — `data[18]` is not part of the field (`easyfs.c:255-260`) — so an EasyFS1 directory read
   as EasyFS2 gets a corrupted bank number, which is why misreading is silent rather than loud.
-- 2026-08-12 — The vault spec was wrong, in a way that changed the work. Its reserved-bits bullet
+- 2026-08-12 — The private-notes spec was wrong, in a way that changed the work. Its reserved-bits bullet
   reads "A past ndefpack bug wrote them as 0 (`NEWS`); anything reading these carts should tolerate
   both". Wrong tool, wrong citation, and an unsatisfiable prescription: `README:82` is a comparison
   against **Draco Cart Maker**, a different 2012 tool, and `NEWS` says nothing about reserved bits.

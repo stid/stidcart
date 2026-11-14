@@ -9,29 +9,29 @@
 <!-- lcd-resume:v1 -->
 ## NOW
 - **Lane:** Standard
-- **Goal:** Move the EasyFlash cart format spec from the Obsidian vault into this repo at
+- **Goal:** Move the EasyFlash cart format spec from the author's private notes into this repo at
   `docs/format/easyflash-cart-format.md`, so the document every offset in `stidcart-core` derives
   from is reviewable, gateable and blameable (GitHub issue #21).
 - **Next action:** done — PR open against `main`, closes #21.
 - **Branch:** docs/format-spec-in-tree  ·  **Updated:** 2026-08-14
 
 ## STEPS
-- [x] S1 — Copy `reference/easyflash-cart-format.md` into `docs/format/`, de-vaulted: drop the
-      Obsidian frontmatter, resolve the two `[[wikilinks]]`, keep every byte of the substance.
-- [x] S2 — Update the in-repo pointers: `CLAUDE.md`'s vault-references block, `MAP.md:34` (docs
+- [x] S1 — Copy the format spec into `docs/format/`, cleaned of note markup: drop the
+      YAML frontmatter, resolve the two `[[wikilinks]]`, keep every byte of the substance.
+- [x] S2 — Update the in-repo pointers: `CLAUDE.md`'s notes-references block, `MAP.md:34` (docs
       zone splits in two), `MAP.md:64` + `:71` (format-facts and D-007 invariants),
       `.claude/rules/lcd-conventions.md:76`, and `README.md` (path + one stale EasyFS1 claim).
 - [x] S3 — Confirm the licence question the issue raises: the spec is a derivative work of
       ndefpack's GPL C by the same argument as D-004, so record that in the moved file.
-- [x] S4 — Replace the vault note with a stub pointing at the repo copy (no second source of truth).
-- [x] S5 — Log D-018 (supersedes the format-facts invariant's vault clause).
+- [x] S4 — Replace the private note with a stub pointing at the repo copy (no second source of truth).
+- [x] S5 — Log D-018 (supersedes the format-facts invariant's private-notes clause).
 - [x] S6 — Gate green, close the JOURNAL, PR (closes #21).
 
 ## DECISIONS (this work-item)
 - **`docs/format/`, not `spec/` or bare `docs/`** — chosen by the user at triage. Keeps prose under
   `docs/` and leaves `docs/lcd/` as the untouched LCD artifact root (D-014); the docs zone row
   splits into two rather than losing its anti-sprawl clause. → D-018.
-- **De-vaulting is mechanical, not content editing.** Frontmatter and `[[wikilinks]]` are vault
+- **The cleanup is mechanical, not content editing.** Frontmatter and `[[wikilinks]]` are private-notes
   transport, and both render as noise on GitHub. The issue's "not in scope: rewriting the spec's
   content" holds — no format claim changes.
 
@@ -47,7 +47,7 @@
 - `CLAUDE.md`
 - `README.md`
 - `.claude/rules/lcd-conventions.md`
-- `~/Documents/obsidian/stid/reference/easyflash-cart-format.md` (vault — S4 only, replaced by a stub)
+- the private-notes copy of the format spec (S4 only, replaced by a stub)
 <!-- /lcd-resume -->
 
 ---
@@ -63,12 +63,12 @@ audit's test-presence check does not apply and no AC ids are claimed (next free 
   revert; no hard trigger, no risk signal). Work came from issue #21, filed 2026-08-13, the only
   open item on `stid/stidcart`; no open PRs.
 - 2026-08-14 — **The verbatim claim nearly shipped with unrunnable evidence.** The first PR body
-  offered a `diff` command against a path that does not exist — S4 had already overwritten the vault
-  original, and the vault is not versioned, so nothing on a reviewer's machine reproduces it.
+  offered a `diff` command against a path that does not exist — S4 had already overwritten the private notes
+  original, and the private notes are not versioned, so nothing on a reviewer's machine reproduces it.
   Replaced with the actual diff output, captured before the overwrite, and a sentence saying why it
   cannot be re-run. Reconstructed the pre-stub note from `dc7deec` plus the three exact edit strings
   and kept it in the session scratchpad until #22 merges: reverting `docs/format/` is trivial,
-  restoring a destroyed vault note is not, and review could still move the file.
+  restoring a destroyed private note is not, and review could still move the file.
 - 2026-08-14 — Checked that a docs-only PR still trips the required checks — it is the first here
   with nothing under `crates/`. Neither `ci.yml` nor `claude-review.yml` carries a `paths:` filter,
   so `gate` and `audit` both ran and passed and `claude-review` queued normally. Had `gate` been
@@ -82,11 +82,11 @@ audit's test-presence check does not apply and no AC ids are claimed (next free 
   `docs/format/`" into a capability index would put a fact about the repo's layout in the one file
   whose whole discipline is that it holds behaviour only. The move's durable record is D-018 and the
   MAP zone row, which is where a layout fact belongs. A grep confirmed no `SPEC.md` row cites the
-  vault. (The stale `README.md:25` claim this item fixed was never a `SPEC.md` row — `SPEC.md:59`
+  private notes. (The stale `README.md:25` claim this item fixed was never a `SPEC.md` row — `SPEC.md:59`
   had been folded correctly by the easyfs1-refusal closeout; only the README's prose copy lagged.)
-- 2026-08-14 — S4 + S5. The vault note is kept as a stub rather than deleted: `projects/ndefpack.md`
+- 2026-08-14 — S4 + S5. The private note is kept as a stub rather than deleted: the project note
   links to it twice (`:41`, `:191`), and deleting the file would break both while removing the one
-  place a vault reader is told where the spec went. The stub says explicitly not to restore the
+  place a reader of the notes is told where the spec went. The stub says explicitly not to restore the
   content. D-018 logged; next id is now D-019.
 - 2026-08-14 — S2. Five pointers, not four: `README.md:8` also names the spec ("that spec is the
   reference for everything in `stidcart-core`") without a path, which is exactly the pointer this
@@ -100,7 +100,7 @@ audit's test-presence check does not apply and no AC ids are claimed (next free 
   README's narrative copy of the same fact. Corrected here rather than left for a later item: the
   line is two files away from the ones this work-item is already rewriting, and the whole argument
   for moving the spec in-tree is that a claim and its source should be diffable together.
-- 2026-08-14 — S1 + S3. Copied with `tail -n +8` rather than retyped, then diffed against the vault
+- 2026-08-14 — S1 + S3. Copied with `tail -n +8` rather than retyped, then diffed against the private notes
   original: the only differences are the dropped frontmatter, the two de-wikilinked references, a
   header block saying the file is the source for `stidcart-core`'s offsets, and the licence
   paragraph. Every format claim is byte-identical, which is what "not in scope: rewriting the
