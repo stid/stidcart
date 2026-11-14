@@ -14,9 +14,9 @@
 
 ## D-071 · 2026-11-14 · The gate runs the test groups a change can affect
 
-- **Context:** test-scopes. Every change, a README edit included, ran the whole suite: on CI run
-  43630992169 the `gate` job's tests took 130s, 118s of it the 70 boots in `menu_boot`, and the `gui`
-  job 2m20s. The user asked for scopes: nothing for prose, VICE without the app for the menu, a
+- **Context:** test-scopes. Every change, a README edit included, ran the whole suite: across five CI
+  runs that day the 70 boots in `menu_boot` took 118s to 243s, against about 5s for every other root
+  test together, and the `gui` job about 2m30s. The user asked for scopes: nothing for prose, VICE without the app for the menu, a
   subset of boots when the builder changes and the menu does not.
 - **Decision:**
   - `docs/lcd/ci/scope.sh` maps changed paths to three values, `rust`, `vice` (none, cart, full)
