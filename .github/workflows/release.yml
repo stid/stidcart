@@ -269,8 +269,15 @@ jobs:
           Xvfb :1 -screen 0 1280x800x24 &
           Xvfb :2 -screen 0 1280x800x24 &
           opens() {
+            local pid tries
+            # Xvfb takes a moment to listen, and GTK gives up at once on a display that is not there.
+            for tries in $(seq 20); do
+              xdpyinfo -display ":$1" >/dev/null 2>&1 && break
+              sleep 0.5
+            done
+            xdpyinfo -display ":$1" >/dev/null || { echo "display :$1 never came up" >&2; return 1; }
             DISPLAY=":$1" "$2" &
-            local pid=$! tries
+            pid=$!
             for tries in $(seq 30); do
               if xwininfo -display ":$1" -root -tree 2>/dev/null | grep -q '"stidcart"'; then
                 echo "$2 opened its window"
