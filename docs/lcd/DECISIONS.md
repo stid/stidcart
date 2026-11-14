@@ -116,10 +116,10 @@
   the original Bitbucket repo is gone.
 - **Decision:** (user's choice, Claude's recommendation) keep embedding. `firmware/src/` holds the
   ndefpack 1.0.1 `src/fw/` source unchanged, taken from the `ndefpack-1.0.1` tag on SourceForge
-  (identical to the private fork's baseline), minus ndefpack's build glue. It is never built
+  minus ndefpack's build glue. It is never built
   here; the `.prg` files stay the embedded data. `firmware/README.md` credits all three authors
   and marks the version as altered; `CREDITS.md` lists everyone; the README stops linking the
-  private `stid/ndefpack` fork and states the derivative-work position once.
+  private copy of ndefpack and states the derivative-work position once.
 - **Alternatives rejected:** an external import. zlib already allows bundling, and every cart
   carries EAPI and the boot code whatever its menu, so importing would only move the 8 KiB menu
   slot while breaking the `ndeft` parity fixtures, `--menu easyloader`, Ocean carts and editing
@@ -952,7 +952,7 @@
     without a hardware check.
 - **Alternatives rejected:** Replacing the default would invalidate every parity fixture and leave
   the write path with no oracle at all. zlib inside `firmware/` would break that directory's "nothing
-  here is compiled" rule and blur the boundary. KickAssembler (the vault's earlier pick) needs a
+  here is compiled" rule and blur the boundary. KickAssembler (an earlier pick in the private notes) needs a
   pinned Java jar, and 64tass is a native binary that is already installed. acme is not installed.
   Building every feature in one item would spread it across too many sessions to resume cheaply.
 - **Scope:** `menu/` (new), `stidcart-core` firmware embedding and verification, `build`/`edit`, GUI
@@ -1352,21 +1352,21 @@
 - **Scope:** the `edit` CLI surface and the rebuild path in `stidcart-core`
 - **Status:** active; the "entry kind it cannot represent" refusal narrowed to subdirectory entries by D-026
 
-## D-018 · 2026-08-14 · The format spec lives in the tree at `docs/format/`, not in the vault
+## D-018 · 2026-08-14 · The format spec lives in the tree at `docs/format/`, not in the private notes
 
-- **Context:** `reference/easyflash-cart-format.md` in the Obsidian vault was the source for every
-  offset in `stidcart-core` — an invariant in `MAP.md` and an instruction in `CLAUDE.md`. The vault
-  is not a git repo. PR #20 turned that from a tidiness question into a concrete failure: D-017
+- **Context:** The format spec in the author's private notes was the source for every
+  offset in `stidcart-core` — an invariant in `MAP.md` and an instruction in `CLAUDE.md`. The private notes are
+  not in a git repo. PR #20 turned that from a tidiness question into a concrete failure: D-017
   rests on a correction to that spec, the correction landed as a plain file edit, and the reviewer
   saw a citation to a change absent from the diff. `gate`, `audit` and `claude-review` all ran
   against a tree that did not contain the document their subject depends on, and the wrong claim had
   already been copied into `directory.rs:12,67` with a test pinning it — drift a reviewer could not
   see, because the copy and the original were not diffable.
-- **Decision:** the spec moves to `docs/format/easyflash-cart-format.md` and the vault keeps a stub
+- **Decision:** the spec moves to `docs/format/easyflash-cart-format.md` and the private notes keep a stub
   pointing at it. A format fact is now corrected there first, in the same PR as the code it
-  justifies. **Supersedes the vault clause of the format-facts invariant** (`MAP.md`); the
+  justifies. **Supersedes the private-notes clause of the format-facts invariant** (`MAP.md`); the
   invariant itself — facts come from the spec, never re-derived from ndefpack's C — is unchanged and
-  is the whole reason the document has to be reviewable. `projects/ndefpack.md` stays in the vault:
+  is the whole reason the document has to be reviewable. The project note stays in the private notes:
   it is the predecessor's decision log, not a spec this codebase owns.
 - **`docs/format/` over the alternatives.** `spec/` at the root would leave D-014's docs zone
   untouched but adds a top-level directory for one file. Dropping the file into `docs/` directly
@@ -1376,12 +1376,12 @@
   C, so it is a derivative work by exactly D-004's argument and GPL-2.0-or-later is where it already
   belonged. Publishing the repo changes nothing — the obligation travels with the licence. The
   moved file says so in its own header.
-- **The move is verbatim.** Only the Obsidian frontmatter, the two `[[wikilinks]]` and the closing
-  "Related" line changed, plus an added header and licence note; `diff` against the vault original
+- **The move is verbatim.** Only the YAML frontmatter, the two `[[wikilinks]]` and the closing
+  "Related" line changed, plus an added header and licence note; `diff` against the private-notes original
   shows nothing else. Correcting what the spec _says_ is separate work needing its own `file:line`
   evidence — the point of this change is that such a correction is now reviewable, not that any
   were made.
-- **Scope:** project-wide (supersedes the vault clause of the format-facts invariant in `MAP.md`;
+- **Scope:** project-wide (supersedes the private-notes clause of the format-facts invariant in `MAP.md`;
   D-014's `docs/lcd/` artifact root is unchanged)
 - **Status:** active
 
@@ -1389,14 +1389,14 @@
 
 - **Context:** D-007 decided an EasyFS1 directory returns a typed `Unsupported` error, and the code
   never implemented it — `SPEC.md:58` records that every directory is walked as EasyFS2 and misread.
-  It looked blocked: the vault format spec documents EasyFS2 only, and the format-facts invariant
+  It looked blocked: the private-notes format spec documents EasyFS2 only, and the format-facts invariant
   forbids deriving the missing fact straight out of ndefpack's C into code. The research was cheap
   and the blocker dissolved.
 - **The discriminator is bits 5–6 (`0x60`) of the flags byte at offset 16.** Not both set means old
   EasyFS (`efs_check_entry`, `easyfs.c:371-389`). The first non-end slot decides for the whole
   directory; a later slot disagreeing is a hard error, not a reclassification. The end marker is
   `0xFF`-filled, so its bits are set and it never classifies.
-- **The vault spec was wrong about these bits, and the error had been copied into this repo.** It
+- **The private-notes spec was wrong about these bits, and the error had been copied into this repo.** It
   read "A past ndefpack bug wrote them as 0 (`NEWS`); anything reading these carts should tolerate
   both" — wrong tool, wrong citation, and a prescription that cannot be satisfied. `README:82` is a
   2012 comparison against **Draco Cart Maker**, a different tool; `NEWS` says nothing about reserved
@@ -1404,7 +1404,7 @@
   are unambiguously not its output. A reader cannot both ignore these bits and detect the version —
   tolerating a clear pair as EasyFS2 gives up the only signal the format has. `directory.rs:12,67`
   repeated the claim and `decode_tolerates_the_reserved_bits_being_clear` pinned it as a test.
-- **Decision:** the vault spec is corrected first (the invariant's point), then the read path checks
+- **Decision:** the private-notes spec is corrected first (the invariant's point), then the read path checks
   the bits. An old-format directory is refused with a typed `Unsupported`, and slots that disagree
   are refused as malformed rather than as old. The **writer guidance is unchanged and still
   load-bearing**: `encode` sets the bits, and correcting the reader must not take that with it.
