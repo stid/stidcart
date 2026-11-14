@@ -4,7 +4,7 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** Our C64 menu wears direction B, "Label": a light grey label slab with band bars and a drawn wordmark in rows 0-3, and a pane that leads with the kind, title and note.
-- **Next action:** done; PR open, waiting for the user's look in VICE and review
+- **Next action:** done; merged as PR #73
 - **Branch:** feat/menu-label  ·  **Updated:** 2026-11-14 00:50
 
 ## STEPS
