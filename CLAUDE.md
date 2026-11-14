@@ -11,19 +11,12 @@ for every offset in this repo; the format is documented nowhere in ndefpack's ow
 re-deriving it from that C risks inheriting a quirk by accident. A format fact changes there first,
 in a reviewable commit, and only then in code (D-018).
 
-## Knowledge vault references
-
-Pointers only — read the note, never copy its content here.
-
-- `projects/ndefpack.md` (Obsidian vault at `~/Documents/obsidian/stid`) — the predecessor's
-  decision log, including why this repo exists.
-
 ## The reference implementation
 
-`ndeft` lives at `~/Documents/develop/ndefpack` (build it with `cmake -B build -G Ninja &&
-cmake --build build -j`). It is **not** a dependency: it produced the frozen carts in `fixtures/`
-once, and the test suite never invokes it. You need it only to add a new fixture — record the exact
-request in `fixtures/MANIFEST.md` when you do.
+`ndeft` is the command-line tool of [ndefpack](https://ndefpack.sourceforge.net/). It is **not** a
+dependency: it produced the frozen carts in `fixtures/` once, and the test suite never invokes it.
+You need it only to add a new fixture — record the exact request in `fixtures/MANIFEST.md` when you
+do.
 
 ## How to work here
 

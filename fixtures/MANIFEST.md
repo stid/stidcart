@@ -8,8 +8,8 @@ boot code and the EasyLoader menu. Those regions are zlib-licensed, by Thomas 's
 ALeX Kazik with Hannu Nuotio's changes; see `../firmware/README.md`. The inputs below are
 synthetic and contain nobody else's code.
 
-Captured **2026-08-10** with `ndeft` built from `stid/ndefpack@d77724b`, run from inside this
-directory so the derived entry names are bare file stems.
+Captured **2026-08-10** with `ndeft` built from a locally patched copy of ndefpack 1.0.1 (not
+published), run from inside this directory so the derived entry names are bare file stems.
 
 ## Inputs
 
@@ -44,9 +44,9 @@ ndeft -q -e "spill" -o spill.crt build big.prg
 
 ## Cartridge-entry fixtures (cart-entries work-item)
 
-Captured **2026-09-19** with `ndeft` built from `stid/ndefpack@662db56` (two commits past
-`d77724b`, both confined to a placement diagnostic and a read-side bounds fix; produced bytes for
-valid input are unchanged). Run from inside this directory, as above.
+Captured **2026-09-19** with `ndeft` built from the same copy two commits later (both confined
+to a placement diagnostic and a read-side bounds fix; produced bytes for valid input are
+unchanged). Run from inside this directory, as above.
 
 ### Cartridge inputs
 
@@ -90,7 +90,7 @@ body byte `i` of file `k` (its index in the script's table), bank `b`, half `h` 
 
 ## Subdirectory-bit fixtures (subdir-entries work-item)
 
-Captured **2026-10-11** with `ndeft` built from `stid/ndefpack@662db56`, run from inside this
+Captured **2026-10-11** with that same later build of `ndeft`, run from inside this
 directory.
 
 `ndeft` carries the CrtUsage subdirectory bit (`0x4000`) on an xbank entry but no request of its own
