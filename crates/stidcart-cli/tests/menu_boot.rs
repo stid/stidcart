@@ -776,12 +776,12 @@ fn ac_101_filter_and_sort_combine() {
     assert_not_listed(&dumps[0], &["kiwi"], "F1, then an");
 }
 
-// --- the look: layout C (AC-104..AC-111, D-040, D-041) -----------------------------------------
+// --- the look (AC-104..AC-111, AC-210; D-040, D-041, D-069) ------------------------------------
 //
 // The menu draws from a RAM copy of the ROM's mixed-case set at $3800 that carries its own glyphs:
-// type badges, the rule, the scroll track and thumb, and the logo's quarter-block cells. Tests
-// find a glyph by its bitmap, so they hold the approved pixels (the "Stidcart Menu Layouts" mockup,
-// layout C) and never the code numbers. Colours are read from colour RAM and the VIC's registers,
+// type badges, the rule, the scroll track and thumb, and the wordmark's cells. Tests find a glyph
+// by its bitmap, so they hold the approved pixels (the "Stidcart Menu Layouts" mockup for the
+// badges, "Stidcart Menu Directions" for the wordmark) and never the code numbers. Colours are read from colour RAM and the VIC's registers,
 // low nybble only: VICE fills the high nybble from the bus.
 
 const COLOUR_RAM: (u16, u16) = (0xd800, 0xdbe7);

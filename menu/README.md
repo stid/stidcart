@@ -21,25 +21,25 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
 - `src/menu.s` runs from ROM. It copies `src/launch.s` to the cartridge's I/O2 RAM at `$DF02` and
   initialises the KERNAL from there with the cartridge off, so the top of memory comes out right.
   It copies the ROM's mixed-case character set to `$3800` and adds the menu's own glyphs to it in
-  codes `$60-$7F`: the badges (with their inverses at `$E0` and up, for the selection bar), the rule,
-  the scroll bar, the logo's quarter-block cells and the folder badge (`$7D-$7E`). The cartridge
-  mark's nine multicolour cells go in `$EA-$F2`, reversed codes that names never reach. It then
+  codes `$60-$7F`: the badges and the folder badge (with their inverses at `$E0` and up, for the
+  selection bar), the rule and the scroll bar. The wordmark's eighteen cells go in `$EC-$FD`,
+  reversed codes that names never reach, stored with the ink as clear bits. It then
   scans the EasyFS2 directory at `$A000`, reads the metadata entry (below), turns the raster
   interrupt on, and draws straight into screen and colour RAM, writing each cell once per update. A
   cursor move that doesn't scroll redraws only the two rows it changes, and drawing starts below
   the visible screen, so nothing flickers. CHROUT isn't used: a full 40-column row links into the
   next line, and the last cell of row 24 scrolls the screen.
-- A raster interrupt draws the brand once a frame (D-048). From line 46 it turns multicolour on for
-  the logo rows, where only the mark's cells have colours 8-15, and rewrites `$D022` every three
-  lines so the mark's label shows the five bands. It turns multicolour off after row 2, then sets
-  the background for one line each on 84-88, the strip. It replaces the CIA timer's interrupt and
-  runs the KERNAL's own work (`$EA31`) itself, so the keyboard is scanned 50 times a second and
-  nothing can hold the bars up. Entered too late in a frame, it skips that frame's bars.
+- The label in rows 0-3 is reverse characters (D-069): light grey cells, one cell a row in each
+  band's colour, and the wordmark's cells. A reverse cell's ink is the background, so everything on
+  the label is black.
+- A raster interrupt is the menu's tick, once a frame at line 46 (D-048). It replaces the CIA
+  timer's interrupt and runs the KERNAL's own work (`$EA31`) itself, so the keyboard is scanned 50
+  times a second and the stick's repeat counts in frames. It draws nothing.
 - The interrupt handler runs from the cartridge's ROM. So interrupts are masked whenever the menu
   maps another bank in, and every way out (a program, a cartridge, RUN/STOP) first puts back the
   KERNAL's interrupt: raster interrupt off, `$0314` at `$EA31`, the CIA timer on. The boot tests
   watch every write to `$DE00` and `$DE02` for a live interrupt (AC-127), and read VICE
-  screenshots for what screen RAM can't show (AC-124..AC-126).
+  screenshots for the label's pixels (AC-207, AC-208).
 - Keys come from GETIN, the KERNAL keyboard buffer, which is where VICE injects keys for the boot
   tests. The stick is read in the menu's own loop, once a jiffy, never in the raster interrupt. Port
   A is read with every keyboard column high, so a key held in the matrix can't pull a stick line

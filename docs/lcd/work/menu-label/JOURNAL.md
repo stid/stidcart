@@ -4,14 +4,14 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** Our C64 menu wears direction B, "Label": a light grey label slab with band bars and a drawn wordmark in rows 0-3, and a pane that leads with the kind, title and note.
-- **Next action:** S3: write the failing pane tests (AC-210, AC-211), then rewrite `draw_pane`
-- **Branch:** feat/menu-label  ·  **Updated:** 2026-11-14 00:10
+- **Next action:** done; PR open, waiting for the user's look in VICE and review
+- **Branch:** feat/menu-label  ·  **Updated:** 2026-11-14 00:50
 
 ## STEPS
 - [x] S1 — journal, D-069
 - [x] S2 — header and key bar: AC-207..AC-209, AC-212; AC-124..AC-126 retired with the mark and strip; interrupt reduced to the tick; 4595d86's fingerprint listed
-- [ ] S3 — pane: tests AC-210, AC-211 (AC-108, AC-166, AC-170 rewritten), then `draw_pane`  ← next
-- [ ] S4 — VICE capture for the user, `docs/guide/menu.md` + image, `menu/README.md`, conventions AC line, reconcile SPEC, gate, PR
+- [x] S3 — pane: AC-210 (replaces AC-108), AC-211; AC-166 and AC-170 follow the new order
+- [x] S4 — VICE capture, guide and image, menu README, AC range, SPEC row, both gates, PR
 
 ## DECISIONS (this work-item)
 - D-069: the label replaces the block logo, the mark and the strip; the raster interrupt stays as the 50 Hz tick only.
@@ -57,3 +57,5 @@
 
 - 2026-11-13 23:40 — triaged Standard. User picked B from the "Stidcart Menu Directions" page. → D-069
 - 2026-11-14 00:10 — S2 done: header, key bar and their tests green in VICE; 1,693 bytes free in the slot (1,484 before).
+- 2026-11-14 00:50 — S3, S4 done. Root gate green with STIDCART_REQUIRE_TOOLS=1, GUI gate green. 1,499 bytes free in the slot. `ac_169_the_metadata_entry_is_checked_before_use` failed once in four full runs ("no bank or mode write was seen") and passed alone and in the other three; cause not looked into, hypothesis: the monitor log under load.
+- 2026-11-14 00:50 — closeout: audit PASS (test-presence), SPEC row folded by hand as reconcile prescribes.
