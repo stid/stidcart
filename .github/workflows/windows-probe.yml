@@ -1,0 +1,166 @@
+# TEMPORARY (windows-app): builds only the Windows legs and screenshots the app, so release.yml's
+# macOS jobs do not run for every probe. Deleted before the PR is final.
+name: Windows probe
+
+on:
+  push:
+    branches: [feat/release-windows]
+    paths:
+      - .github/workflows/windows-probe.yml
+      - gui/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-probe
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  VERSION: "0.30.0"
+
+jobs:
+  command:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      NAME: stidcart-cli-0.30.0-windows-x86_64
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust
+        run: |
+          rustup toolchain install --no-self-update
+          rustup target add x86_64-pc-windows-msvc
+      - name: Build
+        run: cargo build --release --locked -p stidcart-cli --target x86_64-pc-windows-msvc
+      - name: Assemble
+        run: |
+          mkdir "$NAME"
+          cp target/x86_64-pc-windows-msvc/release/stidcart.exe "$NAME/stidcart.exe"
+          cp COPYING "$NAME/COPYING"
+          cp firmware/COPYING "$NAME/COPYING.firmware"
+      - name: Run it
+        run: |
+          printf '\001\010\140' >smoke.prg
+          "$NAME/stidcart.exe" build -o smoke.crt smoke.prg
+          "$NAME/stidcart.exe" list smoke.crt
+          grep -a -q "stidcart $VERSION" smoke.crt
+          echo "-- DLLs named in the binary --"
+          grep -a -o -i '[a-z0-9_-]*\.dll' "$NAME/stidcart.exe" | sort -u
+          if grep -a -q -i 'vcruntime' "$NAME/stidcart.exe"; then
+            echo "the command still needs the Visual C++ runtime" >&2
+            exit 1
+          fi
+      - name: Archive
+        run: 7z a -tzip "$NAME.zip" "$NAME"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: probe-command
+          path: ${{ env.NAME }}.zip
+          if-no-files-found: error
+
+  app:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      NAME: stidcart-0.30.0-windows-x86_64
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust
+        run: |
+          rustup toolchain install --no-self-update
+          rustup target add x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: gui/src-tauri
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: gui/.nvmrc
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+      - name: Build
+        working-directory: gui
+        run: |
+          npm ci
+          npm run tauri build -- --target x86_64-pc-windows-msvc \
+            --config '{"bundle":{"active":true,"targets":["nsis"]}}'
+      - name: Check and collect
+        run: |
+          release=gui/src-tauri/target/x86_64-pc-windows-msvc/release
+          ls -la "$release" "$release/bundle/nsis"
+          installers=("$release"/bundle/nsis/*-setup.exe)
+          [[ ${#installers[@]} -eq 1 ]] || { echo "expected one installer, found ${#installers[@]}" >&2; exit 1; }
+          cp "${installers[0]}" "$NAME-setup.exe"
+          for exe in "$release/stidcart.exe" "$NAME-setup.exe"; do
+            built="$(powershell -NoProfile -Command "(Get-Item '$exe').VersionInfo.ProductVersion" | tr -d '\r')"
+            echo "$exe says $built"
+            [[ $built == "$VERSION" ]] || { echo "$exe says $built, not $VERSION" >&2; exit 1; }
+          done
+          echo "-- DLLs named in the app --"
+          grep -a -o -i '[a-z0-9_-]*\.dll' "$release/stidcart.exe" | sort -u
+      - name: Install it
+        shell: pwsh
+        run: |
+          $setup = Start-Process -FilePath ".\$env:NAME-setup.exe" -ArgumentList '/S' -Wait -PassThru
+          "installer exit code: $($setup.ExitCode)"
+          Get-ChildItem -Recurse "$env:LOCALAPPDATA\stidcart" | Select-Object FullName, Length
+          Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' |
+            Where-Object DisplayName -like '*stidcart*' | Format-List DisplayName, DisplayVersion, UninstallString, InstallLocation
+      - name: Screenshots
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          try { Set-DisplayResolution -Width 1280 -Height 1024 -Force } catch { "resolution stays: $_" }
+          New-Item -ItemType Directory -Force shots | Out-Null
+          function Shot([string]$name) {
+            $b = [System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Left, $b.Top, 0, 0, $bmp.Size)
+            $bmp.Save("$PWD\shots\$name.png")
+            $g.Dispose(); $bmp.Dispose()
+            "shot $name"
+          }
+          $shell = New-Object -ComObject WScript.Shell
+          $exe = "$env:LOCALAPPDATA\stidcart\stidcart.exe"
+          $app = Start-Process -FilePath $exe -PassThru
+          function Keys([string]$k, [switch]$Raw) {
+            if (-not $Raw) { $null = $shell.AppActivate($app.Id); Start-Sleep -Milliseconds 700 }
+            [System.Windows.Forms.SendKeys]::SendWait($k)
+            Start-Sleep -Seconds 2
+          }
+          Start-Sleep -Seconds 20
+          $app.Refresh()
+          "main window title: '$($app.MainWindowTitle)'"
+          Shot '01-empty'
+          foreach ($m in 's', 'f', 'e', 'v', 'w') { Keys "%$m"; Shot "02-menu-$m"; Keys '{ESC}' -Raw; Keys '{ESC}' -Raw }
+          Keys '^o'; Start-Sleep -Seconds 3; Shot '03-open-dialog'
+          Keys "$PWD\fixtures\cmixed.crt" -Raw; Keys '{ENTER}' -Raw; Start-Sleep -Seconds 3; Shot '04-opened'
+          Keys '^+h'; Start-Sleep -Seconds 4; Shot '05-hex'
+          Keys '%{F4}' -Raw; Start-Sleep -Seconds 2
+          Keys '^+n'; Shot '06-new-folder'
+          Keys '{ENTER}' -Raw; Shot '07-new-folder-entered'
+          Keys '^z'; Shot '08-undo'
+          Keys '^+z'; Shot '09-redo'
+          Keys '^q'; Start-Sleep -Seconds 3; Shot '10-quit-asks'
+          Keys '{ESC}' -Raw; Shot '11-after-cancel'
+          Get-Process stidcart -ErrorAction SilentlyContinue | Format-Table Id, MainWindowTitle
+          Get-Process stidcart -ErrorAction SilentlyContinue | Stop-Process -Force
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: probe-shots
+          path: shots
+      - uses: actions/upload-artifact@v7
+        with:
+          name: probe-app
+          path: ${{ env.NAME }}-setup.exe
+          if-no-files-found: error
