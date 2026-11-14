@@ -15,7 +15,7 @@
 - [x] S2 — temporary probe workflow: build both Windows legs, install the app, screenshot it
 - [x] S3 — the window on Windows: tests first (AC-214..AC-216), then the fixes the screenshots called for
 - [x] S4 — `release.yml`: the `windows-x86_64` command leg and the `app-windows` job, both in `release`
-- [x] S5 — PR, dry run green, the `release` artifact read: names and checksums
+- [x] S5 — PR #88, dry run green, the `release` artifact read: names and checksums
 - [x] S6 — docs: CONTRIBUTING, the workflow's header; the probe workflow deleted
 - [ ] S7 — after the owner's report from a real PC: closeout, step 5 ticked in `docs/release-roadmap.md`  ← next
 
@@ -107,3 +107,4 @@ anything flashed white at start-up.
 - 2026-11-14 13:56 — fix: the page forwards the shortcuts on Windows (AC-216). Run 43644894291: Ctrl+O opens the dialog and a fixture cart; Ctrl+Shift+N adds one folder; Ctrl+Z, Ctrl+Shift+Z, Ctrl+Shift+S, Ctrl+Shift+H work; Ctrl+Q from the hex window asks about unsaved changes.
 - 2026-11-14 13:38 — merged `origin/main` (the Linux app leg, #86): both jobs kept, `release` needs both.
 - 2026-11-14 13:58 — not seen by anyone: drag and drop from Explorer, dark mode, display scaling, SmartScreen, a PC without WebView2, the save dialog's result on disk. These are the owner's test.
+- 2026-11-14 14:15 — PR #88. Dry run 43645616603 green with `gate`, `gui`, `windows`. The `release` artifact, downloaded: eight files, `SHA256SUMS` verifies all seven; `stidcart-cli-0.30.0-windows-x86_64.zip` (320 KB) holds `stidcart.exe`, `COPYING`, `COPYING.firmware`; `stidcart-0.30.0-windows-x86_64-setup.exe` (2.2 MB) is an NSIS installer. In the job the installer installed silently, the installed app opened its window, and it uninstalled.
