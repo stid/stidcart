@@ -1,0 +1,219 @@
+# Builds what a release ships (D-072) and, for a tag, attaches it to a draft GitHub release that
+# the owner reads and publishes by hand. docs/release-roadmap.md has the steps still to come:
+# signing and notarization, the Linux app, Windows.
+#
+#   a `v*` tag             builds everything and creates the draft release
+#   a PR changing this     the same build as a dry run: the files are workflow artifacts and no
+#   file, "Run workflow"   release is created
+#
+# No test reads this file (docs/lcd/ci/scope.sh), so the dry run is its check. Each build job ends
+# by running what it built.
+#
+# If the run for a tag has to be repeated, delete the draft release first: creating it twice fails.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - docs/lcd/ci/release-version.sh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  # A newer push to a PR replaces its dry run. A release build is never cut short.
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    name: version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The check below needs main's history.
+          fetch-depth: 0
+
+      # Fails unless the tag names the version in the manifests, and the app's agrees with the
+      # tools'. Without a tag it only reads the version.
+      - name: Version
+        id: version
+        env:
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          version="$(docs/lcd/ci/release-version.sh ${TAG:+"$TAG"})"
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          echo "stidcart $version"
+
+      # main only takes commits that passed the required checks, so a release is built from one.
+      - name: The tag is on main
+        if: github.ref_type == 'tag'
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+  command:
+    name: command (${{ matrix.platform }})
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-universal
+            runner: macos-latest
+            targets: aarch64-apple-darwin x86_64-apple-darwin
+          # musl, linked statically: the binary asks nothing of the system's C library, so one
+          # build runs on any x86_64 Linux.
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            targets: x86_64-unknown-linux-musl
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      NAME: stidcart-cli-${{ needs.version.outputs.version }}-${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # No toolchain argument: rustup installs what rust-toolchain.toml pins, as in ci.yml.
+      - name: Install Rust
+        run: |
+          rustup toolchain install --no-self-update
+          rustup target add ${{ matrix.targets }}
+
+      - name: Build
+        run: |
+          for target in ${{ matrix.targets }}; do
+            cargo build --release --locked -p stidcart-cli --target "$target"
+          done
+
+      - name: Assemble
+        run: |
+          mkdir "$NAME"
+          if [[ ${{ matrix.platform }} == macos-universal ]]; then
+            lipo -create -output "$NAME/stidcart" \
+              target/aarch64-apple-darwin/release/stidcart \
+              target/x86_64-apple-darwin/release/stidcart
+            lipo "$NAME/stidcart" -verify_arch arm64 x86_64
+          else
+            cp target/${{ matrix.targets }}/release/stidcart "$NAME/stidcart"
+          fi
+          cp COPYING "$NAME/COPYING"
+          cp firmware/COPYING "$NAME/COPYING.firmware"
+
+      # The built command writes a cart, reads it back, and the cart carries this version.
+      - name: Run it
+        run: |
+          printf '\001\010\140' >smoke.prg
+          "$NAME/stidcart" build -o smoke.crt smoke.prg
+          "$NAME/stidcart" list smoke.crt
+          grep -a -q "stidcart $VERSION" smoke.crt
+          if [[ ${{ matrix.platform }} == macos-universal ]]; then
+            arch -x86_64 "$NAME/stidcart" list smoke.crt
+          fi
+
+      - name: Archive
+        run: tar -czf "$NAME.tar.gz" "$NAME"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: command-${{ matrix.platform }}
+          path: ${{ env.NAME }}.tar.gz
+          if-no-files-found: error
+
+  app:
+    name: app (macos-universal)
+    needs: version
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      NAME: stidcart-${{ needs.version.outputs.version }}-macos-universal
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install --no-self-update
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: gui/.nvmrc
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+
+      # tauri.conf.json keeps bundling off, so the gate never bundles; this turns it on for the
+      # run, as scripts/install.sh does. The identity "-" signs ad hoc: the app is not yet signed
+      # for distribution (the macos-signing step of the roadmap replaces this).
+      - name: Build
+        working-directory: gui
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: |
+          npm ci
+          npm run tauri build -- --target universal-apple-darwin \
+            --config '{"bundle":{"active":true,"targets":["app","dmg"]}}'
+
+      - name: Check and collect
+        run: |
+          bundle=gui/src-tauri/target/universal-apple-darwin/release/bundle
+          app="$bundle/macos/stidcart.app"
+          built="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")"
+          [[ $built == "$VERSION" ]] || { echo "the app says $built, not $VERSION" >&2; exit 1; }
+          for binary in "$app"/Contents/MacOS/*; do
+            lipo "$binary" -verify_arch arm64 x86_64
+          done
+          codesign --verify --deep --strict "$app"
+          dmgs=("$bundle"/dmg/*.dmg)
+          [[ ${#dmgs[@]} -eq 1 ]] || { echo "expected one .dmg, found ${#dmgs[@]}" >&2; exit 1; }
+          cp "${dmgs[0]}" "$NAME.dmg"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-macos-universal
+          path: ${{ env.NAME }}.dmg
+          if-no-files-found: error
+
+  release:
+    name: release
+    needs: [version, command, app]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum -- * >SHA256SUMS
+          cat SHA256SUMS
+
+      # Everything a release would hold, in one download, for a dry run.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: dist
+          if-no-files-found: error
+
+      - name: Draft release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --draft --verify-tag --generate-notes --title "stidcart $VERSION"
