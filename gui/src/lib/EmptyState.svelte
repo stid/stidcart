@@ -2,6 +2,7 @@
   // Before any cart: open one (the drop zone, or Open…) or start a new one, side by side, each with
   // its shortcut (design canvas "Empty state", board B).
   import Mark from './Mark.svelte';
+  import { shortcut } from './platform';
 
   let { onopen, onnew }: { onopen: () => void; onnew: () => void } = $props();
 </script>
@@ -11,7 +12,7 @@
     <Mark size={56} />
     <h1 id="empty-open">Open a cartridge</h1>
     <p>Drop an EasyFlash <code>.crt</code> here. Nothing is written until you save.</p>
-    <button class="button primary" onclick={onopen}>Open… <kbd>⌘O</kbd></button>
+    <button class="button primary" onclick={onopen}>Open… <kbd>{shortcut('O')}</kbd></button>
   </section>
   <section class="start" aria-labelledby="empty-new">
     <svg class="new-mark" width="56" height="56" viewBox="0 0 64 64" aria-hidden="true">
@@ -20,7 +21,7 @@
     </svg>
     <h1 id="empty-new">Start a new cart</h1>
     <p>An empty cart, ready for programs, cartridges and folders.</p>
-    <button class="button" onclick={onnew}>New Cart <kbd>⌘N</kbd></button>
+    <button class="button" onclick={onnew}>New Cart <kbd>{shortcut('N')}</kbd></button>
   </section>
 </div>
 

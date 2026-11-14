@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { message, open, save } from '@tauri-apps/plugin-dialog';
+import { forwardMenuKeys } from './platform';
 import type { Document, Edit, HexEntryLine, HexHost, HexInfo, HexLine, Host, MenuId } from './types';
 import { unsavedChoice } from './viewer.svelte';
 
@@ -83,6 +84,14 @@ export const host: Host = {
     await invoke('show_hex', { entry });
   },
 };
+
+/**
+ * Either window: a menu shortcut typed in the page is handled as a click on its menu item
+ * (`menu_key` in gui/src-tauri/src/lib.rs). Does nothing on a Mac.
+ */
+export function forwardShortcuts() {
+  forwardMenuKeys((id) => void invoke('menu_key', { id }));
+}
 
 /** Whether this webview is the hex viewer's window (gui/src-tauri/src/lib.rs names it). */
 export const isHexWindow = getCurrentWindow().label === 'hex';

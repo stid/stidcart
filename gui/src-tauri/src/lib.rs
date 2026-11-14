@@ -293,6 +293,15 @@ async fn show_hex(entry: usize, app: AppHandle, state: State<'_, AppState>) -> R
     Ok(())
 }
 
+/// A menu shortcut typed in a window. On Windows the webview holds the keyboard and the menu's
+/// accelerators never see a key, so the page sends the item's id and it is handled as a click on
+/// that item (`forwardMenuKeys` in gui/src/lib/platform.ts). Async, because the hex viewer's item
+/// builds a window (see `show_hex`).
+#[tauri::command]
+async fn menu_key(id: String, app: AppHandle) {
+    menu::activate(&app, &id);
+}
+
 /// The unsaved-changes question has been answered; let the window close.
 #[tauri::command]
 fn allow_exit(state: State<AppState>) {
@@ -332,6 +341,7 @@ pub fn run() {
             hex_entry_lines,
             hex_select,
             show_hex,
+            menu_key,
             allow_exit,
             exit_app
         ])

@@ -5,9 +5,14 @@
 //! stay enabled, because they also undo inside a text field being edited, which the window routes
 //! to the field. Cut, Copy, Paste and Select All are the standard items, so text fields keep their
 //! native behaviour.
+//!
+//! On a Mac the first menu is the app's own (About, Hide, Quit). Windows has no such menu and draws
+//! the bar inside each window, so there Quit is File ▸ Exit, About is under Help, and the Hide
+//! items are left out: Windows has no way to bring a hidden window back.
 
 use tauri::menu::{
-    Menu, MenuBuilder, MenuItem, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
+    AboutMetadataBuilder, Menu, MenuBuilder, MenuItem, MenuItemBuilder, PredefinedMenuItem,
+    SubmenuBuilder,
 };
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
@@ -24,6 +29,9 @@ const IDS: [&str; 8] = [
     "redo",
     "quit",
 ];
+
+/// Whether the menu is laid out for Windows. Linux keeps the macOS layout, as before.
+const WINDOWS: bool = cfg!(target_os = "windows");
 
 /// View ▸ Hex Viewer. Handled here, not forwarded: it opens a window, which is this side's job.
 const HEX: &str = "hex";
@@ -49,18 +57,16 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .enabled(false)
         .build(app)?;
 
-    let app_menu = SubmenuBuilder::new(app, "stidcart")
-        .item(&PredefinedMenuItem::about(app, None, None)?)
-        .separator()
-        .item(&PredefinedMenuItem::hide(app, None)?)
-        .item(&PredefinedMenuItem::hide_others(app, None)?)
-        .separator()
-        // Not the predefined Quit: it sends `terminate:`, which tao does not intercept, so the
-        // process would end with no `ExitRequested` and unsaved changes would be lost unasked.
-        // This one asks the window, which runs the unsaved-changes question first.
-        .item(&item("quit", "Quit stidcart", "CmdOrCtrl+Q")?)
-        .build()?;
-    let file = SubmenuBuilder::new(app, "File")
+    // Not the predefined Quit: it sends `terminate:`, which tao does not intercept, so the
+    // process would end with no `ExitRequested` and unsaved changes would be lost unasked.
+    // This one asks the window, which runs the unsaved-changes question first.
+    let quit = item(
+        "quit",
+        if WINDOWS { "Exit" } else { "Quit stidcart" },
+        "CmdOrCtrl+Q",
+    )?;
+
+    let mut file = SubmenuBuilder::new(app, "File")
         .item(&item("new", "New", "CmdOrCtrl+N")?)
         .item(&item("open", "Open…", "CmdOrCtrl+O")?)
         .separator()
@@ -70,8 +76,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&save)
         .item(&save_as)
         .separator()
-        .item(&PredefinedMenuItem::close_window(app, None)?)
-        .build()?;
+        .item(&PredefinedMenuItem::close_window(app, None)?);
+    if WINDOWS {
+        file = file.separator().item(&quit);
+    }
+    let file = file.build()?;
     let edit = SubmenuBuilder::new(app, "Edit")
         .item(&item("undo", "Undo", "CmdOrCtrl+Z")?)
         .item(&item("redo", "Redo", "CmdOrCtrl+Shift+Z")?)
@@ -88,9 +97,35 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&PredefinedMenuItem::minimize(app, None)?)
         .build()?;
 
-    let menu = MenuBuilder::new(app)
-        .items(&[&app_menu, &file, &edit, &view, &window])
-        .build()?;
+    let menu = if WINDOWS {
+        // Without metadata the item does nothing on Windows: there is no bundle to read it from.
+        let about = AboutMetadataBuilder::new()
+            .name(Some("stidcart"))
+            .version(Some(app.package_info().version.to_string()))
+            .build();
+        let help = SubmenuBuilder::new(app, "Help")
+            .item(&PredefinedMenuItem::about(
+                app,
+                Some("About stidcart"),
+                Some(about),
+            )?)
+            .build()?;
+        MenuBuilder::new(app)
+            .items(&[&file, &edit, &view, &window, &help])
+            .build()?
+    } else {
+        let app_menu = SubmenuBuilder::new(app, "stidcart")
+            .item(&PredefinedMenuItem::about(app, None, None)?)
+            .separator()
+            .item(&PredefinedMenuItem::hide(app, None)?)
+            .item(&PredefinedMenuItem::hide_others(app, None)?)
+            .separator()
+            .item(&quit)
+            .build()?;
+        MenuBuilder::new(app)
+            .items(&[&app_menu, &file, &edit, &view, &window])
+            .build()?
+    };
     Ok((menu, DocumentItems { save, save_as }))
 }
 
@@ -99,17 +134,20 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let (menu, items) = build(app)?;
     app.set_menu(menu)?;
     app.manage(items);
-    app.on_menu_event(|app, event| {
-        let id = event.id().0.as_str();
-        if IDS.contains(&id) {
-            let _ = app.emit("menu", id);
-        } else if id == HEX {
-            if let Err(e) = crate::show_hex_window(app) {
-                eprintln!("stidcart: opening the hex viewer: {e}");
-            }
-        }
-    });
+    app.on_menu_event(|app, event| activate(app, event.id().0.as_str()));
     Ok(())
+}
+
+/// Act on a custom item: by a click, by its accelerator, or by its shortcut typed in a window on
+/// Windows (`menu_key`). The standard items never arrive here.
+pub fn activate(app: &AppHandle, id: &str) {
+    if IDS.contains(&id) {
+        let _ = app.emit("menu", id);
+    } else if id == HEX {
+        if let Err(e) = crate::show_hex_window(app) {
+            eprintln!("stidcart: opening the hex viewer: {e}");
+        }
+    }
 }
 
 /// Enable Save only when there is something to save, and Save As whenever a cart can be saved.
