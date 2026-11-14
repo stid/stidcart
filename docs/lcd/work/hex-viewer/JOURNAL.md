@@ -8,7 +8,7 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** a read-only hex viewer for the open cart in the desktop app, in its own window (issue #66)
-- **Next action:** S6: live check of the hex window (ask the user to keep hands off first), then SPEC, MAP, guide, D-067, audit, PR  ← next
+- **Next action:** the PR is open; take the user's review. Merge only on the user's word  ← next
 - **Branch:** feat/hex-viewer  ·  **Updated:** 2026-11-13
 
 ## STEPS
@@ -17,7 +17,7 @@
 - [x] S3 — GUI Rust wiring: commands, the `hex` window, View ▸ Hex Viewer, change and goto events, `capabilities/hex.json`, main window closing takes the hex window with it
 - [x] S4 — frontend `HexView.svelte` (virtualised rows, tints, owner readout, jump select) with tests; `main.ts` mounts it in the `hex` window
 - [x] S5 — main window: selection reaches the hex window, entry menu gets Show in Hex Viewer
-- [ ] S6 — live check, SPEC + MAP + guide, D-067, audit, PR
+- [x] S6 — live check, SPEC + MAP + guide, D-067, audit, PR
 
 ## DECISIONS (this work-item)
 - User's answers (2026-11-13, question dialog): whole image with a jump from the selected entry; rows addressed by bank + C64 address; a separate window; text column, entry ownership and reserved bank-0 marking all in the first version.
@@ -60,5 +60,8 @@
 
 ## LOG (append-only; not read on resume)
 
+- 2026-11-13 — reconciled: folded AC-200..AC-204 → SPEC.md/RENDER
+- 2026-11-13 — audit: PASS (test-presence). AC-200..AC-204 (RENDER) each have tests carrying the token; root gate and gui gate green.
+- 2026-11-13 — live check in the dev app on a scratch copy of `cmixed.crt` (dark theme): View ▸ Hex Viewer opens the window at bank 00 ROML with the loader tinted; selecting `in_16k` moved it to bank 05 ROML; Show in Hex Viewer on `hello` brought it forward at `03 H $B9D0` with the start mark at `$B9DC`; pointing at a byte read `03 H $BB3F · unused`; Remove emptied hello's bytes in place and ⌘Z brought them back; ⌘W on the main window with the hex window open ended the app. Light theme and the no-cart message were not looked at live.
 - 2026-11-13 — S1 to S5 built test-first; both gates green. A view-only cart has no entry menu, so there Show in Hex Viewer is not offered: select the entry and use View ▸ Hex Viewer.
 - 2026-11-13 — triaged Standard (3 signals). The user then chose a separate window and all three extras, which is more than scored; kept Standard: one surface, reversible, no new dependency.
