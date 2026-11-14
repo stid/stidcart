@@ -8,7 +8,29 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-070 -->
+<!-- Next id: D-071 -->
+
+---
+
+## D-070 · 2026-11-14 · The menu's lower case is small capitals, and its text a step brighter
+
+- **Context:** menu-legibility. With the label in (D-069) the user found EasyLoader's text easier
+  to read and ours "not at its best", without being able to say why. Two candidate causes were put
+  on switches over the current screen (artifact "Stidcart Menu Legibility"); the user chose both.
+- **Decision:**
+  - Screen codes 1-26, the lower-case letters, are redrawn as small capitals: five lines on lines
+    2-6 of the cell, strokes two pixels wide, on the capitals' baseline, with their inverses at
+    `$81-$9A`. Capitals, digits and punctuation stay the ROM's. The glyphs are ours, drawn for this.
+  - Text moves one step brighter: what was light grey is white (list names, the pane's values,
+    author and year), and what was mid grey is light grey (labels, the note, the stored name, the
+    status, the find label, the help's descriptions). Mid grey is no longer used for text.
+  - The label, the key bar, the rule, the scroll bar and the badges are unchanged.
+- **Alternatives rejected:** EasyLoader's own font, which is zlib and stays behind the `firmware/`
+  line. A whole custom character set, about 600 bytes, when the lower case was the part that hurt.
+  Storing five bytes a glyph, 78 bytes saved for a second copy loop. Plainer badges, which the user
+  chose over pictograms in D-041 and did not ask to change.
+- **Scope:** `menu/src/menu.s`, `menu/menu.bin`, the menu's boot tests, `docs/guide/menu.md`
+- **Status:** active · refines D-041 ("the text is still the ROM's") and D-069's pane colours
 
 ---
 

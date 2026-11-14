@@ -20,7 +20,8 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
 
 - `src/menu.s` runs from ROM. It copies `src/launch.s` to the cartridge's I/O2 RAM at `$DF02` and
   initialises the KERNAL from there with the cartridge off, so the top of memory comes out right.
-  It copies the ROM's mixed-case character set to `$3800` and adds the menu's own glyphs to it in
+  It copies the ROM's mixed-case character set to `$3800`, replaces its lower-case letters (codes
+  1-26, and their reverses) with small capitals (D-070), and adds the menu's own glyphs to it in
   codes `$60-$7F`: the badges and the folder badge (with their inverses at `$E0` and up, for the
   selection bar), the rule and the scroll bar. The wordmark's eighteen cells go in `$EC-$FD`,
   reversed codes that names never reach, stored with the ink as clear bits. It then

@@ -54,6 +54,8 @@ closed the help screen. Port 1 isn't read, because its lines are shared with the
 
 - At the top is a label, like the one on a cartridge: five colour bars, the stidcart wordmark, and
   on the right the cart's name and how many entries it has (hidden ones aren't counted).
+- Lower-case letters show as small capitals, which keep to one baseline and read more easily
+  down a list. Capitals and digits are the C64's own.
 - The list has 16 rows. Each entry has a badge for its kind: "PRG" for a program, "8K" and "16K"
   for those cartridges, "ULT" for Ultimax and "XB" for multi-bank. Hidden entries are not listed.
 - The selected entry sits in a cyan bar. When the list is longer than the screen, the divider to
