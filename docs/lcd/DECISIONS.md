@@ -8,7 +8,7 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-069 -->
+<!-- Next id: D-070 -->
 
 ---
 

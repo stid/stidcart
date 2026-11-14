@@ -4,15 +4,14 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** Our C64 menu wears direction B, "Label": a light grey label slab with band bars and a drawn wordmark in rows 0-3, and a pane that leads with the kind, title and note.
-- **Next action:** S2: write the failing header tests (AC-207..AC-209) in `menu_boot.rs`
-- **Branch:** feat/menu-label  ·  **Updated:** 2026-11-13 23:40
+- **Next action:** S3: write the failing pane tests (AC-210, AC-211), then rewrite `draw_pane`
+- **Branch:** feat/menu-label  ·  **Updated:** 2026-11-14 00:10
 
 ## STEPS
 - [x] S1 — journal, D-069
-- [ ] S2 — header: tests AC-207..AC-209, then `draw_frame`, glyph table, interrupt reduced to the tick; rebuild, add the replaced build's fingerprint  ← next
-- [ ] S3 — pane: tests AC-210, AC-211, then `draw_pane`
-- [ ] S4 — key bar light grey (AC-212); retire AC-124..AC-126; rewrite AC-105, AC-106, AC-108, AC-123 and the pane helpers
-- [ ] S5 — VICE capture for the user, `docs/guide/menu.md` + image, `menu/README.md`, conventions AC line, reconcile SPEC, gate, PR
+- [x] S2 — header and key bar: AC-207..AC-209, AC-212; AC-124..AC-126 retired with the mark and strip; interrupt reduced to the tick; 4595d86's fingerprint listed
+- [ ] S3 — pane: tests AC-210, AC-211 (AC-108, AC-166, AC-170 rewritten), then `draw_pane`  ← next
+- [ ] S4 — VICE capture for the user, `docs/guide/menu.md` + image, `menu/README.md`, conventions AC line, reconcile SPEC, gate, PR
 
 ## DECISIONS (this work-item)
 - D-069: the label replaces the block logo, the mark and the strip; the raster interrupt stays as the 50 Hz tick only.
@@ -57,3 +56,4 @@
 ## LOG (append-only; not read on resume)
 
 - 2026-11-13 23:40 — triaged Standard. User picked B from the "Stidcart Menu Directions" page. → D-069
+- 2026-11-14 00:10 — S2 done: header, key bar and their tests green in VICE; 1,693 bytes free in the slot (1,484 before).

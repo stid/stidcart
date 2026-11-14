@@ -14,10 +14,10 @@
 ; Typed characters filter the list to the entries whose name contains them, and F1 switches between
 ; directory order and A-Z (D-039). Both compare letters through fold, so case never matters.
 ;
-; The screen is layout C (D-041): a block logo, the list with a type icon per entry, a scroll bar and
-; a pane describing the selection, drawn from a RAM copy of the ROM's mixed-case set that carries
-; the menu's own glyphs. It wears the raster brand (D-048): the cartridge mark beside the logo and
-; a strip of five bands under the cart name, both drawn by a raster interrupt.
+; The screen is a label over the list (D-069): a light grey slab with the five bands, the wordmark,
+; the cart name and its entry count, then the list with a type badge per entry, a scroll bar and a
+; pane describing the selection, drawn from a RAM copy of the ROM's mixed-case set that carries the
+; menu's own glyphs. A raster interrupt is the menu's 50 Hz tick (D-048); it draws nothing.
 
 GETIN   = $ffe4
 
@@ -47,13 +47,14 @@ LIGHT_GREY = 15
 ; $A0-$BF into "?"). Each badge code+$80 holds its inverse, for the selection bar.
 ICON    = $60                   ; ten: a badge per kind, left then right half (program, 8K, 16K,
                                 ; Ultimax, multi-bank)
-RULE    = $6a
-TRACK   = $6b
-THUMB   = $6c
-QUARTER = $6d                   ; sixteen: the quarter-block cells of the logo
-FOLDER  = $7d                   ; two: the folder badge, left then right half (D-057)
-MARK    = $ea                   ; nine: the cartridge mark, 3x3 multicolour cells row by row. These are
-                                ; reversed codes of the glyphs above, which names never reach either
+FOLDER  = $6a                   ; two: the folder badge, left then right half (D-057)
+RULE    = $6c
+TRACK   = $6d
+THUMB   = $6e
+WORDMARK = $ec                  ; eighteen: the wordmark's cells, nine a row (D-069). These are
+                                ; reversed codes, which names never reach either
+WORD_COL = 8                    ; the wordmark's first column, in rows 1-2
+LABEL_END = 39                  ; one past the column the cart name and the count end at
 
 BANK    = $de00                 ; EasyFlash bank register
 CONTROL = $de02                 ; EasyFlash mode register
@@ -497,7 +498,7 @@ _draw:
         adc #0                  ; the carry is set: skip the selection
 +       jmp select
 
-; F7: the help, below the logo and the cart name, until the next key.
+; F7: the help, below the label, until the next key.
 show_help:
         lda #1
         sta helping
@@ -1698,23 +1699,16 @@ meta_name:
 meta_magic:
         .text "stidmeta"
 
-; --- the raster interrupt (D-048) ---------------------------------------------------------------
+; --- the raster interrupt (D-048, D-069) ---------------------------------------------------------
 ;
-; One interrupt a frame draws the brand. From IRQ_LINE it turns multicolour on for the logo rows,
-; where only the mark's cells have colour 8-15, and rewrites $D022 every three lines so the mark's
-; label shows the five bands. It turns multicolour off at the end of row 2, then sets the background
-; for one line each on 84-88: the strip under the cart name. Each colour is loaded before its wait,
-; so the store lands in the line's first cycles, before its visible pixels. Then it runs the
-; KERNAL's own work at $EA31, the clock and the keyboard, which the CIA timer no longer triggers:
-; nothing else can hold the bars up.
+; One interrupt a frame is the menu's tick. It runs the KERNAL's own work at $EA31, the clock and
+; the keyboard, which the CIA timer no longer triggers, so a jiffy is a frame and the stick's repeat
+; counts in them. It draws nothing: the label is characters (D-069).
 ;
 ; The handler runs from this ROM. Whatever maps another bank in masks interrupts first, and every
 ; way out calls irq_off before it does.
 
-IRQ_LINE = 46                   ; a few lines before the label's first band
-MARK_TOP = 54                   ; the label's first line
-MC_OFF  = 74                    ; the last line of row 2, after which no cell may be multicolour
-STRIP   = 84                    ; row 4 starts on the badline at 83: one band a line from 84
+IRQ_LINE = 46
 
 irq_on:
         lda #$7f                ; the CIA timer's interrupt off: this one runs the KERNAL's work
@@ -1754,58 +1748,11 @@ irq_off:
 irq:
         lda #$ff
         sta $d019
-        bit $d011
-        bmi _late               ; lines 256-311
-        lda RASTER
-        cmp #MARK_TOP
-        bcs _late               ; held up past the first band: no bars this frame
-        lda $d016
-        ora #$10
-        sta $d016
-        ldx #0
-_label:
-        ldy mark_lines,x
-        lda band_colours,x
--       cpy RASTER
-        bne -
-        sta $d022
-        inx
-        cpx #5
-        bne _label
-        ldy #MC_OFF
--       cpy RASTER
-        bne -
-        ldx #5                  ; past the mark's columns on that line
--       dex
-        bne -
-        lda $d016
-        and #$ef
-        sta $d016
-        ldy #STRIP
-        ldx #0
-_strip:
-        lda band_colours,x
--       cpy RASTER
-        bne -
-        sta BACKGROUND
-        iny
-        inx
-        cpx #6
-        bne _strip
-        jmp $ea31
-
-; Entered too late to draw the bars: make sure nothing of them is left on, and go on.
-_late:
-        lda $d016
-        and #$ef
-        sta $d016
-        lda #BLACK
-        sta BACKGROUND
         jmp $ea31
 
 ; --- the screen -------------------------------------------------------------------------------
 ;
-; Layout C (D-041): rows 0-2 the logo, row 3 the cart name, rows 4 and 21 rules, rows 5-20 the list
+; Rows 0-3 the label (D-069), row 4 blank, row 21 a rule, rows 5-20 the list (D-041)
 ; in columns 1-20 with the scroll bar in column 21 and the details pane in columns 23-38, row 22 the
 ; position and order, row 23 the filter text, row 24 the help bar. Everything is written straight
 ; into screen and colour RAM, each cell once per update, never cleared first: a cleared cell can
@@ -1845,20 +1792,18 @@ charset_init:
         cpx #glyphs_end - glyphs
         bne -
         ldx #0
--       lda glyphs,x            ; the inverses, for the selection bar: the badges' are used, and the
-        eor #$ff                ; mark below overwrites those of the codes it takes
+-       lda glyphs,x            ; the inverses of the badges, for the selection bar
+        eor #$ff
         sta CHAR_RAM + (ICON + $80) * 8,x
         inx
-        cpx #glyphs_end - glyphs
+        cpx #inverted_end - glyphs
         bne -
         ldx #0
--       lda mark_glyphs,x
-        sta CHAR_RAM + MARK * 8,x
+-       lda wordmark,x
+        sta CHAR_RAM + WORDMARK * 8,x
         inx
-        cpx #mark_glyphs_end - mark_glyphs
+        cpx #wordmark_end - wordmark
         bne -
-        lda #DARK_GREY
-        sta $d023               ; multicolour %10: the mark's shell
         rts
 
 ; Wait until the beam is below the visible screen, so an update starts where no row is being shown.
@@ -2131,61 +2076,52 @@ div16:
 draw_frame:
         lda #0
         sta rvs
-        ; rows 0-2: the logo
+        ; rows 0-3: the label, reverse spaces in light grey with a band a column in 1-5
         ldx #0
-_logo:
-        lda logo_colours,x
-        sta pen
+_label:
         stx row
-        lda #7
-        jsr at
+        lda #LIGHT_GREY
+        sta pen
+        lda #$a0
+        jsr line
         ldx row
-        lda logo_lo,x
-        sta dst
-        lda logo_hi,x
-        sta dst+1
-        ldy #0
--       lda (dst),y
-        sta (scr),y
-        lda pen
+        lda #1
+        jsr at
+        ldy #4
+-       lda band_colours,y
         sta (clr),y
-        iny
-        cpy #31
-        bne -
+        dey
+        bpl -
         ldx row
         inx
-        cpx #3
-        bne _logo
+        cpx #4
+        bne _label
 
-        ; rows 0-2, columns 2-4: the mark, in multicolour cells (8 + their own colour, the pins')
-        ldx #0
-_mark:
+        ; rows 1-2: the wordmark, nine cells a row
+        lda #WORDMARK
+        sta tmpd
+        ldx #1
+_word:
         stx row
-        lda #2
+        lda #WORD_COL
         jsr at
-        lda row
-        asl a
-        adc row                 ; row * 3, carry clear
-        adc #MARK
         ldy #0
+        lda tmpd
 -       sta (scr),y
-        tax
-        lda #8 + YELLOW
-        sta (clr),y
-        txa
         clc
         adc #1
         iny
-        cpy #3
+        cpy #9
         bne -
+        sta tmpd
         ldx row
         inx
         cpx #3
-        bne _mark
+        bne _word
 
-        ; row 3: the cart name, centred
-        lda #LIGHT_GREY
-        sta pen
+        ; row 1: the cart name, ending at column 38, as black on the label
+        lda #$80
+        sta rvs
         ldy #0
 -       lda EFNAME,y
         beq +
@@ -2193,11 +2129,10 @@ _mark:
         cpy #16
         bne -
 +       sty nlen
-        lda #40
+        lda #LABEL_END
         sec
         sbc nlen
-        lsr a
-        ldx #3
+        ldx #1
         jsr at
         lda #<EFNAME
         sta dst
@@ -2206,7 +2141,32 @@ _mark:
         ldx #16
         jsr write_n
 
-        ; row 4: spaces, where the raster strip shows; row 21: the rule
+        ; row 2: how many entries are visible, ending at column 38
+        jsr begin
+        lda count
+        jsr decimal
+        lda #<entries_text
+        ldy #>entries_text
+        ldx count
+        dex
+        bne +
+        lda #<entry_text
+        ldy #>entry_text
++       jsr append
+        lda #0
+        jsr emit
+        lda #LABEL_END + 1      ; sx counts the NUL too
+        sec
+        sbc sx
+        ldx #2
+        jsr at
+        lda #<sbuf
+        ldy #>sbuf
+        jsr say
+        lda #0
+        sta rvs
+
+        ; row 4: spaces; row 21: the rule
         ldx #4
         lda #$20
         jsr line
@@ -2216,8 +2176,8 @@ _mark:
         lda #RULE
         jsr line
 
-        ; row 24: the help bar
-        lda #GREY
+        ; row 24: the help bar, light grey as the label
+        lda #LIGHT_GREY
         sta pen
         ldx #HELP
         lda #$a0                ; a reverse space
@@ -2281,6 +2241,8 @@ _line:
         inc row
         jmp _line
 _bar:
+        lda #LIGHT_GREY
+        sta pen
         ldx #HELP
         lda #$a0                ; a reverse space
         jsr line
@@ -3016,57 +2978,43 @@ glyphs:
         .byte %00000000, %11111110, %11000111, %11101111, %11101111, %11101111, %01101111, %11111110 ; ULT, right
         .byte %00000000, %01111111, %11110101, %11110101, %11111011, %11110101, %11110101, %01111111 ; XB, left
         .byte %00000000, %11111110, %00111111, %01011111, %00111111, %01011111, %00111111, %11111110 ; XB, right
+        .byte %00000000, %01111000, %11111111, %11111111, %11111111, %11111111, %11111111, %01111111 ; folder, left
+        .byte %00000000, %00000000, %11111110, %11111111, %11111111, %11111111, %11111111, %11111110 ; folder, right
+inverted_end:                   ; the selection bar reverses none of the rest
         .byte %00000000, %00000000, %00000000, %11111111, %00000000, %00000000, %00000000, %00000000 ; rule
         .fill 8, %00010000      ; track
         .fill 8, %00111100      ; thumb
-        ; The sixteen quarter-block cells: bit 3 top left, 2 top right, 1 bottom left, 0 bottom right.
-        .for q := 0, q < 16, q += 1
-        .fill 4, ((q >> 3) & 1) * $f0 | ((q >> 2) & 1) * $0f
-        .fill 4, ((q >> 1) & 1) * $f0 | (q & 1) * $0f
-        .next
-        .byte %00000000, %01111000, %11111111, %11111111, %11111111, %11111111, %11111111, %01111111 ; folder, left
-        .byte %00000000, %00000000, %11111110, %11111111, %11111111, %11111111, %11111111, %11111110 ; folder, right
 glyphs_end:
 
-        .cerror glyphs - glyphs_end + 8 * (FOLDER + 2 - ICON) != 0, "FOLDER is not where its glyphs are"
+        .cerror glyphs - glyphs_end + 8 * (THUMB + 1 - ICON) != 0, "THUMB is not where its glyph is"
+        .cerror glyphs - inverted_end + 8 * (FOLDER + 2 - ICON) != 0, "FOLDER is not where its glyphs are"
 
-; The cartridge mark (D-048) in multicolour pixels, two bits each: %01 the label ($D022, a band
-; every three lines), %10 the shell ($D023, dark grey), %11 the pins (the cells' own colour, yellow).
-; Nine cells, 3x3, row by row, for codes MARK to MARK+8.
-mark_glyphs:
-        .byte $00, $2a, $aa, $a5, $a5, $a5, $a5, $a5
-        .byte $00, $aa, $aa, $55, $55, $55, $55, $55
-        .byte $00, $a8, $aa, $5a, $5a, $5a, $5a, $5a
-        .byte $a5, $a5, $a5, $a5, $a5, $a5, $a5, $a5
-        .byte $55, $55, $55, $55, $55, $55, $55, $55
-        .byte $5a, $5a, $5a, $5a, $5a, $5a, $5a, $5a
-        .byte $a5, $a5, $aa, $2a, $02, $02, $02, $00
-        .byte $55, $55, $aa, $aa, $aa, $eb, $eb, $00
-        .byte $5a, $5a, $aa, $a8, $80, $80, $80, $00
-mark_glyphs_end:
+; The wordmark, 72 by 12 pixels from the third line of row 1, in code order from WORDMARK: nine cells
+; of row 1, then nine of row 2. The ink is the clear bits, so a light grey cell shows it black. The
+; pixels are the approved mockup's (D-069).
+wordmark:
+        .byte $ff, $ff, $81, $00, $3c, $3f, $3f, $00
+        .byte $ff, $ff, $c0, $c0, $f9, $f9, $f9, $f9
+        .byte $ff, $ff, $33, $33, $f3, $f3, $f3, $f3
+        .byte $ff, $ff, $01, $00, $3c, $3c, $3c, $3c
+        .byte $ff, $ff, $e0, $c0, $cf, $cf, $cf, $cf
+        .byte $ff, $ff, $78, $30, $33, $f3, $f3, $f0
+        .byte $ff, $ff, $1c, $0c, $cc, $cc, $cc, $0c
+        .byte $ff, $ff, $07, $03, $f3, $f3, $f3, $03
+        .byte $ff, $ff, $00, $00, $e7, $e7, $e7, $e7
+        .byte $00, $fc, $fc, $3c, $00, $81, $ff, $ff
+        .byte $f9, $f9, $f9, $f9, $f9, $f9, $ff, $ff
+        .byte $f3, $f3, $f3, $f3, $f3, $f3, $ff, $ff
+        .byte $3c, $3c, $3c, $3c, $00, $01, $ff, $ff
+        .byte $cf, $cf, $cf, $cf, $c0, $e0, $ff, $ff
+        .byte $f0, $f3, $f3, $33, $33, $73, $ff, $ff
+        .byte $0c, $cc, $cc, $cc, $cc, $cc, $ff, $ff
+        .byte $07, $f3, $f3, $f3, $f3, $f3, $ff, $ff
+        .byte $e7, $e7, $e7, $e7, $e7, $e7, $ff, $ff
+wordmark_end:
 
-mark_lines:
-        .byte 54, 57, 60, 63, 66        ; where each label band starts; none is a badline (51, 59, 67)
-band_colours:
-        .byte LIGHT_RED, ORANGE, YELLOW, LIGHT_GREEN, LIGHT_BLUE, BLACK  ; black ends the strip
-
-; "STIDCART" in block letters on a 6x6 grid of quarter cells, three characters a letter and one
-; between, as screen codes: the space, or QUARTER + the cell's four quarters (bit 3 top left).
-logo_0:
-        .byte QUARTER+7, QUARTER+12, QUARTER+12, $20, QUARTER+12, QUARTER+15, QUARTER+12, $20, QUARTER+4, QUARTER+15, QUARTER+8, $20, QUARTER+15, QUARTER+12, QUARTER+11, $20
-        .byte QUARTER+7, QUARTER+12, QUARTER+12, $20, QUARTER+7, QUARTER+12, QUARTER+11, $20, QUARTER+15, QUARTER+12, QUARTER+11, $20, QUARTER+12, QUARTER+15, QUARTER+12
-logo_1:
-        .byte QUARTER+4, QUARTER+12, QUARTER+11, $20, $20, QUARTER+15, $20, $20, $20, QUARTER+15, $20, $20, QUARTER+15, $20, QUARTER+15, $20
-        .byte QUARTER+15, $20, $20, $20, QUARTER+15, QUARTER+3, QUARTER+15, $20, QUARTER+15, QUARTER+3, QUARTER+14, $20, $20, QUARTER+15, $20
-logo_2:
-        .byte QUARTER+3, QUARTER+3, QUARTER+14, $20, $20, QUARTER+15, $20, $20, QUARTER+1, QUARTER+15, QUARTER+2, $20, QUARTER+15, QUARTER+3, QUARTER+14, $20
-        .byte QUARTER+13, QUARTER+3, QUARTER+3, $20, QUARTER+15, $20, QUARTER+15, $20, QUARTER+15, QUARTER+4, QUARTER+11, $20, $20, QUARTER+15, $20
-logo_lo:
-        .byte <logo_0, <logo_1, <logo_2
-logo_hi:
-        .byte >logo_0, >logo_1, >logo_2
-logo_colours:
-        .byte WHITE, WHITE, WHITE       ; white beside the colourful mark (D-048); multicolour rows need 0-7
+band_colours:                   ; the label's bars, columns 1-5
+        .byte LIGHT_RED, ORANGE, YELLOW, LIGHT_GREEN, LIGHT_BLUE
 
 kind_colours:
         .byte LIGHT_GREEN, YELLOW, LIGHT_RED, PURPLE, LIGHT_BLUE
@@ -3118,6 +3066,10 @@ help_lines:
         .text "run/stop", 0, "leave to basic", 0
         .text "joystick port 2", 0, "move, page, fire: go", 0
         .byte 0
+entries_text:
+        .null " entries"
+entry_text:
+        .null " entry"
 no_entries:
         .null "no entries"
 up_name:
