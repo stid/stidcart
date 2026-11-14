@@ -3,6 +3,7 @@
   import EmptyState from './lib/EmptyState.svelte';
   import ErrorState from './lib/ErrorState.svelte';
   import Listing from './lib/Listing.svelte';
+  import { dragRegion, platform } from './lib/platform';
   import Toolbar from './lib/Toolbar.svelte';
   import type { Host } from './lib/types';
   import { createViewer } from './lib/viewer.svelte';
@@ -31,8 +32,8 @@
   const BANDS = ['red', 'peach', 'yellow', 'green', 'blue'];
 </script>
 
-<div class="app">
-  <header class="titlebar" data-tauri-drag-region>
+<div class="app" data-platform={platform()}>
+  <header class="titlebar" data-tauri-drag-region={dragRegion()}>
     <Toolbar
       {doc}
       opened={viewer.state.kind !== 'empty'}
@@ -90,6 +91,11 @@
     padding: 0 var(--space-4) 0 var(--titlebar-inset);
     border-bottom: 1px solid var(--border);
     background: var(--bg-subtle);
+  }
+
+  /* The system draws the title bar above the page, so there are no traffic lights to clear. */
+  .app[data-platform='windows'] .titlebar {
+    padding-left: var(--space-4);
   }
 
   .raster {

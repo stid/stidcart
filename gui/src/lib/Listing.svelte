@@ -4,6 +4,7 @@
   import EntryMenu from './EntryMenu.svelte';
   import FolderMenu from './FolderMenu.svelte';
   import MetaPanel from './MetaPanel.svelte';
+  import { shortcut } from './platform';
   import { dragRow, type DragSource, type Drop } from './rowDrag';
   import {
     addFolder,
@@ -431,7 +432,7 @@
           <ContextMenu.Portal>
             <ContextMenu.Content class="menu">
               <ContextMenu.Item class="menu-item shortcut-item" onSelect={() => void newFolder()}
-                ><span>New Folder</span><span class="keys">⇧⌘N</span></ContextMenu.Item
+                ><span>New Folder</span><span class="keys">{shortcut('N', { shift: true })}</span></ContextMenu.Item
               >
               {#if onadd}
                 <ContextMenu.Separator class="menu-separator" />

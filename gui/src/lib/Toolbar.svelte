@@ -1,7 +1,8 @@
 <script lang="ts">
   // The title bar's contents: which cart is open and whether it has unsaved changes, and the
-  // commands that act on it. The bar itself is the window's drag region (App.svelte).
+  // commands that act on it. On a Mac the bar is the window's drag region (App.svelte).
   import Mark from './Mark.svelte';
+  import { dragRegion, shortcut } from './platform';
   import type { Document } from './types';
 
   let {
@@ -23,21 +24,21 @@
   const editable = $derived(doc !== null && doc.readOnly === null);
 </script>
 
-<div class="title" data-tauri-drag-region>
+<div class="title" data-tauri-drag-region={dragRegion()}>
   <Mark size={16} />
   {#if doc}
-    <span class="file" data-tauri-drag-region>{doc.file}</span>
+    <span class="file" data-tauri-drag-region={dragRegion()}>{doc.file}</span>
     {#if doc.dirty}
-      <span class="edited" data-tauri-drag-region><span class="dot" aria-hidden="true"></span>Edited</span>
+      <span class="edited" data-tauri-drag-region={dragRegion()}><span class="dot" aria-hidden="true"></span>Edited</span>
     {/if}
   {:else}
-    <span class="app-name" data-tauri-drag-region>stidcart</span>
+    <span class="app-name" data-tauri-drag-region={dragRegion()}>stidcart</span>
   {/if}
 </div>
 
 <div class="actions">
   {#if editable}
-    <button class="button" onclick={onnewfolder} title="New Folder (⇧⌘N)">New Folder</button>
+    <button class="button" onclick={onnewfolder} title="New Folder ({shortcut('N', { shift: true })})">New Folder</button>
     <button class="button" onclick={() => onadd(false)}>Add…</button>
     <button class="button" onclick={() => onadd(true)} title="Add an xbank cartridge with 64 KB alignment"
       >Add Aligned…</button

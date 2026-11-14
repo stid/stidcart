@@ -125,29 +125,53 @@ jobs:
             $g.Dispose(); $bmp.Dispose()
             "shot $name"
           }
-          $shell = New-Object -ComObject WScript.Shell
+          Add-Type @"
+          using System; using System.Runtime.InteropServices;
+          public static class Win {
+            [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+            [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, UIntPtr e);
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            public static void Click(int x, int y) { SetCursorPos(x, y); mouse_event(2, 0, 0, 0, UIntPtr.Zero); mouse_event(4, 0, 0, 0, UIntPtr.Zero); }
+          }
+          "@
           $exe = "$env:LOCALAPPDATA\stidcart\stidcart-gui.exe"
           $app = Start-Process -FilePath $exe -PassThru
-          function Keys([string]$k, [switch]$Raw) {
-            if (-not $Raw) { $null = $shell.AppActivate($app.Id); Start-Sleep -Milliseconds 700 }
+          Start-Sleep -Seconds 20
+          $app.Refresh()
+          $main = $app.MainWindowHandle
+          "main window title: '$($app.MainWindowTitle)'"
+          # A real click is what gives a window the keyboard. $dy from the top: 12 is the title
+          # bar; a negative one counts from the bottom, inside the page.
+          function Focus([int]$dy) {
+            $r = New-Object Win+RECT
+            $null = [Win]::GetWindowRect($main, [ref]$r)
+            $y = if ($dy -lt 0) { $r.B + $dy } else { $r.T + $dy }
+            [Win]::Click([int](($r.L + $r.R) / 2), $y)
+            Start-Sleep -Seconds 1
+            "focus at $dy; rect $($r.L),$($r.T),$($r.R),$($r.B); foreground is main: $([Win]::GetForegroundWindow() -eq $main)"
+          }
+          function Keys([string]$k) {
             [System.Windows.Forms.SendKeys]::SendWait($k)
             Start-Sleep -Seconds 2
           }
-          Start-Sleep -Seconds 20
-          $app.Refresh()
-          "main window title: '$($app.MainWindowTitle)'"
+          Focus 12
           Shot '01-empty'
-          foreach ($m in 's', 'f', 'e', 'v', 'w') { Keys "%$m"; Shot "02-menu-$m"; Keys '{ESC}' -Raw; Keys '{ESC}' -Raw }
+          foreach ($m in 's', 'f', 'e', 'v', 'w', 'h') { Keys "%$m"; Shot "02-menu-$m"; Keys '{ESC}'; Keys '{ESC}' }
           Keys '^o'; Start-Sleep -Seconds 3; Shot '03-open-dialog'
-          Keys "$PWD\fixtures\cmixed.crt" -Raw; Keys '{ENTER}' -Raw; Start-Sleep -Seconds 3; Shot '04-opened'
-          Keys '^+h'; Start-Sleep -Seconds 4; Shot '05-hex'
-          Keys '%{F4}' -Raw; Start-Sleep -Seconds 2
-          Keys '^+n'; Shot '06-new-folder'
-          Keys '{ENTER}' -Raw; Shot '07-new-folder-entered'
-          Keys '^z'; Shot '08-undo'
-          Keys '^+z'; Shot '09-redo'
-          Keys '^q'; Start-Sleep -Seconds 3; Shot '10-quit-asks'
-          Keys '{ESC}' -Raw; Shot '11-after-cancel'
+          Keys "$PWD\fixtures\cmixed.crt"; Keys '{ENTER}'; Start-Sleep -Seconds 3; Shot '04-opened'
+          Focus -30
+          Keys '^+n'; Shot '05-new-folder'
+          Keys '{ENTER}'; Shot '06-new-folder-entered'
+          Focus -30
+          Keys '^z'; Shot '07-undo'
+          Keys '^+z'; Shot '08-redo'
+          Keys '%f'; Shot '09-file-menu-from-page'; Keys '{ESC}'; Keys '{ESC}'
+          Keys '^+h'; Start-Sleep -Seconds 5; Shot '10-hex'
+          Focus 12
+          Keys '^q'; Start-Sleep -Seconds 3; Shot '11-quit-asks'
+          Keys '{ESC}'; Shot '12-after-cancel'
           Get-Process stidcart-gui -ErrorAction SilentlyContinue | Format-Table Id, MainWindowTitle
           Get-Process stidcart-gui -ErrorAction SilentlyContinue | Stop-Process -Force
       - uses: actions/upload-artifact@v7
