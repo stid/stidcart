@@ -33,7 +33,7 @@
   `in_xbwide.crt` (id 33, mode 16k, banks 0–39 both halves — 640 KiB, over the reference cap). Byte
   ramps per bank, formula recorded in the script and in `MANIFEST.md`. Generate and check the
   inputs in.
-- [x] **T3**: Build the reference images with `ndeft` (built from `stid/ndefpack@d77724b`) from inside
+- [x] **T3**: Build the reference images with `ndeft` (built from a locally patched ndefpack 1.0.1) from inside
   `fixtures/`, one request per behaviour, and record every request in `fixtures/MANIFEST.md`:
   `c8k.crt` (`hello.prg in_8k.crt` — cart first, program into the ROMH gap as PRG-H), `c16k.crt`
   (`ramp.prg in_16k.crt`), `cult8.crt` (`hello.prg in_ult8.crt`), `cult16.crt` (`hello.prg

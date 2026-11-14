@@ -22,6 +22,9 @@ use std::process::{Command, Stdio};
 /// A ceiling on a run that never reaches its last breakpoint. With `-warp` it costs seconds.
 const LIMIT_CYCLES: &str = "200000000";
 
+/// How often a boot is tried when `script` can't get a terminal for x64sc.
+const PTY_ATTEMPTS: u32 = 5;
+
 /// PETSCII key codes as GETIN returns them.
 pub mod key {
     pub const DOWN: u8 = 0x11;
@@ -209,17 +212,34 @@ pub fn boot_with(dir: &Path, cart: &Path, extra: &[&str], steps: &[Step]) -> Opt
     // VICE's own output goes to a log beside the dumps, so a run that never gets far enough says
     // why: the failing test prints its tail.
     let log_path = dir.join("vice.log");
-    let log = std::fs::File::create(&log_path).unwrap();
     // Not checked: a clean run exits non-zero under -limitcycles. It is reported below only when
     // the dumps are missing, together with how long the run took, which tells "never started" (a
     // fraction of a second) from "ran and never reached the breakpoint" (the cycle limit).
     let started = std::time::Instant::now();
-    let status = under_script(&args)
-        .current_dir(dir)
-        .stdin(Stdio::null())
-        .stdout(log.try_clone().unwrap())
-        .stderr(log)
-        .status();
+    let mut attempt = 1;
+    let status = loop {
+        let log = std::fs::File::create(&log_path).unwrap();
+        let status = under_script(&args)
+            .current_dir(dir)
+            .stdin(Stdio::null())
+            .stdout(log.try_clone().unwrap())
+            .stderr(log)
+            .status();
+        // With many boots at once `script` sometimes gets no terminal and x64sc never starts.
+        // Nothing has run, so the boot is tried again. A caller that reads a monitor log and
+        // takes no dump would otherwise see an empty log and blame the menu.
+        let no_tty = std::fs::read_to_string(&log_path)
+            .map(|text| text.contains("script: openpty"))
+            .unwrap_or(false);
+        if !no_tty || attempt == PTY_ATTEMPTS {
+            break status;
+        }
+        eprintln!(
+            "script got no terminal in {} (attempt {attempt} of {PTY_ATTEMPTS}); booting again",
+            dir.display()
+        );
+        attempt += 1;
+    };
     let elapsed = started.elapsed();
 
     let result: Option<Vec<Vec<u8>>> = dumps

@@ -13,7 +13,9 @@ has to re-derive it by trial and error against real hardware.
 Target hardware is the EasyFlash 3. Output is the same `.crt` image described here; nothing below
 is EF3-specific.
 
-Citations are `file:line` in `~/Documents/develop/ndefpack` at commit `d77724b`.
+Citations are `file:line` in a locally patched copy of ndefpack 1.0.1, which is not published. In
+`easyfs.c`, `cart.c`, `place.c` and `flash.c` its line numbers differ from the 1.0.1 release on
+SourceForge; in every other cited file they are the same.
 
 Because it was derived by reading those GPL sources, this document is a derivative work of
 ndefpack and is covered by this repository's GPL-2.0-or-later licence — the same argument D-004
@@ -449,8 +451,5 @@ model on this.
 
 ## Where the rest of the context lives
 
-This document is the format only. Why ndefpack was set aside and this tool written instead is the
-predecessor's decision log, `projects/ndefpack.md` in the Obsidian vault at
-`~/Documents/obsidian/stid` — personal project history, not something this codebase owns. Decisions
-this repo made _about_ the format are in `docs/lcd/DECISIONS.md`; what the tool does with it today
-is `docs/lcd/SPEC.md`.
+This document is the format only. Decisions this repo made _about_ the format are in
+`docs/lcd/DECISIONS.md`; what the tool does with it today is `docs/lcd/SPEC.md`.

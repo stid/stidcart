@@ -776,12 +776,12 @@ fn ac_101_filter_and_sort_combine() {
     assert_not_listed(&dumps[0], &["kiwi"], "F1, then an");
 }
 
-// --- the look: layout C (AC-104..AC-111, D-040, D-041) -----------------------------------------
+// --- the look (AC-104..AC-111, AC-210; D-040, D-041, D-069) ------------------------------------
 //
 // The menu draws from a RAM copy of the ROM's mixed-case set at $3800 that carries its own glyphs:
-// type badges, the rule, the scroll track and thumb, and the logo's quarter-block cells. Tests
-// find a glyph by its bitmap, so they hold the approved pixels (the "Stidcart Menu Layouts" mockup,
-// layout C) and never the code numbers. Colours are read from colour RAM and the VIC's registers,
+// type badges, the rule, the scroll track and thumb, and the wordmark's cells. Tests find a glyph
+// by its bitmap, so they hold the approved pixels (the "Stidcart Menu Layouts" mockup for the
+// badges, "Stidcart Menu Directions" for the wordmark) and never the code numbers. Colours are read from colour RAM and the VIC's registers,
 // low nybble only: VICE fills the high nybble from the bus.
 
 const COLOUR_RAM: (u16, u16) = (0xd800, 0xdbe7);
@@ -797,11 +797,20 @@ const ROM_MIXED_CASE: (u16, u16) = (0xd800, 0xdfff);
 const TEXT_COLOUR: (u16, u16) = (0x0286, 0x0286);
 /// The KERNAL's SHIFT+C= lock: bit 7 set stops the keys switching the character set.
 const SHIFT_LOCK: (u16, u16) = (0x0291, 0x0291);
-const LOGO_COL: usize = 7;
-const NAME_ROW: usize = 3;
-/// The dark grey rule under the list. Row 4 is clear: the raster strip shows through it (D-048).
+/// The label: rows 0-3 in light grey, a band a column in 1-5, the wordmark from column 8 of rows
+/// 1-2, the cart name and the entry count ending at column 38 of rows 1 and 2 (D-069).
+const LABEL_ROWS: std::ops::Range<usize> = 0..4;
+const BAND_COLS: std::ops::RangeInclusive<usize> = 1..=5;
+const WORDMARK_COL: usize = 8;
+const WORDMARK_ROW: usize = 1;
+const WORDMARK_CELLS: usize = 9;
+const NAME_ROW: usize = 1;
+const COUNT_ROW: usize = 2;
+const LABEL_END: usize = 38;
+/// The row between the label and the list, all spaces.
+const GAP_ROW: usize = 4;
+/// The dark grey rule under the list.
 const RULE_ROW: usize = 21;
-const STRIP_ROW: usize = 4;
 const TRACK_COL: usize = 21;
 const PANE_COL: usize = 23;
 const VALUE_COL: usize = 29;
@@ -820,7 +829,6 @@ mod colour {
     pub const ORANGE: u8 = 8;
     pub const LIGHT_RED: u8 = 10;
     pub const DARK_GREY: u8 = 11;
-    pub const GREY: u8 = 12;
     pub const LIGHT_GREEN: u8 = 13;
     pub const LIGHT_BLUE: u8 = 14;
     pub const LIGHT_GREY: u8 = 15;
@@ -893,17 +901,50 @@ fn badge_halves() -> Vec<[u8; 8]> {
     BADGES.iter().flatten().map(|g| bits(g)).collect()
 }
 
-/// Block letters on a 6×6 grid of quarter-cells: three characters wide and three tall.
-fn letter(c: char) -> [&'static str; 6] {
-    match c {
-        'S' => [".XXXXX", "XX....", ".XXXX.", "....XX", "....XX", "XXXXX."],
-        'T' => ["XXXXXX", "..XX..", "..XX..", "..XX..", "..XX..", "..XX.."],
-        'I' => [".XXXX.", "..XX..", "..XX..", "..XX..", "..XX..", ".XXXX."],
-        'D' => ["XXXXX.", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XXXXX."],
-        'C' => [".XXXXX", "XX....", "XX....", "XX....", "XX....", ".XXXXX"],
-        'A' => [".XXXX.", "XX..XX", "XX..XX", "XXXXXX", "XX..XX", "XX..XX"],
-        'R' => ["XXXXX.", "XX..XX", "XX..XX", "XXXXX.", "XX.XX.", "XX..XX"],
-        other => panic!("no block letter for {other}"),
+/// The wordmark, 72 by 12 pixels: 2-pixel strokes with the outer corners cut (the "Stidcart Menu
+/// Directions" mockup, direction B). It starts on the third scanline of row 1.
+const WORDMARK: [&str; 12] = [
+    ".XXXXXX...XXXXXXXX..XX..XXXXXXX....XXXXXX....XXXXXX...XXXXXXX...XXXXXXXX",
+    "XXXXXXXX..XXXXXXXX..XX..XXXXXXXX..XXXXXXXX..XXXXXXXX..XXXXXXXX..XXXXXXXX",
+    "XX....XX.....XX.....XX..XX....XX..XX....XX..XX....XX..XX....XX.....XX...",
+    "XX...........XX.....XX..XX....XX..XX........XX....XX..XX....XX.....XX...",
+    "XX...........XX.....XX..XX....XX..XX........XX....XX..XX....XX.....XX...",
+    "XXXXXXXX.....XX.....XX..XX....XX..XX........XXXXXXXX..XXXXXXXX.....XX...",
+    "XXXXXXXX.....XX.....XX..XX....XX..XX........XXXXXXXX..XXXXXXX......XX...",
+    "......XX.....XX.....XX..XX....XX..XX........XX....XX..XX....XX.....XX...",
+    "......XX.....XX.....XX..XX....XX..XX........XX....XX..XX....XX.....XX...",
+    "XX....XX.....XX.....XX..XX....XX..XX....XX..XX....XX..XX....XX.....XX...",
+    "XXXXXXXX.....XX.....XX..XXXXXXXX..XXXXXXXX..XX....XX..XX....XX.....XX...",
+    ".XXXXXX......XX.....XX..XXXXXXX....XXXXXX...XX....XX..XX....XX.....XX...",
+];
+const WORDMARK_TOP: usize = 2;
+
+/// Whether pixel (x, y) of the wordmark's two rows of cells is ink.
+fn wordmark_ink(x: usize, y: usize) -> bool {
+    (WORDMARK_TOP..WORDMARK_TOP + WORDMARK.len()).contains(&y)
+        && WORDMARK[y - WORDMARK_TOP].as_bytes()[x] == b'X'
+}
+
+/// Cell (cx, cy) of the wordmark as the character set holds it: the ink is the clear bits, so a
+/// light grey cell shows it in the background's black.
+fn wordmark_cell(cx: usize, cy: usize) -> [u8; 8] {
+    let mut out = [0xffu8; 8];
+    for (y, row) in out.iter_mut().enumerate() {
+        for x in 0..8 {
+            if wordmark_ink(cx * 8 + x, cy * 8 + y) {
+                *row &= !(0x80 >> x);
+            }
+        }
+    }
+    out
+}
+
+/// What the label's second line says for `n` visible entries.
+fn entries_text(n: usize) -> String {
+    if n == 1 {
+        "1 entry".into()
+    } else {
+        format!("{n} entries")
     }
 }
 
@@ -923,38 +964,47 @@ fn inverse(g: [u8; 8]) -> [u8; 8] {
     g.map(|b| !b)
 }
 
-/// The 8×8 bitmap of cell (cx, cy) of a block letter: four quarter-cells of 4×4 pixels.
-fn letter_cell(c: char, cx: usize, cy: usize) -> [u8; 8] {
-    let g = letter(c);
-    let mut out = [0u8; 8];
-    for (y, row) in out.iter_mut().enumerate() {
-        for x in 0..8 {
-            if g[cy * 2 + y / 4].as_bytes()[cx * 2 + x / 4] == b'X' {
-                *row |= 0x80 >> x;
-            }
-        }
-    }
-    out
-}
+/// The lower-case letters' codes, which the menu draws as small capitals (D-070).
+const SMALL_CODES: std::ops::RangeInclusive<usize> = 1..=26;
 
-const LOGO: &str = "STIDCART";
-/// White beside the colourful mark, as the app's wordmark (D-048).
-const LOGO_COLOURS: [u8; 3] = [colour::WHITE; 3];
+/// The small capitals, a to z: five lines each, on lines 2-6 of the cell, strokes two pixels wide
+/// (the "Stidcart Menu Legibility" mockup).
+const SMALL_CAPS: [[u8; 5]; 26] = [
+    [0x3c, 0x66, 0x7e, 0x66, 0x66],
+    [0x7c, 0x66, 0x7c, 0x66, 0x7c],
+    [0x3c, 0x66, 0x60, 0x66, 0x3c],
+    [0x78, 0x6c, 0x66, 0x6c, 0x78],
+    [0x7e, 0x60, 0x78, 0x60, 0x7e],
+    [0x7e, 0x60, 0x78, 0x60, 0x60],
+    [0x3c, 0x60, 0x6e, 0x66, 0x3c],
+    [0x66, 0x66, 0x7e, 0x66, 0x66],
+    [0x3c, 0x18, 0x18, 0x18, 0x3c],
+    [0x1e, 0x0c, 0x0c, 0x6c, 0x38],
+    [0x66, 0x6c, 0x78, 0x6c, 0x66],
+    [0x60, 0x60, 0x60, 0x60, 0x7e],
+    [0x63, 0x77, 0x7f, 0x6b, 0x63],
+    [0x66, 0x76, 0x7e, 0x6e, 0x66],
+    [0x3c, 0x66, 0x66, 0x66, 0x3c],
+    [0x7c, 0x66, 0x7c, 0x60, 0x60],
+    [0x3c, 0x66, 0x66, 0x6c, 0x36],
+    [0x7c, 0x66, 0x7c, 0x6c, 0x66],
+    [0x3e, 0x60, 0x3c, 0x06, 0x7c],
+    [0x7e, 0x18, 0x18, 0x18, 0x18],
+    [0x66, 0x66, 0x66, 0x66, 0x3c],
+    [0x66, 0x66, 0x66, 0x3c, 0x18],
+    [0x63, 0x6b, 0x7f, 0x77, 0x63],
+    [0x66, 0x3c, 0x18, 0x3c, 0x66],
+    [0x66, 0x66, 0x3c, 0x18, 0x18],
+    [0x7e, 0x0c, 0x18, 0x30, 0x7e],
+];
 
-/// Every glyph the menu adds, without repeats: icons, rule, track, thumb and the logo's cells.
+/// Every glyph the menu adds in `$60-$7F`, without repeats: badges, rule, track and thumb.
 fn own_glyphs() -> Vec<[u8; 8]> {
     let mut all = badge_halves();
     all.extend([bits(&RULE), bits(&TRACK), bits(&THUMB)]);
-    for c in LOGO.chars() {
-        for cy in 0..3 {
-            for cx in 0..3 {
-                all.push(letter_cell(c, cx, cy));
-            }
-        }
-    }
     let mut seen = Vec::new();
     for g in all {
-        if g != [0; 8] && !seen.contains(&g) {
+        if !seen.contains(&g) {
             seen.push(g);
         }
     }
@@ -1038,9 +1088,9 @@ fn looks_after(dir: &Path, cart: &Path, groups: &[Vec<u8>]) -> Vec<Look> {
         .collect()
 }
 
-/// What every menu screen has: black, the RAM set, the logo, the cart name, both rules and the help
-/// bar.
-fn check_frame(l: &Look, title: &str) -> Result<(), String> {
+/// What every menu screen has: black, the RAM set, the label with the wordmark, the cart name and
+/// the count of visible entries, the rule and the help bar.
+fn check_frame(l: &Look, title: &str, entries: usize) -> Result<(), String> {
     if (l.border, l.background) != (colour::BLACK, colour::BLACK) {
         return Err(format!(
             "border {} and background {} are not black",
@@ -1050,24 +1100,46 @@ fn check_frame(l: &Look, title: &str) -> Result<(), String> {
     if l.charset != RAM_CHARSET {
         return Err(format!("$D018 is {:02x}, not the RAM set", l.charset));
     }
-    for (i, c) in LOGO.chars().enumerate() {
-        for (cy, &row_colour) in LOGO_COLOURS.iter().enumerate() {
-            for cx in 0..3 {
-                let cell = cy * COLS + LOGO_COL + i * 4 + cx;
-                let want = letter_cell(c, cx, cy);
-                if l.bitmap(cell) != want {
+    let count = entries_text(entries);
+    for n in LABEL_ROWS {
+        let text = match n {
+            NAME_ROW => title,
+            COUNT_ROW => count.as_str(),
+            _ => "",
+        };
+        let text_from = LABEL_END + 1 - text.len();
+        for c in 0..COLS {
+            let cell = n * COLS + c;
+            let want_colour = if BAND_COLS.contains(&c) {
+                BANDS[c - BAND_COLS.start()]
+            } else {
+                colour::LIGHT_GREY
+            };
+            if l.colour[cell] != want_colour {
+                return Err(format!(
+                    "label row {n} column {c} is colour {}, not {want_colour}",
+                    l.colour[cell]
+                ));
+            }
+            let in_wordmark = (WORDMARK_ROW..WORDMARK_ROW + 2).contains(&n)
+                && (WORDMARK_COL..WORDMARK_COL + WORDMARK_CELLS).contains(&c);
+            if in_wordmark {
+                if l.bitmap(cell) != wordmark_cell(c - WORDMARK_COL, n - WORDMARK_ROW) {
                     return Err(format!(
-                        "logo letter {c}, cell {cx},{cy} shows the wrong pixels"
+                        "label row {n} column {c} does not show its wordmark cell"
                     ));
                 }
-                if want != [0; 8] && l.colour[cell] != row_colour {
-                    return Err(format!("logo row {cy} is colour {}", l.colour[cell]));
+            } else if (text_from..=LABEL_END).contains(&c) {
+                let want = vice::screen_text(text)[c - text_from] | 0x80;
+                if l.screen[cell] != want {
+                    return Err(format!(
+                        "label row {n} column {c} is not '{text}' reversed, ending at column {LABEL_END}"
+                    ));
                 }
+            } else if l.screen[cell] != 0xa0 {
+                return Err(format!("label row {n} column {c} is not a reverse space"));
             }
         }
-    }
-    if !row_shows(&l.screen, NAME_ROW, title) {
-        return Err(format!("row 3 does not show the cart name '{title}'"));
     }
     for c in 0..COLS {
         let cell = RULE_ROW * COLS + c;
@@ -1077,16 +1149,14 @@ fn check_frame(l: &Look, title: &str) -> Result<(), String> {
             ));
         }
     }
-    if let Some(c) = (0..COLS).find(|&c| l.screen[STRIP_ROW * COLS + c] != 0x20) {
-        return Err(format!(
-            "row {STRIP_ROW} column {c} is not a space under the strip"
-        ));
+    if let Some(c) = (0..COLS).find(|&c| l.screen[GAP_ROW * COLS + c] != 0x20) {
+        return Err(format!("row {GAP_ROW} column {c} is not a space"));
     }
     if !vice::is_reversed(&l.screen, HELP_ROW * COLS, COLS) {
         return Err("the help bar is not reversed across all 40 columns".into());
     }
-    if let Some(c) = (0..COLS).find(|&c| l.colour[HELP_ROW * COLS + c] != colour::GREY) {
-        return Err(format!("help bar column {c} is not grey"));
+    if let Some(c) = (0..COLS).find(|&c| l.colour[HELP_ROW * COLS + c] != colour::LIGHT_GREY) {
+        return Err(format!("help bar column {c} is not light grey"));
     }
     for text in ["return", "f1", "run/stop"] {
         if !row_shows(&l.screen, HELP_ROW, text) {
@@ -1133,10 +1203,10 @@ fn thumb(n: usize, top: usize) -> (usize, usize) {
 fn the_frame_check_rejects_a_plain_screen() {
     let mut screen = vec![0x20u8; 1000];
     for (i, b) in vice::screen_text("stidcart").iter().enumerate() {
-        screen[LOGO_COL + i] = *b;
+        screen[WORDMARK_ROW * COLS + WORDMARK_COL + i] = *b;
     }
     for (i, b) in vice::screen_text("plain").iter().enumerate() {
-        screen[NAME_ROW * COLS + 17 + i] = *b;
+        screen[NAME_ROW * COLS + LABEL_END - 4 + i] = *b;
     }
     for (i, b) in vice::screen_text(" return start  f1 sort  run/stop basic")
         .iter()
@@ -1152,14 +1222,14 @@ fn the_frame_check_rejects_a_plain_screen() {
         background: colour::BLUE,
         charset: 0x17,
     };
-    assert!(check_frame(&plain, "plain").is_err());
+    assert!(check_frame(&plain, "plain", 0).is_err());
     let black = Look {
         border: colour::BLACK,
         background: colour::BLACK,
         charset: RAM_CHARSET,
         ..plain
     };
-    assert!(check_frame(&black, "plain").is_err());
+    assert!(check_frame(&black, "plain", 0).is_err());
     assert!(check_track(&black, 0, 0).is_err());
 }
 
@@ -1199,7 +1269,7 @@ fn ac_105_the_menu_draws_from_a_ram_charset_with_its_own_glyphs() {
     let glyph = |code: usize| -> [u8; 8] { ram[code * 8..code * 8 + 8].try_into().unwrap() };
 
     for code in 0..256 {
-        if !OWN_CODES.contains(&(code & 0x7f)) {
+        if !OWN_CODES.contains(&(code & 0x7f)) && !SMALL_CODES.contains(&(code & 0x7f)) {
             assert_eq!(
                 glyph(code),
                 rom[code * 8..code * 8 + 8],
@@ -1220,11 +1290,73 @@ fn ac_105_the_menu_draws_from_a_ram_charset_with_its_own_glyphs() {
             );
         }
     }
+    // The wordmark's cells sit in the reversed half of the menu's codes (D-069).
+    for cy in 0..2 {
+        for cx in 0..WORDMARK_CELLS {
+            let g = wordmark_cell(cx, cy);
+            assert!(
+                (0xe0..0x100).any(|c| glyph(c) == g),
+                "no code in $E0-$FF holds wordmark cell {cx},{cy}"
+            );
+        }
+    }
 }
 
-// AC-106: the logo, the cart name, the rules and the help bar, on a black screen, empty cart too
+/// AC-213 (none): the menu draws the lower-case letters as small capitals: codes 1-26 of its
+/// character set hold five lines each on lines 2-6 of the cell, codes `$81-$9A` their inverses for
+/// the selection bar and the label, and the capitals and digits are still the ROM's. A program the
+/// menu starts gets the ROM's set back (AC-104).
 #[test]
-fn ac_106_the_frame_has_the_logo_rules_and_help_bar() {
+fn ac_213_lower_case_shows_as_small_capitals() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-213: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac213");
+    let cart = build(&dir, "letters", &[], &[fixtures().join("hello.prg")]);
+    let dumps = boot_or_panic(
+        &dir,
+        &cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Dump(CHARSET.0, CHARSET.1),
+            Step::Raw("bank rom".into()),
+            Step::Dump(ROM_MIXED_CASE.0, ROM_MIXED_CASE.1),
+            Step::Raw("bank cpu".into()),
+        ],
+    );
+    let (ram, rom) = (&dumps[0], &dumps[1]);
+    let glyph =
+        |set: &[u8], code: usize| -> [u8; 8] { set[code * 8..code * 8 + 8].try_into().unwrap() };
+    for (i, lines) in SMALL_CAPS.iter().enumerate() {
+        let code = SMALL_CODES.start() + i;
+        let mut want = [0u8; 8];
+        want[2..7].copy_from_slice(lines);
+        let letter = (b'a' + i as u8) as char;
+        assert_eq!(
+            glyph(ram, code),
+            want,
+            "'{letter}' is not its small capital"
+        );
+        assert_eq!(
+            glyph(ram, code + 0x80),
+            inverse(want),
+            "reversed '{letter}' is not the inverse of its small capital"
+        );
+    }
+    for code in (0x30..0x3a).chain(0x41..0x5b) {
+        assert_eq!(
+            glyph(ram, code),
+            glyph(rom, code),
+            "code ${code:02x}, a digit or a capital, is not the ROM's"
+        );
+    }
+}
+
+// AC-106: the label, the cart name, the rule and the help bar, on a black screen, empty cart too
+#[test]
+fn ac_106_the_frame_has_the_label_rule_and_help_bar() {
     if !vice::require_tool("x64sc") {
         eprintln!("AC-106: skipping — x64sc is not installed");
         return;
@@ -1234,7 +1366,7 @@ fn ac_106_the_frame_has_the_logo_rules_and_help_bar() {
     let inputs = ["alpha", "bravo"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
     let cart = build(&dir, "frame test", &[], &inputs);
     let l = looks_after(&dir, &cart, &[vec![]]).remove(0);
-    check_frame(&l, "frame test").unwrap_or_else(|e| panic!("{e}"));
+    check_frame(&l, "frame test", 2).unwrap_or_else(|e| panic!("{e}"));
 
     let empty_dir = scratch("ac106-empty");
     let only = fixtures().join("hello.prg");
@@ -1249,7 +1381,7 @@ fn ac_106_the_frame_has_the_logo_rules_and_help_bar() {
         listed(&l.screen, "no entries").is_some(),
         "empty cart: no message"
     );
-    check_frame(&l, "empty").unwrap_or_else(|e| panic!("empty cart: {e}"));
+    check_frame(&l, "empty", 0).unwrap_or_else(|e| panic!("empty cart: {e}"));
 }
 
 // AC-107: each entry has its kind's badge in its kind's colour, and the selection reverses it
@@ -1316,22 +1448,97 @@ fn ac_107_entries_carry_their_kind_icon() {
                 }
                 let name_colours = &l.colour[at..at + name.len()];
                 assert!(
-                    name_colours.iter().all(|&x| x == colour::LIGHT_GREY),
-                    "{what}: '{name}' is not light grey"
+                    name_colours.iter().all(|&x| x == colour::WHITE),
+                    "{what}: '{name}' is not white"
                 );
             }
         }
     }
 }
 
-// AC-108: the pane shows the selection's name, type, size, load address or bank, and how it starts
+/// The pane's rows (D-069): the chip, the title or name, and the three facts at the foot.
+const CHIP_ROW: usize = 5;
+const HEAD_ROW: usize = 7;
+const FACT_ROWS: std::ops::Range<usize> = 18..21;
+
+/// Assert the pane's chip: `label` between two spaces, reversed, in colour `c`, from the pane's
+/// first column of row 5, plain spaces after it, and row 6 blank.
+fn assert_chip(l: &Look, label: &str, c: u8, what: &str) {
+    let text = format!(" {label} ");
+    let from = CHIP_ROW * COLS + PANE_COL;
+    let want: Vec<u8> = vice::screen_text(&text).iter().map(|b| b | 0x80).collect();
+    assert_eq!(
+        l.screen[from..from + text.len()],
+        want,
+        "{what}: the chip is not '{text}' reversed"
+    );
+    assert!(
+        l.colour[from..from + text.len()].iter().all(|&k| k == c),
+        "{what}: the chip is not colour {c}"
+    );
+    assert!(
+        l.screen[from + text.len()..from + 16]
+            .iter()
+            .all(|&b| b == 0x20),
+        "{what}: the chip's row does not end in spaces"
+    );
+    assert_eq!(
+        pane_row(&l.screen, CHIP_ROW + 1),
+        [0x20u8; 16],
+        "{what}: row 6"
+    );
+}
+
+/// Assert the facts in rows 18-20: each label in light grey from the pane's first column, its value
+/// exact from column 29 in white (D-070).
+fn assert_facts(l: &Look, facts: [(&str, &str); 3], what: &str) {
+    for (n, (key, value)) in FACT_ROWS.zip(facts) {
+        let label = l
+            .colours_of(n, PANE_COL, key)
+            .unwrap_or_else(|| panic!("{what}: row {n} has no '{key}'"));
+        assert!(
+            label.iter().all(|&c| c == colour::LIGHT_GREY),
+            "{what}: '{key}' is not light grey"
+        );
+        assert!(
+            pane_row(&l.screen, n).starts_with(&vice::screen_text(key)),
+            "{what}: '{key}' does not start row {n} of the pane"
+        );
+        assert_eq!(
+            l.value(n),
+            value_cells(value),
+            "{what}: {key} is not exactly '{value}'"
+        );
+        let cells = n * COLS + VALUE_COL..n * COLS + VALUE_COL + value.len();
+        assert!(
+            l.colour[cells].iter().all(|&c| c == colour::WHITE),
+            "{what}: the value of '{key}' is not white"
+        );
+    }
+}
+
+/// Assert pane rows `rows` are blank.
+fn assert_pane_blank(l: &Look, rows: std::ops::Range<usize>, what: &str) {
+    for n in rows {
+        assert_eq!(
+            pane_row(&l.screen, n),
+            [0x20u8; 16],
+            "{what}: pane row {n} is not blank"
+        );
+    }
+}
+
+/// AC-210 (none): for an entry the pane shows a chip with its kind in the kind's colour in row 5,
+/// its name in white in row 7, and in rows 18-20 its size, its load address or first bank, and how
+/// it starts, labels in light grey and values in white (D-070). Nothing says "type" and the rows between are
+/// blank. (AC-108 until D-069, when the facts opened the pane and took the kind's colour.)
 #[test]
-fn ac_108_the_pane_describes_the_selection() {
+fn ac_210_the_pane_leads_with_the_kind_and_ends_with_the_facts() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-108: skipping — x64sc is not installed");
+        eprintln!("AC-210: skipping — x64sc is not installed");
         return;
     }
-    let dir = scratch("ac108");
+    let dir = scratch("ac210");
     let low = markers::basic_prg("LOW");
     let high = markers::high_prg("HIGH");
     let eight = markers::cart(CartKind::K8, "EIGHT");
@@ -1356,60 +1563,47 @@ fn ac_108_the_pane_describes_the_selection() {
 
     let looks = looks_after(&dir, &cart, &[vec![], vec![key::DOWN], vec![key::DOWN]]);
     let bank = bank.to_string();
-    for (l, name, facts) in [
+    for (l, name, kind, kind_colour, facts) in [
         (
             &looks[0],
             "low",
-            [
-                ("type", "program"),
-                ("size", "1K"),
-                ("load", "$07F0"),
-                ("start", "RUN"),
-            ],
+            "program",
+            colour::LIGHT_GREEN,
+            [("size", "1K"), ("load", "$07F0"), ("start", "RUN")],
         ),
         (
             &looks[1],
             "high",
-            [
-                ("type", "program"),
-                ("size", "1K"),
-                ("load", "$C000"),
-                ("start", "SYS 49152"),
-            ],
+            "program",
+            colour::LIGHT_GREEN,
+            [("size", "1K"), ("load", "$C000"), ("start", "SYS 49152")],
         ),
         (
             &looks[2],
             "eight",
-            [
-                ("type", "8K cart"),
-                ("size", "8K"),
-                ("bank", bank.as_str()),
-                ("start", "reset"),
-            ],
+            "8K cart",
+            colour::YELLOW,
+            [("size", "8K"), ("bank", bank.as_str()), ("start", "reset")],
         ),
     ] {
-        let at = l
-            .colours_of(6, PANE_COL, name)
-            .unwrap_or_else(|| panic!("the pane does not name '{name}'"));
+        assert_chip(l, kind, kind_colour, name);
+        assert_eq!(
+            pane_row(&l.screen, HEAD_ROW),
+            wrapped(name)[0],
+            "'{name}': row 7 is not the name alone"
+        );
         assert!(
-            at.iter().all(|&c| c == colour::WHITE),
+            l.colours_of(HEAD_ROW, PANE_COL, name)
+                .is_some_and(|c| c.iter().all(|&c| c == colour::WHITE)),
             "'{name}': the name is not white"
         );
-        for (i, (key, value)) in facts.iter().enumerate() {
-            let n = 8 + 2 * i;
-            let label = l
-                .colours_of(n, PANE_COL, key)
-                .unwrap_or_else(|| panic!("'{name}': row {n} has no '{key}'"));
-            assert!(
-                label.iter().all(|&c| c == colour::GREY),
-                "'{name}': '{key}' is not grey"
-            );
-            assert_eq!(
-                l.value(n),
-                value_cells(value),
-                "'{name}': {key} is not exactly '{value}'"
-            );
-        }
+        assert_pane_blank(l, HEAD_ROW + 1..FACT_ROWS.start, name);
+        assert_facts(l, facts, name);
+        let pane: Vec<u8> = LIST_ROWS.flat_map(|n| pane_row(&l.screen, n)).collect();
+        assert!(
+            vice::find(&pane, &vice::screen_text("type")).is_none(),
+            "'{name}': the pane still has a 'type' row"
+        );
     }
 }
 
@@ -1473,7 +1667,7 @@ fn ac_110_the_status_shows_the_position_and_the_filter_its_matches() {
         l.colours_of(n, 0, text)
             .unwrap_or_else(|| panic!("row {n} does not show '{text}'"))
             .iter()
-            .all(|&c| c == colour::GREY)
+            .all(|&c| c == colour::LIGHT_GREY)
     };
     assert!(
         grey(&looks[0], STATUS_ROW, "1 of 3   cart order"),
@@ -1607,20 +1801,20 @@ fn ac_104_what_the_menu_hands_over_has_the_c64_colours() {
     );
 }
 
-// --- the raster brand (AC-123..AC-128, D-048) ----------------------------------------------------
+// --- the label and the interrupt (AC-123, AC-127, AC-128, AC-207..AC-209; D-048, D-069) -----------
 //
-// The strip and the mark's label are made by a raster interrupt, so screen and colour RAM can't
-// show them: these read VICE's own picture of the frame (`Step::Shot`). Each waits two interrupts
-// first, because VICE's picture of the frame in progress still holds the previous frame below the
-// beam. In the 384x272 PAL capture, raster line L is image row L - 16 and the 320 visible pixels
-// start at column 32.
+// The label is reverse characters, so screen and colour RAM hold all of it. Two tests also read
+// VICE's own picture of the frame (`Step::Shot`): it is what shows the wordmark's pixels as a person
+// sees them, and that no raster line is recoloured any more. Each waits two interrupts first,
+// because VICE's picture of the frame in progress still holds the previous frame below the beam. In
+// the 384x272 PAL capture, raster line L is image row L - 16 and the 320 visible pixels start at
+// column 32.
 
 const SHOT_SIZE: (usize, usize) = (384, 272);
 const SHOT_X: usize = 32;
 const SHOT_FIRST_LINE: usize = 16;
 /// The raster line where character row 0 starts, with the default vertical scroll.
 const ROW0_LINE: usize = 51;
-const STRIP_LINES: std::ops::RangeInclusive<usize> = 84..=88;
 const BANDS: [u8; 5] = [
     colour::LIGHT_RED,
     colour::ORANGE,
@@ -1628,71 +1822,9 @@ const BANDS: [u8; 5] = [
     colour::LIGHT_GREEN,
     colour::LIGHT_BLUE,
 ];
-/// The mark's cells: columns 2-4 of rows 0-2, codes $EA-$F2 row by row (D-048).
-const MARK_COL: usize = 2;
-const MARK_CODES: std::ops::Range<usize> = 0xea..0xf3;
-
-/// The mark in multicolour pixels, 12 wide (each two screen pixels) by 24 lines: `S` the shell
-/// (`$D023`, dark grey), `L` the label (`$D022`, a band every three lines), `P` a pin (the cells'
-/// own colour, yellow).
-const MARK: [&str; 24] = [
-    "............",
-    ".SSSSSSSSSS.",
-    "SSSSSSSSSSSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSLLLLLLLLSS",
-    "SSSSSSSSSSSS",
-    ".SSSSSSSSSS.",
-    "...SSSSSS...",
-    "...SPSSPS...",
-    "...SPSSPS...",
-    "............",
-];
-
 /// The image row of raster line `line`.
 fn shot_y(line: usize) -> usize {
     line - SHOT_FIRST_LINE
-}
-
-/// The colour the mark shows at multicolour pixel (x, y).
-fn mark_colour(x: usize, y: usize) -> u8 {
-    match MARK[y].as_bytes()[x] {
-        b'S' => colour::DARK_GREY,
-        b'P' => colour::YELLOW,
-        b'L' => BANDS[(y - 3) / 3],
-        _ => colour::BLACK,
-    }
-}
-
-/// The eight bitmap bytes of mark cell `n` (0-8, row by row): two bits a multicolour pixel.
-fn mark_cell(n: usize) -> [u8; 8] {
-    let (cx, cy) = (n % 3, n / 3);
-    let mut out = [0u8; 8];
-    for (ly, byte) in out.iter_mut().enumerate() {
-        for x in 0..4 {
-            let bits = match MARK[cy * 8 + ly].as_bytes()[cx * 4 + x] {
-                b'L' => 1,
-                b'S' => 2,
-                b'P' => 3,
-                _ => 0,
-            };
-            *byte |= bits << (6 - 2 * x);
-        }
-    }
-    out
 }
 
 /// A cart with `n` programs, so the list scrolls when `n` passes 16.
@@ -1725,10 +1857,9 @@ fn shot_after_boot(dir: &Path, cart: &Path) -> vice::Shot {
     shot
 }
 
-// AC-123: the logo is white from column 7, the selection bar cyan (D-059; orange until then), and
-// row 4 clear for the strip
+// AC-123: the selection bar is cyan (D-059; orange until then)
 #[test]
-fn ac_123_the_logo_is_white_the_bar_cyan_and_row_4_clear() {
+fn ac_123_the_selection_bar_is_cyan() {
     if !vice::require_tool("x64sc") {
         eprintln!("AC-123: skipping — x64sc is not installed");
         return;
@@ -1736,7 +1867,7 @@ fn ac_123_the_logo_is_white_the_bar_cyan_and_row_4_clear() {
     let dir = scratch("ac123");
     let cart = programs_cart(&dir, "brand", 3);
     let l = looks_after(&dir, &cart, &[vec![]]).remove(0);
-    check_frame(&l, "brand").unwrap_or_else(|e| panic!("{e}"));
+    check_frame(&l, "brand", 3).unwrap_or_else(|e| panic!("{e}"));
     let first = LIST_ROWS.start;
     for c in SELECTION_BAR {
         assert_eq!(
@@ -1747,45 +1878,25 @@ fn ac_123_the_logo_is_white_the_bar_cyan_and_row_4_clear() {
     }
 }
 
-// AC-124: scanlines 84-88 are the five bands across the visible width, 83 and 89 black
-#[test]
-fn ac_124_a_raster_strip_runs_under_the_cart_name() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-124: skipping — x64sc is not installed");
-        return;
-    }
-    let dir = scratch("ac124");
-    let cart = programs_cart(&dir, "strip", 3);
-    let shot = shot_after_boot(&dir, &cart);
-    let line = |l: usize| -> Vec<u8> {
-        (SHOT_X..SHOT_X + 320)
-            .map(|x| shot.at(x, shot_y(l)))
-            .collect()
-    };
-    for (l, want) in STRIP_LINES.zip(BANDS) {
-        assert!(
-            line(l).iter().all(|&c| c == want),
-            "line {l} is not colour {want} across: {:?}",
-            line(l)
-        );
-    }
-    for l in [STRIP_LINES.start() - 1, STRIP_LINES.end() + 1] {
-        assert!(
-            line(l).iter().all(|&c| c == colour::BLACK),
-            "line {l} is not black"
-        );
-    }
+/// The colour VICE's picture shows at pixel (x, y) of the visible screen.
+fn shot_pixel(shot: &vice::Shot, x: usize, y: usize) -> u8 {
+    shot.at(SHOT_X + x, shot_y(ROW0_LINE + y))
 }
 
-// AC-125: the cartridge mark in columns 2-4 of rows 0-2, nothing else in rows 0-3 coloured
+/// AC-207 (none): rows 0-3 are the label, reverse spaces in light grey with a band a column in
+/// columns 1-5, and row 4 is spaces. In VICE's picture the label's lines are light grey and the five
+/// bands, row 4 is black on every scanline (no raster strip), and no cell is multicolour.
 #[test]
-fn ac_125_the_cartridge_mark_heads_the_menu() {
+fn ac_207_the_label_fills_rows_0_to_3() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-125: skipping — x64sc is not installed");
+        eprintln!("AC-207: skipping — x64sc is not installed");
         return;
     }
-    let dir = scratch("ac125");
-    let cart = programs_cart(&dir, "mark", 3);
+    let dir = scratch("ac207");
+    let cart = programs_cart(&dir, "label", 3);
+    let l = looks_after(&dir, &cart, &[vec![]]).remove(0);
+    check_frame(&l, "label", 3).unwrap_or_else(|e| panic!("{e}"));
+
     let dumps = boot_or_panic(
         &dir,
         &cart,
@@ -1795,108 +1906,131 @@ fn ac_125_the_cartridge_mark_heads_the_menu() {
             Step::Break(Target::Label("irq")),
             Step::Break(Target::Label("irq")),
             Step::Shot,
-            screen(),
-            Step::Dump(CHARSET.0, CHARSET.1),
+            Step::Dump(0xd016, 0xd016),
         ],
     );
-    let (shot, scr, chars) = (vice::Shot::parse(&dumps[0]), &dumps[1], &dumps[2]);
+    let shot = vice::Shot::parse(&dumps[0]);
     assert_eq!(
         (shot.width, shot.height),
         SHOT_SIZE,
         "not VICE's PAL capture"
     );
-
-    for (n, code) in MARK_CODES.enumerate() {
-        let (cx, cy) = (n % 3, n / 3);
-        assert_eq!(
-            scr[cy * COLS + MARK_COL + cx] as usize,
-            code,
-            "mark cell {cx},{cy} is not code ${code:02x}"
-        );
-        assert_eq!(
-            chars[code * 8..code * 8 + 8],
-            mark_cell(n),
-            "code ${code:02x} does not hold mark cell {n}"
-        );
-    }
-    let left = SHOT_X + MARK_COL * 8;
-    for (y, row) in MARK.iter().enumerate() {
-        for x in 0..row.len() {
-            let want = mark_colour(x, y);
-            for half in 0..2 {
-                let got = shot.at(left + 2 * x + half, shot_y(ROW0_LINE + y));
-                assert_eq!(got, want, "mark pixel {x},{y} is {got}, not {want}");
+    assert_eq!(dumps[1][0] & 0x10, 0, "multicolour is on");
+    for y in 0..LABEL_ROWS.end * 8 {
+        for x in 0..320 {
+            let (c, n) = (x / 8, y / 8);
+            // The wordmark and the two lines of text are AC-208's and AC-209's.
+            if (WORDMARK_ROW..WORDMARK_ROW + 2).contains(&n) && c >= WORDMARK_COL {
+                continue;
             }
+            let want = if BAND_COLS.contains(&c) {
+                BANDS[c - BAND_COLS.start()]
+            } else {
+                colour::LIGHT_GREY
+            };
+            let got = shot_pixel(&shot, x, y);
+            assert_eq!(got, want, "label pixel {x},{y} is colour {got}, not {want}");
         }
     }
-    let mark = left..left + 24;
-    for l in ROW0_LINE..ROW0_LINE + 32 {
-        for x in SHOT_X..SHOT_X + 320 {
-            let c = shot.at(x, shot_y(l));
-            if !mark.contains(&x) {
-                assert!(
-                    [colour::BLACK, colour::WHITE, colour::LIGHT_GREY].contains(&c),
-                    "line {l} pixel {x} is colour {c} outside the mark"
-                );
-            }
+    for y in GAP_ROW * 8..(GAP_ROW + 1) * 8 {
+        for x in 0..320 {
+            let got = shot_pixel(&shot, x, y);
+            assert_eq!(got, colour::BLACK, "row 4 pixel {x},{y} is colour {got}");
         }
     }
 }
 
-// AC-126: the strip and the mark hold still while the list scrolls, filters and sorts
+/// AC-208 (none): columns 8-16 of rows 1-2 show the wordmark's 72 by 12 pixels from the third
+/// scanline of row 1, black on light grey, in VICE's picture.
 #[test]
-fn ac_126_the_strip_and_mark_are_steady_while_the_menu_redraws() {
+fn ac_208_the_wordmark_is_drawn_on_the_label() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-126: skipping — x64sc is not installed");
+        eprintln!("AC-208: skipping — x64sc is not installed");
         return;
     }
-    let dir = scratch("ac126");
-    let cart = programs_cart(&dir, "steady", 24);
-    const FRAMES: usize = 20;
-    let groups = [
-        vec![key::DOWN; 10],
-        [vec![key::DOWN; 7], b"E".to_vec(), vec![key::DEL, key::F1]].concat(),
-    ];
-    let mut steps = vec![Step::Labels(vice::menu_labels())];
-    for keys in &groups {
-        steps.push(idle());
-        steps.push(Step::Keys(keys.clone()));
-        for _ in 0..FRAMES {
-            steps.push(Step::Break(Target::Label("irq")));
-            steps.push(Step::Shot);
-        }
-    }
-    let shots: Vec<vice::Shot> = boot_or_panic(&dir, &cart, &steps)
-        .iter()
-        .map(|b| vice::Shot::parse(b))
-        .collect();
-    let top = |s: &vice::Shot| -> Vec<u8> {
-        (shot_y(ROW0_LINE)..=shot_y(*STRIP_LINES.end() + 1))
-            .flat_map(|y| (0..s.width).map(move |x| (x, y)))
-            .map(|(x, y)| s.at(x, y))
-            .collect()
-    };
-    let rest = |s: &vice::Shot| -> Vec<u8> {
-        (shot_y(*STRIP_LINES.end() + 2)..s.height)
-            .flat_map(|y| (0..s.width).map(move |x| (x, y)))
-            .map(|(x, y)| s.at(x, y))
-            .collect()
-    };
-    let first = top(&shots[0]);
-    for (i, s) in shots.iter().enumerate() {
-        assert!(top(s) == first, "frame {i}: the strip or the mark changed");
-    }
-    let mut seen: Vec<Vec<u8>> = Vec::new();
-    for s in &shots {
-        let r = rest(s);
-        if !seen.contains(&r) {
-            seen.push(r);
+    let dir = scratch("ac208");
+    let cart = programs_cart(&dir, "wordmark", 3);
+    let shot = shot_after_boot(&dir, &cart);
+    let mut ink = 0;
+    for y in 0..16 {
+        for x in 0..WORDMARK_CELLS * 8 {
+            let want = if wordmark_ink(x, y) {
+                ink += 1;
+                colour::BLACK
+            } else {
+                colour::LIGHT_GREY
+            };
+            let got = shot_pixel(&shot, WORDMARK_COL * 8 + x, WORDMARK_ROW * 8 + y);
+            assert_eq!(
+                got, want,
+                "wordmark pixel {x},{y} is colour {got}, not {want}"
+            );
         }
     }
     assert!(
-        seen.len() > 10,
-        "only {} distinct screens below the strip: the frames did not catch the redraws",
-        seen.len()
+        ink > 200,
+        "the expected wordmark has only {ink} pixels of ink"
+    );
+}
+
+/// AC-209 (none): the cart name ends at column 38 of row 1 and the count of visible entries at
+/// column 38 of row 2, reversed in light grey: "1 entry" for one, a 16-character name whole, and
+/// hidden entries not counted.
+#[test]
+fn ac_209_the_label_names_the_cart_and_counts_its_entries() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-209: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac209");
+    let one = programs_cart(&dir, "sixteen chars ok", 1);
+    let l = looks_after(&dir, &one, &[vec![]]).remove(0);
+    check_frame(&l, "sixteen chars ok", 1).unwrap_or_else(|e| panic!("one entry: {e}"));
+
+    let dir = scratch("ac209-hidden");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs: Vec<PathBuf> = (0..12)
+        .map(|i| write(&dir, &format!("entry {i:02}.prg"), &hello))
+        .collect();
+    let hidden = inputs[3].to_str().unwrap();
+    let cart = build(&dir, "x", &["--hide", hidden], &inputs);
+    let l = looks_after(&dir, &cart, &[vec![]]).remove(0);
+    check_frame(&l, "x", 11).unwrap_or_else(|e| panic!("eleven of twelve visible: {e}"));
+}
+
+/// AC-212 (none): the key bar in row 24 is reversed in light grey across all 40 columns, on the
+/// menu and on the help screen, and the help keeps rows 0-4 as they were.
+#[test]
+fn ac_212_the_key_bar_is_light_grey_on_the_menu_and_the_help() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-212: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac212");
+    let cart = programs_cart(&dir, "keys", 3);
+    let looks = looks_after(&dir, &cart, &[vec![], vec![key::F7]]);
+    for (l, what) in [(&looks[0], "menu"), (&looks[1], "help")] {
+        assert!(
+            vice::is_reversed(&l.screen, HELP_ROW * COLS, COLS),
+            "{what}: the key bar is not reversed across all 40 columns"
+        );
+        assert!(
+            l.colour[HELP_ROW * COLS..]
+                .iter()
+                .all(|&c| c == colour::LIGHT_GREY),
+            "{what}: the key bar is not light grey"
+        );
+    }
+    assert_ne!(
+        looks[0].screen[HELP_ROW * COLS..],
+        looks[1].screen[HELP_ROW * COLS..],
+        "F7 did not change the key bar: the help is not up"
+    );
+    let top = ..(GAP_ROW + 1) * COLS;
+    assert!(
+        looks[0].screen[top] == looks[1].screen[top]
+            && looks[0].colour[top] == looks[1].colour[top],
+        "the help changed rows 0-4"
     );
 }
 
@@ -3714,20 +3848,24 @@ fn wrapped(text: &str) -> Vec<Vec<u8>> {
         .collect()
 }
 
-/// Assert `text` is in the pane, wrapped, starting at row `from` or below, and return the row after
-/// its last.
-fn assert_wrapped(screen: &[u8], from: usize, text: &str, what: &str) -> usize {
-    let rows = wrapped(text);
-    let start = (from..LIST_ROWS.end)
-        .find(|&n| pane_row(screen, n) == rows[0])
-        .unwrap_or_else(|| panic!("{what}: no pane row from {from} on starts '{text}'"));
-    for (k, r) in rows.iter().enumerate() {
+/// Assert `text` is in the pane wrapped from exactly row `from`, every character in colour `c`, and
+/// return the row after its last.
+fn assert_wrapped_at(l: &Look, from: usize, text: &str, c: u8, what: &str) -> usize {
+    for (k, r) in wrapped(text).iter().enumerate() {
+        let n = from + k;
+        assert_eq!(
+            &pane_row(&l.screen, n),
+            r,
+            "{what}: pane row {n} is not part {k} of '{text}'"
+        );
+        let shown = text.len().min((k + 1) * 16) - k * 16;
+        let cells = n * COLS + PANE_COL..n * COLS + PANE_COL + shown;
         assert!(
-            start + k < LIST_ROWS.end && &pane_row(screen, start + k) == r,
-            "{what}: '{text}' is not wrapped whole across pane rows {start}.."
+            l.colour[cells].iter().all(|&got| got == c),
+            "{what}: '{text}' is not colour {c} in pane row {n}"
         );
     }
-    start + rows.len()
+    from + wrapped(text).len()
 }
 
 /// The pane row at or below `from` whose label is `label`.
@@ -3752,9 +3890,8 @@ fn badge(screen: &[u8], n: usize) -> [u8; 2] {
 }
 
 /// AC-166 (none): an entry with a title shows it in its list row, cut to the row's 16 columns, and
-/// the pane shows the title in full, wrapped to the pane's width, then the year, the author and the
-/// note, below the lines every entry has. Every field is as long as it may be, so all of it must
-/// fit. An entry without metadata looks exactly as on the same cart without any (its row and the
+/// the pane shows every field (in AC-211's order since D-069). Every field is as long as it may be,
+/// so all of it must fit. An entry without metadata looks exactly as on the same cart without any (its row and the
 /// whole pane, characters and colours), also right after the pane showed an entry with metadata.
 /// A-Z sorts by what each row shows.
 #[test]
@@ -3800,18 +3937,22 @@ fn ac_166_titles_in_the_list_and_every_field_in_the_pane() {
         "charlie's row does not show its title"
     );
     assert_not_listed(s, &["alpha", "charlie"], "titled entries");
-    assert!(
-        looks[0]
-            .colours_of(6, PANE_COL, "alpha")
-            .is_some_and(|c| c.iter().all(|&c| c == colour::WHITE)),
-        "the pane does not name alpha in white"
+    // AC-211's order with every field at its longest: it ends on row 16, a row above the facts.
+    assert_chip(&looks[0], "program", colour::LIGHT_GREEN, "alpha");
+    let at = assert_wrapped_at(&looks[0], HEAD_ROW, title, colour::WHITE, "alpha");
+    let at = assert_wrapped_at(&looks[0], at, "alpha", colour::LIGHT_GREY, "alpha");
+    let credit = format!("{author}  1987");
+    let at = assert_wrapped_at(&looks[0], at, &credit, colour::WHITE, "alpha");
+    assert_pane_blank(&looks[0], at..at + 1, "alpha");
+    let at = assert_wrapped_at(&looks[0], at + 1, note, colour::LIGHT_GREY, "alpha");
+    assert_eq!(
+        at,
+        FACT_ROWS.start - 1,
+        "the longest fields do not end on row 16"
     );
-    let mut at = 7;
-    for label in ["type", "size", "load", "start"] {
-        at = pane_label(s, at, label, "alpha") + 1;
-    }
-    for field in [title, "1987", author, note] {
-        at = assert_wrapped(s, at, field, "alpha");
+    assert_pane_blank(&looks[0], at..FACT_ROWS.start, "alpha");
+    for (n, label) in FACT_ROWS.zip(["size", "load", "start"]) {
+        assert_eq!(pane_label(s, n, label, "alpha"), n, "alpha: '{label}'");
     }
 
     let after = &looks[1];
@@ -4568,6 +4709,105 @@ fn assert_back_at(s: &[u8], at: usize, name: &str, count: usize, what: &str) {
     );
 }
 
+/// AC-211 (none): with metadata the pane shows from row 7 the title in white, the stored name in
+/// light grey, the author, two spaces and the year in white (whichever are set), a blank row and
+/// the note in light grey (D-070 made each a step brighter), the facts staying in rows 18-20. Without a title the name leads in white. A folder
+/// shows a white "folder" chip and its name; ".." shows the chip, "..", and that it goes back to
+/// the top level.
+#[test]
+fn ac_211_the_pane_orders_metadata_and_names_folders() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-211: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac211");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs =
+        ["alpha", "bravo", "charlie", "delta"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "fields", &[], &inputs);
+    edit(
+        &cart,
+        &[
+            "--title",
+            "0",
+            "RAM Test",
+            "--year",
+            "0",
+            "2026",
+            "--author",
+            "0",
+            "stid",
+            "--note",
+            "0",
+            "Checks all 64 KB",
+            "--title",
+            "1",
+            "Only Year",
+            "--year",
+            "1",
+            "1987",
+            "--author",
+            "2",
+            "nobody",
+            "--note",
+            "3",
+            "just a note",
+        ],
+    );
+    let down = vec![key::DOWN];
+    let looks = looks_after(&dir, &cart, &[vec![], down.clone(), down.clone(), down]);
+    let facts = [("size", "1K"), ("load", "$0801"), ("start", "RUN")];
+
+    let l = &looks[0];
+    assert_chip(l, "program", colour::LIGHT_GREEN, "alpha");
+    let at = assert_wrapped_at(l, HEAD_ROW, "RAM Test", colour::WHITE, "alpha");
+    let at = assert_wrapped_at(l, at, "alpha", colour::LIGHT_GREY, "alpha");
+    let at = assert_wrapped_at(l, at, "stid  2026", colour::WHITE, "alpha");
+    assert_pane_blank(l, at..at + 1, "alpha");
+    let at = assert_wrapped_at(l, at + 1, "Checks all 64 KB", colour::LIGHT_GREY, "alpha");
+    assert_pane_blank(l, at..FACT_ROWS.start, "alpha");
+    assert_facts(l, facts, "alpha");
+
+    let l = &looks[1];
+    let at = assert_wrapped_at(l, HEAD_ROW, "Only Year", colour::WHITE, "bravo");
+    let at = assert_wrapped_at(l, at, "bravo", colour::LIGHT_GREY, "bravo");
+    let at = assert_wrapped_at(l, at, "1987", colour::WHITE, "bravo");
+    assert_pane_blank(l, at..FACT_ROWS.start, "bravo");
+    assert_facts(l, facts, "bravo");
+
+    let l = &looks[2];
+    let at = assert_wrapped_at(l, HEAD_ROW, "charlie", colour::WHITE, "charlie");
+    let at = assert_wrapped_at(l, at, "nobody", colour::WHITE, "charlie");
+    assert_pane_blank(l, at..FACT_ROWS.start, "charlie");
+
+    let l = &looks[3];
+    let at = assert_wrapped_at(l, HEAD_ROW, "delta", colour::WHITE, "delta");
+    assert_pane_blank(l, at..at + 1, "delta");
+    let at = assert_wrapped_at(l, at + 1, "just a note", colour::LIGHT_GREY, "delta");
+    assert_pane_blank(l, at..FACT_ROWS.start, "delta");
+    assert_facts(l, facts, "delta");
+
+    let dir = scratch("ac211-folders");
+    let f = folder_cart(&dir);
+    let looks = looks_after(&dir, &f.cart, &[vec![], vec![key::RETURN, key::UP]]);
+    let l = &looks[0];
+    assert_chip(l, "folder", colour::WHITE, "games");
+    let at = assert_wrapped_at(l, HEAD_ROW, "games", colour::WHITE, "games");
+    assert_pane_blank(l, at..LIST_ROWS.end, "games");
+    let l = &looks[1];
+    assert_chip(l, "folder", colour::WHITE, "'..'");
+    let at = assert_wrapped_at(l, HEAD_ROW, "..", colour::WHITE, "'..'");
+    assert_pane_blank(l, at..at + 1, "'..'");
+    let at = assert_wrapped_at(
+        l,
+        at + 1,
+        "goes back to thetop level",
+        colour::LIGHT_GREY,
+        "'..'",
+    );
+    assert_pane_blank(l, at..LIST_ROWS.end, "'..'");
+}
+
 /// AC-170 (none): a folder opens with `..` as its first row, wearing the folder badge, and the first
 /// entry below it selected. RETURN on `..`, and fire on the joystick in port 2, go back to the top
 /// level with the folder that was open selected. The pane on `..` says it goes back to the top level.
@@ -4600,7 +4840,7 @@ fn ac_170_a_folder_starts_with_a_row_that_goes_back_up() {
     assert_selected(&s[1], "demo a", "into demos");
     assert_eq!(selected_rows(&s[2]), vec![5], "UP: '..' is not selected");
     assert_eq!(
-        pane_row(&s[2], 6),
+        pane_row(&s[2], HEAD_ROW),
         wrapped("..")[0],
         "the pane does not name '..'"
     );

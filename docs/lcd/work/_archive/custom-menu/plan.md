@@ -144,7 +144,7 @@ must equal `edit`'s, using the CLI-as-library oracle the GUI parity tests alread
 | `ListingDto`, `Document`, GUI parity tests against `stidcart_cli::run` | `gui/src-tauri/src/lib.rs`, `document.rs`, `tests/parity.rs` | AC-85 RENDER field and the AC-86 save-equals-edit check |
 | fixtures `hello.prg`, `two.crt`, `c8k.crt` … | `fixtures/` | AC-82 parity inputs and AC-83 round-trip subjects |
 | `petscii::ascii_to_petscii` | `crates/stidcart-core/src/petscii.rs` | the screen matcher derives expected screen codes from the stored PETSCII names |
-| EasyLoader's boot technique (read, not copied) | `~/Documents/develop/ndefpack/src/fw/easyloader.asm:1789,2091-2260` | the sequence for partial reset, CHRIN trap and cart launch. Our code is written fresh (GPL), with the technique cited |
+| EasyLoader's boot technique (read, not copied) | ndefpack `src/fw/easyloader.asm:1789,2091-2260` | the sequence for partial reset, CHRIN trap and cart launch. Our code is written fresh (GPL), with the technique cited |
 
 ## Data model / Contracts
 

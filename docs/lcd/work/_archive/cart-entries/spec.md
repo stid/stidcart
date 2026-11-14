@@ -16,7 +16,7 @@ A multicart is meant to hold cartridges as well as programs, and the directory f
 nine cartridge entry kinds for that: plain 8k and 16k carts, the two Ultimax shapes, the two Ocean
 shapes, and the three EasyFlash xbank shapes. This tool models none of them. A cart holding one is
 refused on every path — it cannot be listed, loaded or edited — and nothing can be built that
-contains one. The reason the project exists (vault: `projects/ndefpack.md`, 2026-08-10) is broader
+contains one. The reason the project exists (written down on 2026-08-10) is broader
 compatibility than the reference tool, and today it is narrower: the reference tool builds, lists
 and edits all nine kinds. The refusals were placed deliberately while the model had nowhere to put
 a cart (D-011, D-020 for the same pattern with the hidden flag); this work widens the model so the

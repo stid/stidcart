@@ -52,13 +52,17 @@ closed the help screen. Port 1 isn't read, because its lines are shared with the
 
 ## The screen
 
-- At the top are the cartridge mark, the stidcart logo and the cart's name.
+- At the top is a label, like the one on a cartridge: five colour bars, the stidcart wordmark, and
+  on the right the cart's name and how many entries it has (hidden ones aren't counted).
+- Lower-case letters show as small capitals, which keep to one baseline and read more easily
+  down a list. Capitals and digits are the C64's own.
 - The list has 16 rows. Each entry has a badge for its kind: "PRG" for a program, "8K" and "16K"
   for those cartridges, "ULT" for Ultimax and "XB" for multi-bank. Hidden entries are not listed.
 - The selected entry sits in a cyan bar. When the list is longer than the screen, the divider to
   its right becomes a scroll bar.
-- The pane on the right describes the selection: its type, its size, its load address (a program)
-  or first bank (a cartridge), and how it starts.
+- The pane on the right describes the selection. A chip names its kind. Under it come the title
+  (or the name when it has none), the name under a title, the author and year, and the note. At the
+  foot are its size, its load address (a program) or first bank (a cartridge), and how it starts.
 - Under the list are the position ("17 of 40"), the order in use and the kind listed. Then comes
   the filter text, in yellow, with how many entries match. The last line names the main keys.
 
@@ -70,7 +74,7 @@ back from a reset (see the last section).
 A move that leaves the view (CRSR, a page, HOME/CLR, F5) scrolls only as far as it takes to show the
 selection, so one page down from the top puts it on the last row. F5 mixes the CIA timer, the raster
 line and the jiffy clock, which differ at every key press a person makes. The help screen keeps the
-logo and the cart name and replaces everything under it; the key that ends it, RUN/STOP and RETURN included,
+label and replaces everything under it; the key that ends it, RUN/STOP and RETURN included,
 does nothing else.
 
 A program that loads at or below `$0801` is started with `RUN`, and any other with `SYS` to its load
@@ -98,10 +102,10 @@ hidden entry, `STIDCART.META`, which the menu reads once at boot.
 
 - An entry with a title shows the title in its row instead of its name, cut to the row's 16
   characters. A-Z sorts by what the rows show.
-- The pane shows the name, then the type, size and start facts on consecutive rows, then
-  the title in full, the year, the author and the note. Each starts on a row of its own and wraps
-  every 16 characters, so all of them fit at their longest. An entry with no title, year, author
-  or note keeps the usual pane.
+- The pane shows the title in full, the entry's name under it, the author and year on one line,
+  and after a blank row the note. Each wraps every 16 characters, and all of them fit at their
+  longest above the size, load address and start at the foot. An entry with no title shows its
+  name where the title would be.
 - The top level lists one row per folder that has a visible entry, with a folder badge, the
   folder's name and its number of entries, then the entries in no folder. An empty folder isn't
   listed. RETURN or
