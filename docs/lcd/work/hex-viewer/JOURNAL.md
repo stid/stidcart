@@ -8,15 +8,15 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** a read-only hex viewer for the open cart in the desktop app, in its own window (issue #66)
-- **Next action:** S2, `gui/src-tauri/tests/hex.rs` failing first, then `gui/src-tauri/src/hex.rs`
+- **Next action:** S6: live check of the hex window (ask the user to keep hands off first), then SPEC, MAP, guide, D-067, audit, PR  ← next
 - **Branch:** feat/hex-viewer  ·  **Updated:** 2026-11-13
 
 ## STEPS
 - [x] S1 — core `hexmap`: rows of 16 bytes in bank order with bank, half, C64 address and a text column; ownership regions (loader, directory, EAPI, name, boot, entries, metadata entry). Tests first
-- [ ] S2 — GUI Rust `hex.rs`: DTOs and pure `info` / `lines` over a `Document`, golden JSON contract, tests in `gui/src-tauri/tests/hex.rs`  ← next
-- [ ] S3 — GUI Rust wiring: commands, the `hex` window, View ▸ Hex Viewer, change and goto events, `capabilities/hex.json`, main window closing takes the hex window with it
-- [ ] S4 — frontend `HexView.svelte` (virtualised rows, tints, owner readout, jump select) with tests; `main.ts` mounts it in the `hex` window
-- [ ] S5 — main window: selection reaches the hex window, entry menu gets Show in Hex Viewer
+- [x] S2 — GUI Rust `hex.rs`: DTOs and pure `info` / `lines` over a `Document`, golden JSON contract, tests in `gui/src-tauri/tests/hex.rs`
+- [x] S3 — GUI Rust wiring: commands, the `hex` window, View ▸ Hex Viewer, change and goto events, `capabilities/hex.json`, main window closing takes the hex window with it
+- [x] S4 — frontend `HexView.svelte` (virtualised rows, tints, owner readout, jump select) with tests; `main.ts` mounts it in the `hex` window
+- [x] S5 — main window: selection reaches the hex window, entry menu gets Show in Hex Viewer
 - [ ] S6 — live check, SPEC + MAP + guide, D-067, audit, PR
 
 ## DECISIONS (this work-item)
@@ -60,4 +60,5 @@
 
 ## LOG (append-only; not read on resume)
 
+- 2026-11-13 — S1 to S5 built test-first; both gates green. A view-only cart has no entry menu, so there Show in Hex Viewer is not offered: select the entry and use View ▸ Hex Viewer.
 - 2026-11-13 — triaged Standard (3 signals). The user then chose a separate window and all three extras, which is more than scored; kept Standard: one surface, reversible, no new dependency.

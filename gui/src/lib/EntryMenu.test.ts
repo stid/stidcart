@@ -151,3 +151,16 @@ test('AC-194 (RENDER): a choice is one request, the checked one none; Move up an
   expect(u.onmove).toHaveBeenCalledExactlyOnceWith({ kind: 'down' });
   expect(u.onedit).not.toHaveBeenCalled();
 });
+
+test('AC-203 (RENDER): Show in Hex Viewer asks for the viewer at this entry, when the window offers it', async () => {
+  const onhex = vi.fn();
+  const props = { row: hello, actions: { alignable: false }, onedit: vi.fn(), onrename: vi.fn(), onreplace: vi.fn() };
+  render(EntryMenu, { props: { ...props, onhex } });
+  await choose(/show in hex viewer/i);
+  expect(onhex).toHaveBeenCalledExactlyOnceWith(0);
+  expect(props.onedit).not.toHaveBeenCalled();
+  cleanup();
+
+  render(EntryMenu, { props });
+  expect(await items()).not.toContain('Show in Hex Viewer');
+});

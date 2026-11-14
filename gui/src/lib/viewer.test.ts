@@ -47,6 +47,8 @@ function fakeHost(overrides: Partial<Host> = {}): Host {
     save: vi.fn(async () => doc({ canUndo: true })),
     saveAs: vi.fn(async () => doc({ file: 'copy.crt', canUndo: true })),
     exit: vi.fn(async () => {}),
+    selectEntry: vi.fn(),
+    showHex: vi.fn(async () => {}),
     ...overrides,
   };
 }

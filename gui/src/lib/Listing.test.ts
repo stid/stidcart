@@ -497,3 +497,15 @@ test('the tree hover reset leaves entries outside a folder alone', async () => {
     /\.tree tbody:not\(\.loose\) tr:hover,\s*\.tree \.loose tr:not\(\[data-entry\]\):hover\s*\{\s*background: none;/,
   );
 });
+
+test('AC-203 (RENDER): the listing reports its selection, on a view-only cart too', async () => {
+  const onselect = vi.fn();
+  render(Listing, { props: { listing, file: 'two.crt', readOnly: 'firmware differs', onselect } });
+  expect(onselect).toHaveBeenLastCalledWith(null);
+
+  await fireEvent.click(screen.getByText(listing.rows[1].name));
+  expect(onselect).toHaveBeenLastCalledWith(1);
+  await fireEvent.click(screen.getByText(listing.rows[0].name));
+  expect(onselect).toHaveBeenLastCalledWith(0);
+  expect(onselect).toHaveBeenCalledTimes(3);
+});

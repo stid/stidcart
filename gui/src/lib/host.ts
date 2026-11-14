@@ -5,7 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { message, open, save } from '@tauri-apps/plugin-dialog';
-import type { Document, Edit, Host, MenuId } from './types';
+import type { Document, Edit, HexHost, HexInfo, HexLine, Host, MenuId } from './types';
 import { unsavedChoice } from './viewer.svelte';
 
 const CRT = { name: 'Cartridge image', extensions: ['crt'] };
@@ -75,5 +75,29 @@ export const host: Host = {
   },
   async exit() {
     await invoke('exit_app');
+  },
+  selectEntry(entry) {
+    void invoke('hex_select', { entry });
+  },
+  async showHex(entry) {
+    await invoke('show_hex', { entry });
+  },
+};
+
+/** Whether this webview is the hex viewer's window (gui/src-tauri/src/lib.rs names it). */
+export const isHexWindow = getCurrentWindow().label === 'hex';
+
+export const hexHost: HexHost = {
+  info() {
+    return invoke<HexInfo>('hex_info');
+  },
+  lines(first, count) {
+    return invoke<HexLine[]>('hex_lines', { first, count });
+  },
+  onChanged(cb) {
+    void listen('hex-changed', () => cb());
+  },
+  onGoto(cb) {
+    void listen<number | null>('hex-goto', (event) => cb(event.payload));
   },
 };
