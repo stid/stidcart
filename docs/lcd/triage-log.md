@@ -73,3 +73,4 @@
 2026-11-14 · menu-legibility · 1 signals · Quick · hard:no · risk:no
 2026-11-14 · test-scopes · 3 signals · Standard · hard:no · risk:no
 2026-11-14 · test-scopes · closeout · Standard · audit: n/a (no surface declared) · re-routes: 0 · interventions: 0
+2026-11-14 · release-workflow · 3 signals · Standard · hard:no · risk:no
