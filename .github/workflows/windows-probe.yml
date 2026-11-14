@@ -71,13 +71,10 @@ jobs:
         shell: bash
     env:
       NAME: stidcart-0.30.0-windows-x86_64
-      RUSTFLAGS: -C target-feature=+crt-static
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
-        run: |
-          rustup toolchain install --no-self-update
-          rustup target add x86_64-pc-windows-msvc
+        run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: gui/src-tauri
@@ -90,22 +87,21 @@ jobs:
         working-directory: gui
         run: |
           npm ci
-          npm run tauri build -- --target x86_64-pc-windows-msvc \
-            --config '{"bundle":{"active":true,"targets":["nsis"]}}'
+          npm run tauri build -- --config '{"bundle":{"active":true,"targets":["nsis"]}}'
       - name: Check and collect
         run: |
-          release=gui/src-tauri/target/x86_64-pc-windows-msvc/release
+          release=gui/src-tauri/target/release
           ls -la "$release" "$release/bundle/nsis"
           installers=("$release"/bundle/nsis/*-setup.exe)
           [[ ${#installers[@]} -eq 1 ]] || { echo "expected one installer, found ${#installers[@]}" >&2; exit 1; }
           cp "${installers[0]}" "$NAME-setup.exe"
-          for exe in "$release/stidcart.exe" "$NAME-setup.exe"; do
+          for exe in "$release/stidcart-gui.exe" "$NAME-setup.exe"; do
             built="$(powershell -NoProfile -Command "(Get-Item '$exe').VersionInfo.ProductVersion" | tr -d '\r')"
             echo "$exe says $built"
             [[ $built == "$VERSION" ]] || { echo "$exe says $built, not $VERSION" >&2; exit 1; }
           done
           echo "-- DLLs named in the app --"
-          grep -a -o -i '[a-z0-9_-]*\.dll' "$release/stidcart.exe" | sort -u
+          grep -a -o -i '[a-z0-9_-]*\.dll' "$release/stidcart-gui.exe" | sort -u
       - name: Install it
         shell: pwsh
         run: |
@@ -130,7 +126,7 @@ jobs:
             "shot $name"
           }
           $shell = New-Object -ComObject WScript.Shell
-          $exe = "$env:LOCALAPPDATA\stidcart\stidcart.exe"
+          $exe = "$env:LOCALAPPDATA\stidcart\stidcart-gui.exe"
           $app = Start-Process -FilePath $exe -PassThru
           function Keys([string]$k, [switch]$Raw) {
             if (-not $Raw) { $null = $shell.AppActivate($app.Id); Start-Sleep -Milliseconds 700 }
@@ -152,8 +148,8 @@ jobs:
           Keys '^+z'; Shot '09-redo'
           Keys '^q'; Start-Sleep -Seconds 3; Shot '10-quit-asks'
           Keys '{ESC}' -Raw; Shot '11-after-cancel'
-          Get-Process stidcart -ErrorAction SilentlyContinue | Format-Table Id, MainWindowTitle
-          Get-Process stidcart -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process stidcart-gui -ErrorAction SilentlyContinue | Format-Table Id, MainWindowTitle
+          Get-Process stidcart-gui -ErrorAction SilentlyContinue | Stop-Process -Force
       - uses: actions/upload-artifact@v7
         if: always()
         with:
