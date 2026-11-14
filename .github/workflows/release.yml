@@ -262,7 +262,9 @@ jobs:
 
       # The .deb installs here (apt resolves what it depends on), and both it and the AppImage open
       # their window on a virtual display and keep running until stopped. Each gets a display of
-      # its own, so a window left over from the first cannot pass the second.
+      # its own, so a window left over from the first cannot pass the second. On a runner the window
+      # takes about 25 seconds to appear, likely a D-Bus call waiting out its timeout with no
+      # session bus there, so each gets 90.
       - name: Start it
         run: |
           sudo apt-get install -y "./$NAME.deb"
@@ -278,7 +280,7 @@ jobs:
             xdpyinfo -display ":$1" >/dev/null || { echo "display :$1 never came up" >&2; return 1; }
             DISPLAY=":$1" "$2" &
             pid=$!
-            for tries in $(seq 30); do
+            for tries in $(seq 90); do
               if xwininfo -display ":$1" -root -tree 2>/dev/null | grep -q '"stidcart"'; then
                 echo "$2 opened its window"
                 kill "$pid"
