@@ -1,6 +1,7 @@
 # Builds what a release ships (D-072) and, for a tag, attaches it to a draft GitHub release that
-# the owner reads and publishes by hand. docs/release-roadmap.md has the steps still to come:
-# signing and notarization, the Linux app, Windows.
+# the owner reads and publishes by hand. The Windows files are the command as a .zip and the app as
+# an unsigned installer. docs/release-roadmap.md has the steps still to come: signing and
+# notarization, the Linux app.
 #
 #   a `v*` tag             builds everything and creates the draft release
 #   a PR changing this     the same build as a dry run: the files are workflow artifacts and no
@@ -65,6 +66,10 @@ jobs:
     name: command (${{ matrix.platform }})
     needs: version
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        # Git Bash on the Windows runner, whose default is PowerShell.
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -72,14 +77,23 @@ jobs:
           - platform: macos-universal
             runner: macos-latest
             targets: aarch64-apple-darwin x86_64-apple-darwin
+            archive: tar.gz
           # musl, linked statically: the binary asks nothing of the system's C library, so one
           # build runs on any x86_64 Linux.
           - platform: linux-x86_64
             runner: ubuntu-24.04
             targets: x86_64-unknown-linux-musl
+            archive: tar.gz
+          # The C runtime is linked statically (the Build step), for the same reason: the .exe
+          # runs on a Windows that has no Visual C++ redistributable installed.
+          - platform: windows-x86_64
+            runner: windows-latest
+            targets: x86_64-pc-windows-msvc
+            archive: zip
     env:
       VERSION: ${{ needs.version.outputs.version }}
       NAME: stidcart-cli-${{ needs.version.outputs.version }}-${{ matrix.platform }}
+      EXE: ${{ matrix.platform == 'windows-x86_64' && '.exe' || '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -91,6 +105,11 @@ jobs:
 
       - name: Build
         run: |
+          # Rust links the Visual C++ runtime as a DLL unless told otherwise, and Windows does
+          # not ship that DLL. With --target the flag reaches the command and not build scripts.
+          if [[ ${{ matrix.platform }} == windows-x86_64 ]]; then
+            export RUSTFLAGS="-C target-feature=+crt-static"
+          fi
           for target in ${{ matrix.targets }}; do
             cargo build --release --locked -p stidcart-cli --target "$target"
           done
@@ -104,7 +123,7 @@ jobs:
               target/x86_64-apple-darwin/release/stidcart
             lipo "$NAME/stidcart" -verify_arch arm64 x86_64
           else
-            cp target/${{ matrix.targets }}/release/stidcart "$NAME/stidcart"
+            cp "target/${{ matrix.targets }}/release/stidcart$EXE" "$NAME/stidcart$EXE"
           fi
           cp COPYING "$NAME/COPYING"
           cp firmware/COPYING "$NAME/COPYING.firmware"
@@ -113,20 +132,32 @@ jobs:
       - name: Run it
         run: |
           printf '\001\010\140' >smoke.prg
-          "$NAME/stidcart" build -o smoke.crt smoke.prg
-          "$NAME/stidcart" list smoke.crt
+          "$NAME/stidcart$EXE" build -o smoke.crt smoke.prg
+          "$NAME/stidcart$EXE" list smoke.crt
           grep -a -q "stidcart $VERSION" smoke.crt
           if [[ ${{ matrix.platform }} == macos-universal ]]; then
             arch -x86_64 "$NAME/stidcart" list smoke.crt
           fi
+          # An .exe names the DLLs it loads in plain text; the runtime's must not be among them.
+          if [[ ${{ matrix.platform }} == windows-x86_64 ]] && grep -a -q -i vcruntime "$NAME/stidcart$EXE"; then
+            echo "stidcart.exe needs the Visual C++ runtime DLL" >&2
+            exit 1
+          fi
 
+      # A .zip on Windows, which opens it without another tool. Git Bash has no zip; the runner
+      # image has 7-Zip.
       - name: Archive
-        run: tar -czf "$NAME.tar.gz" "$NAME"
+        run: |
+          if [[ ${{ matrix.archive }} == zip ]]; then
+            7z a -tzip "$NAME.zip" "$NAME"
+          else
+            tar -czf "$NAME.tar.gz" "$NAME"
+          fi
 
       - uses: actions/upload-artifact@v7
         with:
           name: command-${{ matrix.platform }}
-          path: ${{ env.NAME }}.tar.gz
+          path: ${{ env.NAME }}.${{ matrix.archive }}
           if-no-files-found: error
 
   app:
@@ -182,9 +213,88 @@ jobs:
           path: ${{ env.NAME }}.dmg
           if-no-files-found: error
 
+  app-windows:
+    name: app (windows-x86_64)
+    needs: version
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      NAME: stidcart-${{ needs.version.outputs.version }}-windows-x86_64
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        run: rustup toolchain install --no-self-update
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: gui/.nvmrc
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+
+      # Bundling is turned on for the run, as in the macOS job. One installer, NSIS: it installs
+      # for the current user with no administrator prompt, and takes any version string, where
+      # an .msi refuses a pre-release one. It is not signed (D-072), so SmartScreen warns about it.
+      # Tauri links the C runtime into the app by default, and the installer fetches WebView2 on
+      # the few Windows 10 systems that lack it.
+      - name: Build
+        working-directory: gui
+        run: |
+          npm ci
+          npm run tauri build -- --config '{"bundle":{"active":true,"targets":["nsis"]}}'
+
+      - name: Check and collect
+        run: |
+          release=gui/src-tauri/target/release
+          installers=("$release"/bundle/nsis/*-setup.exe)
+          [[ ${#installers[@]} -eq 1 ]] || { echo "expected one installer, found ${#installers[@]}" >&2; exit 1; }
+          cp "${installers[0]}" "$NAME-setup.exe"
+          for exe in "$release/stidcart-gui.exe" "$NAME-setup.exe"; do
+            built="$(powershell -NoProfile -Command "(Get-Item '$exe').VersionInfo.ProductVersion" | tr -d '\r')"
+            [[ $built == "$VERSION" ]] || { echo "$exe says $built, not $VERSION" >&2; exit 1; }
+          done
+          if grep -a -q -i vcruntime "$release/stidcart-gui.exe"; then
+            echo "the app needs the Visual C++ runtime DLL" >&2
+            exit 1
+          fi
+
+      # The installer runs unattended, as a user would run it with no questions, and what it
+      # installed opens the window and keeps running until stopped. Then it uninstalls.
+      - name: Start it
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = Start-Process -FilePath ".\$env:NAME-setup.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "the installer exited with $($setup.ExitCode)" }
+          $dir = "$env:LOCALAPPDATA\stidcart"
+          $app = Start-Process -FilePath "$dir\stidcart-gui.exe" -PassThru
+          $title = ''
+          foreach ($try in 1..30) {
+            Start-Sleep -Seconds 1
+            $app.Refresh()
+            if ($app.HasExited) { throw "the app exited with $($app.ExitCode) before it opened a window" }
+            $title = $app.MainWindowTitle
+            if ($title -eq 'stidcart') { break }
+          }
+          if ($title -ne 'stidcart') { throw "no window titled stidcart after 30 seconds (found '$title')" }
+          "the installed app opened its window"
+          Stop-Process -Id $app.Id -Force
+          $app.WaitForExit()
+          $uninstall = Start-Process -FilePath "$dir\uninstall.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "the uninstaller exited with $($uninstall.ExitCode)" }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-windows-x86_64
+          path: ${{ env.NAME }}-setup.exe
+          if-no-files-found: error
+
   release:
     name: release
-    needs: [version, command, app]
+    needs: [version, command, app, app-windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
