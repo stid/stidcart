@@ -712,7 +712,10 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .tree tbody tr:hover {
+  /* Cards tint their own cells on hover. Entries outside a folder are left to the flat list's
+     row rules, so they keep its rollover and its selection highlight (#68). */
+  .tree tbody:not(.loose) tr:hover,
+  .tree .loose tr:not([data-entry]):hover {
     background: none;
   }
 

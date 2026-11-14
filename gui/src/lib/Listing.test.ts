@@ -486,3 +486,14 @@ test('AC-195 (RENDER): the inspector sits beside the list, empty until an entry 
   expect(inspector).toHaveTextContent('// entry 0');
   expect(within(inspector).getByRole('combobox', { name: /folder/i })).toHaveValue('Games');
 });
+
+// jsdom never matches :hover, so this reads the stylesheet. In tree mode the rule that removes the
+// row hover tint must leave entries outside a folder alone: they keep the flat list's rollover,
+// and the selection highlight that outranks it (#68).
+test('the tree hover reset leaves entries outside a folder alone', async () => {
+  const { default: source } = await import('./Listing.svelte?raw');
+  expect(source).not.toMatch(/\.tree tbody tr[^,{]*:hover\s*\{/);
+  expect(source).toMatch(
+    /\.tree tbody:not\(\.loose\) tr:hover,\s*\.tree \.loose tr:not\(\[data-entry\]\):hover\s*\{\s*background: none;/,
+  );
+});
