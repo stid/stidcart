@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "hex",
+  "description": "The hex viewer window: core defaults only, for the events that tell it the cart changed or where to jump. It reads through the app's own commands and opens no dialog.",
+  "windows": ["hex"],
+  "permissions": ["core:default"]
+}

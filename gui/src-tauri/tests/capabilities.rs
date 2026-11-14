@@ -26,3 +26,18 @@ fn the_title_bar_can_drag_the_window() {
         "capabilities/default.json must grant core:window:allow-start-dragging"
     );
 }
+
+/// The hex window listens for the cart changing and for jumps, which `core:default` allows; with
+/// no capability naming the window, every listen is refused and the view never updates.
+#[test]
+fn the_hex_window_may_listen_for_events() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("capabilities/hex.json");
+    let json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(json["windows"], serde_json::json!(["hex"]));
+    assert!(json["permissions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|p| p == "core:default"));
+}

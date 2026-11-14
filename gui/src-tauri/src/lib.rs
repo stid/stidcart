@@ -15,9 +15,12 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::Serialize;
 use stidcart_core::listing::{self, Listing, Row};
-use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
+use tauri::{
+    AppHandle, Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+};
 
 use document::{Document, DocumentDto, Edit};
+use hex::{HexInfoDto, HexLineDto};
 
 /// A listing as the frontend receives it. Mirrored by `Listing` in `gui/src/lib/types.ts` and
 /// pinned by the golden JSON in `gui/src/lib/fixtures/` (`tests/contract.rs`).
@@ -111,6 +114,8 @@ pub fn open(path: &Path) -> Result<ListingDto, String> {
 #[derive(Default)]
 struct AppState {
     doc: Mutex<Option<Document>>,
+    /// The entry selected in the listing, which a hex window opened later starts at.
+    selected: Mutex<Option<usize>>,
     /// Set once the user has answered the unsaved-changes prompt (or there was nothing to ask), so
     /// the exit that follows a close or `exit_app` is not stopped and asked about a second time.
     exit_allowed: AtomicBool,
@@ -124,6 +129,31 @@ impl AppState {
     }
 }
 
+/// The label of the hex viewer's window, which `capabilities/hex.json` names too.
+const HEX_WINDOW: &str = "hex";
+
+/// The open cart is another one, or another step of it: bring the native menu and an open hex
+/// window in line. The event goes nowhere when that window is closed.
+fn changed(app: &AppHandle, doc: Option<&DocumentDto>) {
+    menu::sync(app, doc);
+    let _ = app.emit_to(HEX_WINDOW, "hex-changed", ());
+}
+
+/// Show the hex viewer: bring its window forward, or open it.
+pub(crate) fn show_hex_window(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window(HEX_WINDOW) {
+        window.unminimize()?;
+        return window.set_focus();
+    }
+    // The same page as the editor; `main.ts` mounts the hex view by the window's label.
+    WebviewWindowBuilder::new(app, HEX_WINDOW, WebviewUrl::App("index.html".into()))
+        .title("Hex Viewer")
+        .inner_size(760.0, 640.0)
+        .min_inner_size(720.0, 320.0)
+        .build()?;
+    Ok(())
+}
+
 /// Run `f` on the open cart and answer with its new state, keeping the menu in step with it.
 fn with_doc(
     app: &AppHandle,
@@ -134,7 +164,7 @@ fn with_doc(
     let doc = guard.as_mut().ok_or("no cartridge is open")?;
     f(doc)?;
     let dto = doc.dto();
-    menu::sync(app, Some(&dto));
+    changed(app, Some(&dto));
     Ok(dto)
 }
 
@@ -148,13 +178,13 @@ fn open_document(
     match Document::open(Path::new(&path)) {
         Ok(doc) => {
             let dto = guard.insert(doc).dto();
-            menu::sync(&app, Some(&dto));
+            changed(&app, Some(&dto));
             Ok(dto)
         }
         Err(e) => {
             // The window now shows this refusal, not the cart before it.
             *guard = None;
-            menu::sync(&app, None);
+            changed(&app, None);
             Err(e)
         }
     }
@@ -163,7 +193,7 @@ fn open_document(
 #[tauri::command]
 fn new_document(app: AppHandle, state: State<AppState>) -> DocumentDto {
     let dto = state.doc().insert(Document::new()).dto();
-    menu::sync(&app, Some(&dto));
+    changed(&app, Some(&dto));
     dto
 }
 
@@ -202,6 +232,51 @@ fn save_document_as(
     with_doc(&app, &state, |d| d.save_as(Path::new(&path)))
 }
 
+/// The hex window's description of the open cart, at the step the editor is on.
+#[tauri::command]
+fn hex_info(state: State<AppState>) -> Result<HexInfoDto, String> {
+    let selected = *state
+        .selected
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    let guard = state.doc();
+    hex::info(guard.as_ref().ok_or("no cartridge is open")?, selected)
+}
+
+#[tauri::command]
+fn hex_lines(
+    first: usize,
+    count: usize,
+    state: State<AppState>,
+) -> Result<Vec<HexLineDto>, String> {
+    let guard = state.doc();
+    hex::lines(guard.as_ref().ok_or("no cartridge is open")?, first, count)
+}
+
+/// The listing's selection changed: remember it, and move an open hex window there.
+#[tauri::command]
+fn hex_select(entry: Option<usize>, app: AppHandle, state: State<AppState>) {
+    *state
+        .selected
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner) = entry;
+    let _ = app.emit_to(HEX_WINDOW, "hex-goto", entry);
+}
+
+/// Show the hex viewer at an entry. Async, because a window built inside a synchronous command
+/// deadlocks on Windows.
+#[tauri::command]
+async fn show_hex(entry: usize, app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    *state
+        .selected
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner) = Some(entry);
+    show_hex_window(&app).map_err(|e| format!("opening the hex viewer: {e}"))?;
+    // A window just built is not listening yet; it starts at the remembered selection instead.
+    let _ = app.emit_to(HEX_WINDOW, "hex-goto", Some(entry));
+    Ok(())
+}
+
 /// The unsaved-changes question has been answered; let the window close.
 #[tauri::command]
 fn allow_exit(state: State<AppState>) {
@@ -220,6 +295,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .setup(|app| Ok(menu::install(app.handle())?))
+        // The hex viewer shows the editor's cart, so it goes when the editor's window does.
+        .on_window_event(|window, event| {
+            if window.label() == "main" && matches!(event, WindowEvent::Destroyed) {
+                if let Some(hex) = window.app_handle().get_webview_window(HEX_WINDOW) {
+                    let _ = hex.close();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             open_document,
             new_document,
@@ -228,6 +311,10 @@ pub fn run() {
             redo,
             save_document,
             save_document_as,
+            hex_info,
+            hex_lines,
+            hex_select,
+            show_hex,
             allow_exit,
             exit_app
         ])
