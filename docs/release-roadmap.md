@@ -47,7 +47,7 @@ Waves are ordered; steps inside a wave are independent of each other.
 
 ### Wave A: needs nothing
 
-- [ ] **1. `release-workflow`** (expect Standard). `.github/workflows/release.yml`, on a `v*` tag
+- [x] **1. `release-workflow`** (#84) (expect Standard). `.github/workflows/release.yml`, on a `v*` tag
   and on `workflow_dispatch` as a dry run that uploads workflow artifacts and creates no release.
   - Fails unless the tag equals the workspace version and `gui/src-tauri/Cargo.toml`'s. The version
     reaches the bytes of every cart built (MAP invariant), so a mislabelled binary is a wrong one.

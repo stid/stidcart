@@ -60,7 +60,9 @@ classify() {
     gui/*)
       gui=true
       ;;
-    docs/* | .claude/* | scripts/* | COPYING | .gitignore | .github/workflows/lcd-audit.yml) ;;
+    # release.yml is checked by a dry run of itself ("Run workflow"), not by a test.
+    docs/* | .claude/* | scripts/* | COPYING | .gitignore | .github/workflows/lcd-audit.yml | \
+      .github/workflows/release.yml) ;;
     *)
       rust=true gui=true
       raise_vice full

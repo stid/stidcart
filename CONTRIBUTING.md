@@ -66,6 +66,22 @@ Commit `menu.bin` and `menu.lbl` with the source.
 Work goes on a branch and through a pull request, with conventional commit messages (`feat:`,
 `fix:`, `docs:` and so on).
 
+## Cutting a release
+
+A release is built by `.github/workflows/release.yml` from a tag on `main`.
+
+1. In a pull request, set the new version in `Cargo.toml` (`[workspace.package]`) and in
+   `gui/src-tauri/Cargo.toml`, and let both `Cargo.lock` files follow. The two must agree:
+   `docs/lcd/ci/release-version.sh` prints the version and fails if they do not.
+2. Once it is merged, tag that commit `v` plus the version and push the tag:
+   `git tag v0.31.0 && git push origin v0.31.0`.
+3. The workflow builds the command for macOS and Linux and the macOS app, and attaches them with
+   a `SHA256SUMS` file to a draft release. Read the draft, try a download, then publish it.
+
+The workflow refuses a tag that names another version or a commit that is not on `main`. A pull
+request that changes the workflow runs the same build as a dry run: nothing is released, and the
+files are in the run's `release` artifact. To repeat the run for a tag, delete the draft first.
+
 ## The format spec comes first
 
 `docs/format/easyflash-cart-format.md` is the source for every offset in `stidcart-core`. A format
