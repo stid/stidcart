@@ -172,24 +172,20 @@ jobs:
           function Chord([bool]$shift, [char]$key) { [Win]::Chord($shift, [byte]$key); Start-Sleep -Seconds 2 }
           Focus 12; Report 'after a click on the title bar'
           Shot '01-empty'
-          At 679 469; Report 'after a click on New Cart'; Shot '02-new-cart-by-click'
-          At 103 164; Report 'after a click on the name'; Keys 'abc'; Shot '03-typing-a-name'; Keys '{ENTER}'; Shot '04-name-entered'
+          Chord $false 'O'; Start-Sleep -Seconds 3; Shot '02-ctrl-o-dialog'
+          Keys "$PWD\fixtures\cmixed.crt"; Keys '{ENTER}'; Start-Sleep -Seconds 3; Shot '03-cart-opened'
           Focus -30; Report 'after a click in the page'
-          Chord $true 'N'; Shot '05-ctrl-shift-n-keybd'
-          Keys '^+n'; Shot '06-ctrl-shift-n-sendkeys'
-          Keys '{ESC}'
-          At 24 40; At 76 117; Report 'after File, New Folder by click'; Shot '07-new-folder-by-menu'; Keys '{ENTER}'
-          Chord $false 'Z'; Shot '08-ctrl-z'
-          At 190 40; At 210 63; Start-Sleep -Seconds 2; Shot '09-about'; Keys '{ENTER}'
+          Chord $true 'N'; Shot '04-ctrl-shift-n'
+          Keys '{ENTER}'; Shot '05-folder-named'
           Focus -30
-          Chord $true 'H'; Start-Sleep -Seconds 5; Shot '10-ctrl-shift-h'
+          Chord $false 'Z'; Shot '06-ctrl-z'
+          Chord $true 'Z'; Shot '07-ctrl-shift-z'
+          Chord $true 'S'; Start-Sleep -Seconds 3; Shot '08-ctrl-shift-s-dialog'; Keys '{ESC}'
+          Chord $true 'H'; Start-Sleep -Seconds 5; Shot '09-ctrl-shift-h'
+          Chord $false 'Q'; Start-Sleep -Seconds 3; Shot '10-ctrl-q-from-hex'
+          Keys '{ESC}'; Shot '11-after-esc'
           Focus 12
-          At 93 40; Shot '11-view-menu'; At 110 63; Start-Sleep -Seconds 5; Shot '12-hex-by-menu'
-          Focus 12
-          Chord $false 'Q'; Start-Sleep -Seconds 3; Shot '13-ctrl-q'
-          Keys '{ESC}'
-          At 24 40; At 50 231; Start-Sleep -Seconds 3; Shot '14-exit-by-menu'
-          Keys '{ESC}'; Shot '15-after-esc'
+          Chord $false 'N'; Start-Sleep -Seconds 3; Shot '12-ctrl-n-asks'; Keys '{ESC}'
           Get-Process stidcart-gui -ErrorAction SilentlyContinue | Format-Table Id, MainWindowTitle
           Get-Process stidcart-gui -ErrorAction SilentlyContinue | Stop-Process -Force
       - uses: actions/upload-artifact@v7

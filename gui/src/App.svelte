@@ -19,6 +19,7 @@
 
   // Shortcuts (⌘N, ⌘O, ⌘S, ⌘⇧S, ⌘Z, ⌘⇧Z) arrive only through the native menu. The webview sees
   // the same keydown too, so handling it here as well would run each command twice (T2 spike).
+  // On Windows the menu never sees the key, and `forwardMenuKeys` (platform.ts) sends it there.
   onMount(() => {
     host.onDrop((paths) => void viewer.drop(paths));
     host.onMenu((id) => (id === 'new-folder' ? void listingView?.newFolder() : void viewer.menu(id)));

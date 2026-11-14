@@ -134,17 +134,20 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let (menu, items) = build(app)?;
     app.set_menu(menu)?;
     app.manage(items);
-    app.on_menu_event(|app, event| {
-        let id = event.id().0.as_str();
-        if IDS.contains(&id) {
-            let _ = app.emit("menu", id);
-        } else if id == HEX {
-            if let Err(e) = crate::show_hex_window(app) {
-                eprintln!("stidcart: opening the hex viewer: {e}");
-            }
-        }
-    });
+    app.on_menu_event(|app, event| activate(app, event.id().0.as_str()));
     Ok(())
+}
+
+/// Act on a custom item: by a click, by its accelerator, or by its shortcut typed in a window on
+/// Windows (`menu_key`). The standard items never arrive here.
+pub fn activate(app: &AppHandle, id: &str) {
+    if IDS.contains(&id) {
+        let _ = app.emit("menu", id);
+    } else if id == HEX {
+        if let Err(e) = crate::show_hex_window(app) {
+            eprintln!("stidcart: opening the hex viewer: {e}");
+        }
+    }
 }
 
 /// Enable Save only when there is something to save, and Save As whenever a cart can be saved.

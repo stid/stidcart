@@ -5,7 +5,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import App from '../App.svelte';
 import EmptyState from './EmptyState.svelte';
 import Toolbar from './Toolbar.svelte';
-import { platformOf, shortcut } from './platform';
+import { forwardMenuKeys, menuKey, platformOf, shortcut } from './platform';
 
 const WEBVIEW2 =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0';
@@ -73,4 +73,60 @@ test('AC-215 (RENDER): on Windows the title bar is marked for no inset and is no
   const bar = document.querySelector('header.titlebar')!;
   expect(bar.closest('[data-platform]')).toHaveAttribute('data-platform', 'windows');
   expect(document.querySelectorAll('[data-tauri-drag-region]')).toHaveLength(0);
+});
+
+/** A keydown as the page sees it. */
+function key(k: string, mods: { ctrl?: boolean; shift?: boolean; alt?: boolean; meta?: boolean } = {}) {
+  return new KeyboardEvent('keydown', {
+    key: k,
+    ctrlKey: mods.ctrl,
+    shiftKey: mods.shift,
+    altKey: mods.alt,
+    metaKey: mods.meta,
+    bubbles: true,
+    cancelable: true,
+  });
+}
+
+test('AC-216 (RENDER): each menu shortcut names its menu item, and no other key does', () => {
+  expect(menuKey(key('n', { ctrl: true }))).toBe('new');
+  expect(menuKey(key('o', { ctrl: true }))).toBe('open');
+  expect(menuKey(key('N', { ctrl: true, shift: true }))).toBe('new-folder');
+  expect(menuKey(key('s', { ctrl: true }))).toBe('save');
+  expect(menuKey(key('S', { ctrl: true, shift: true }))).toBe('save-as');
+  expect(menuKey(key('z', { ctrl: true }))).toBe('undo');
+  expect(menuKey(key('Z', { ctrl: true, shift: true }))).toBe('redo');
+  expect(menuKey(key('q', { ctrl: true }))).toBe('quit');
+  expect(menuKey(key('H', { ctrl: true, shift: true }))).toBe('hex');
+
+  expect(menuKey(key('n'))).toBeNull();
+  expect(menuKey(key('h', { ctrl: true }))).toBeNull();
+  expect(menuKey(key('c', { ctrl: true }))).toBeNull();
+  expect(menuKey(key('n', { ctrl: true, alt: true }))).toBeNull();
+  expect(menuKey(key('n', { meta: true }))).toBeNull();
+});
+
+test('AC-216 (RENDER): on Windows a menu shortcut pressed in the page is sent on as its menu item, once', () => {
+  onWindows();
+  const send = vi.fn();
+  const stop = forwardMenuKeys(send);
+  const typed = key('N', { ctrl: true, shift: true });
+  document.body.dispatchEvent(typed);
+  expect(send).toHaveBeenCalledExactlyOnceWith('new-folder');
+  expect(typed.defaultPrevented).toBe(true);
+
+  const letter = key('n');
+  document.body.dispatchEvent(letter);
+  expect(send).toHaveBeenCalledOnce();
+  expect(letter.defaultPrevented).toBe(false);
+  stop();
+});
+
+test('AC-216 (RENDER): on a Mac the page forwards no key: the native menu has them', () => {
+  const send = vi.fn();
+  const stop = forwardMenuKeys(send);
+  document.body.dispatchEvent(key('n', { ctrl: true }));
+  document.body.dispatchEvent(key('n', { meta: true }));
+  expect(send).not.toHaveBeenCalled();
+  stop();
 });
