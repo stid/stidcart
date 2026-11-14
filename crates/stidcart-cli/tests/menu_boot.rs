@@ -829,7 +829,6 @@ mod colour {
     pub const ORANGE: u8 = 8;
     pub const LIGHT_RED: u8 = 10;
     pub const DARK_GREY: u8 = 11;
-    pub const GREY: u8 = 12;
     pub const LIGHT_GREEN: u8 = 13;
     pub const LIGHT_BLUE: u8 = 14;
     pub const LIGHT_GREY: u8 = 15;
@@ -964,6 +963,40 @@ fn bits(rows: &[&str]) -> [u8; 8] {
 fn inverse(g: [u8; 8]) -> [u8; 8] {
     g.map(|b| !b)
 }
+
+/// The lower-case letters' codes, which the menu draws as small capitals (D-070).
+const SMALL_CODES: std::ops::RangeInclusive<usize> = 1..=26;
+
+/// The small capitals, a to z: five lines each, on lines 2-6 of the cell, strokes two pixels wide
+/// (the "Stidcart Menu Legibility" mockup).
+const SMALL_CAPS: [[u8; 5]; 26] = [
+    [0x3c, 0x66, 0x7e, 0x66, 0x66],
+    [0x7c, 0x66, 0x7c, 0x66, 0x7c],
+    [0x3c, 0x66, 0x60, 0x66, 0x3c],
+    [0x78, 0x6c, 0x66, 0x6c, 0x78],
+    [0x7e, 0x60, 0x78, 0x60, 0x7e],
+    [0x7e, 0x60, 0x78, 0x60, 0x60],
+    [0x3c, 0x60, 0x6e, 0x66, 0x3c],
+    [0x66, 0x66, 0x7e, 0x66, 0x66],
+    [0x3c, 0x18, 0x18, 0x18, 0x3c],
+    [0x1e, 0x0c, 0x0c, 0x6c, 0x38],
+    [0x66, 0x6c, 0x78, 0x6c, 0x66],
+    [0x60, 0x60, 0x60, 0x60, 0x7e],
+    [0x63, 0x77, 0x7f, 0x6b, 0x63],
+    [0x66, 0x76, 0x7e, 0x6e, 0x66],
+    [0x3c, 0x66, 0x66, 0x66, 0x3c],
+    [0x7c, 0x66, 0x7c, 0x60, 0x60],
+    [0x3c, 0x66, 0x66, 0x6c, 0x36],
+    [0x7c, 0x66, 0x7c, 0x6c, 0x66],
+    [0x3e, 0x60, 0x3c, 0x06, 0x7c],
+    [0x7e, 0x18, 0x18, 0x18, 0x18],
+    [0x66, 0x66, 0x66, 0x66, 0x3c],
+    [0x66, 0x66, 0x66, 0x3c, 0x18],
+    [0x63, 0x6b, 0x7f, 0x77, 0x63],
+    [0x66, 0x3c, 0x18, 0x3c, 0x66],
+    [0x66, 0x66, 0x3c, 0x18, 0x18],
+    [0x7e, 0x0c, 0x18, 0x30, 0x7e],
+];
 
 /// Every glyph the menu adds in `$60-$7F`, without repeats: badges, rule, track and thumb.
 fn own_glyphs() -> Vec<[u8; 8]> {
@@ -1236,7 +1269,7 @@ fn ac_105_the_menu_draws_from_a_ram_charset_with_its_own_glyphs() {
     let glyph = |code: usize| -> [u8; 8] { ram[code * 8..code * 8 + 8].try_into().unwrap() };
 
     for code in 0..256 {
-        if !OWN_CODES.contains(&(code & 0x7f)) {
+        if !OWN_CODES.contains(&(code & 0x7f)) && !SMALL_CODES.contains(&(code & 0x7f)) {
             assert_eq!(
                 glyph(code),
                 rom[code * 8..code * 8 + 8],
@@ -1266,6 +1299,58 @@ fn ac_105_the_menu_draws_from_a_ram_charset_with_its_own_glyphs() {
                 "no code in $E0-$FF holds wordmark cell {cx},{cy}"
             );
         }
+    }
+}
+
+/// AC-213 (none): the menu draws the lower-case letters as small capitals: codes 1-26 of its
+/// character set hold five lines each on lines 2-6 of the cell, codes `$81-$9A` their inverses for
+/// the selection bar and the label, and the capitals and digits are still the ROM's. A program the
+/// menu starts gets the ROM's set back (AC-104).
+#[test]
+fn ac_213_lower_case_shows_as_small_capitals() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-213: skipping — x64sc is not installed");
+        return;
+    }
+    let dir = scratch("ac213");
+    let cart = build(&dir, "letters", &[], &[fixtures().join("hello.prg")]);
+    let dumps = boot_or_panic(
+        &dir,
+        &cart,
+        &[
+            Step::Labels(vice::menu_labels()),
+            idle(),
+            Step::Dump(CHARSET.0, CHARSET.1),
+            Step::Raw("bank rom".into()),
+            Step::Dump(ROM_MIXED_CASE.0, ROM_MIXED_CASE.1),
+            Step::Raw("bank cpu".into()),
+        ],
+    );
+    let (ram, rom) = (&dumps[0], &dumps[1]);
+    let glyph =
+        |set: &[u8], code: usize| -> [u8; 8] { set[code * 8..code * 8 + 8].try_into().unwrap() };
+    for (i, lines) in SMALL_CAPS.iter().enumerate() {
+        let code = SMALL_CODES.start() + i;
+        let mut want = [0u8; 8];
+        want[2..7].copy_from_slice(lines);
+        let letter = (b'a' + i as u8) as char;
+        assert_eq!(
+            glyph(ram, code),
+            want,
+            "'{letter}' is not its small capital"
+        );
+        assert_eq!(
+            glyph(ram, code + 0x80),
+            inverse(want),
+            "reversed '{letter}' is not the inverse of its small capital"
+        );
+    }
+    for code in (0x30..0x3a).chain(0x41..0x5b) {
+        assert_eq!(
+            glyph(ram, code),
+            glyph(rom, code),
+            "code ${code:02x}, a digit or a capital, is not the ROM's"
+        );
     }
 }
 
@@ -1363,8 +1448,8 @@ fn ac_107_entries_carry_their_kind_icon() {
                 }
                 let name_colours = &l.colour[at..at + name.len()];
                 assert!(
-                    name_colours.iter().all(|&x| x == colour::LIGHT_GREY),
-                    "{what}: '{name}' is not light grey"
+                    name_colours.iter().all(|&x| x == colour::WHITE),
+                    "{what}: '{name}' is not white"
                 );
             }
         }
@@ -1404,16 +1489,16 @@ fn assert_chip(l: &Look, label: &str, c: u8, what: &str) {
     );
 }
 
-/// Assert the facts in rows 18-20: each label in grey from the pane's first column, its value exact
-/// from column 29 in light grey.
+/// Assert the facts in rows 18-20: each label in light grey from the pane's first column, its value
+/// exact from column 29 in white (D-070).
 fn assert_facts(l: &Look, facts: [(&str, &str); 3], what: &str) {
     for (n, (key, value)) in FACT_ROWS.zip(facts) {
         let label = l
             .colours_of(n, PANE_COL, key)
             .unwrap_or_else(|| panic!("{what}: row {n} has no '{key}'"));
         assert!(
-            label.iter().all(|&c| c == colour::GREY),
-            "{what}: '{key}' is not grey"
+            label.iter().all(|&c| c == colour::LIGHT_GREY),
+            "{what}: '{key}' is not light grey"
         );
         assert!(
             pane_row(&l.screen, n).starts_with(&vice::screen_text(key)),
@@ -1426,8 +1511,8 @@ fn assert_facts(l: &Look, facts: [(&str, &str); 3], what: &str) {
         );
         let cells = n * COLS + VALUE_COL..n * COLS + VALUE_COL + value.len();
         assert!(
-            l.colour[cells].iter().all(|&c| c == colour::LIGHT_GREY),
-            "{what}: the value of '{key}' is not light grey"
+            l.colour[cells].iter().all(|&c| c == colour::WHITE),
+            "{what}: the value of '{key}' is not white"
         );
     }
 }
@@ -1445,7 +1530,7 @@ fn assert_pane_blank(l: &Look, rows: std::ops::Range<usize>, what: &str) {
 
 /// AC-210 (none): for an entry the pane shows a chip with its kind in the kind's colour in row 5,
 /// its name in white in row 7, and in rows 18-20 its size, its load address or first bank, and how
-/// it starts, labels in grey and values in light grey. Nothing says "type" and the rows between are
+/// it starts, labels in light grey and values in white (D-070). Nothing says "type" and the rows between are
 /// blank. (AC-108 until D-069, when the facts opened the pane and took the kind's colour.)
 #[test]
 fn ac_210_the_pane_leads_with_the_kind_and_ends_with_the_facts() {
@@ -1582,7 +1667,7 @@ fn ac_110_the_status_shows_the_position_and_the_filter_its_matches() {
         l.colours_of(n, 0, text)
             .unwrap_or_else(|| panic!("row {n} does not show '{text}'"))
             .iter()
-            .all(|&c| c == colour::GREY)
+            .all(|&c| c == colour::LIGHT_GREY)
     };
     assert!(
         grey(&looks[0], STATUS_ROW, "1 of 3   cart order"),
@@ -3855,11 +3940,11 @@ fn ac_166_titles_in_the_list_and_every_field_in_the_pane() {
     // AC-211's order with every field at its longest: it ends on row 16, a row above the facts.
     assert_chip(&looks[0], "program", colour::LIGHT_GREEN, "alpha");
     let at = assert_wrapped_at(&looks[0], HEAD_ROW, title, colour::WHITE, "alpha");
-    let at = assert_wrapped_at(&looks[0], at, "alpha", colour::GREY, "alpha");
+    let at = assert_wrapped_at(&looks[0], at, "alpha", colour::LIGHT_GREY, "alpha");
     let credit = format!("{author}  1987");
-    let at = assert_wrapped_at(&looks[0], at, &credit, colour::LIGHT_GREY, "alpha");
+    let at = assert_wrapped_at(&looks[0], at, &credit, colour::WHITE, "alpha");
     assert_pane_blank(&looks[0], at..at + 1, "alpha");
-    let at = assert_wrapped_at(&looks[0], at + 1, note, colour::GREY, "alpha");
+    let at = assert_wrapped_at(&looks[0], at + 1, note, colour::LIGHT_GREY, "alpha");
     assert_eq!(
         at,
         FACT_ROWS.start - 1,
@@ -4625,8 +4710,8 @@ fn assert_back_at(s: &[u8], at: usize, name: &str, count: usize, what: &str) {
 }
 
 /// AC-211 (none): with metadata the pane shows from row 7 the title in white, the stored name in
-/// grey, the author, two spaces and the year in light grey (whichever are set), a blank row and the
-/// note in grey, the facts staying in rows 18-20. Without a title the name leads in white. A folder
+/// light grey, the author, two spaces and the year in white (whichever are set), a blank row and
+/// the note in light grey (D-070 made each a step brighter), the facts staying in rows 18-20. Without a title the name leads in white. A folder
 /// shows a white "folder" chip and its name; ".." shows the chip, "..", and that it goes back to
 /// the top level.
 #[test]
@@ -4676,29 +4761,29 @@ fn ac_211_the_pane_orders_metadata_and_names_folders() {
     let l = &looks[0];
     assert_chip(l, "program", colour::LIGHT_GREEN, "alpha");
     let at = assert_wrapped_at(l, HEAD_ROW, "RAM Test", colour::WHITE, "alpha");
-    let at = assert_wrapped_at(l, at, "alpha", colour::GREY, "alpha");
-    let at = assert_wrapped_at(l, at, "stid  2026", colour::LIGHT_GREY, "alpha");
+    let at = assert_wrapped_at(l, at, "alpha", colour::LIGHT_GREY, "alpha");
+    let at = assert_wrapped_at(l, at, "stid  2026", colour::WHITE, "alpha");
     assert_pane_blank(l, at..at + 1, "alpha");
-    let at = assert_wrapped_at(l, at + 1, "Checks all 64 KB", colour::GREY, "alpha");
+    let at = assert_wrapped_at(l, at + 1, "Checks all 64 KB", colour::LIGHT_GREY, "alpha");
     assert_pane_blank(l, at..FACT_ROWS.start, "alpha");
     assert_facts(l, facts, "alpha");
 
     let l = &looks[1];
     let at = assert_wrapped_at(l, HEAD_ROW, "Only Year", colour::WHITE, "bravo");
-    let at = assert_wrapped_at(l, at, "bravo", colour::GREY, "bravo");
-    let at = assert_wrapped_at(l, at, "1987", colour::LIGHT_GREY, "bravo");
+    let at = assert_wrapped_at(l, at, "bravo", colour::LIGHT_GREY, "bravo");
+    let at = assert_wrapped_at(l, at, "1987", colour::WHITE, "bravo");
     assert_pane_blank(l, at..FACT_ROWS.start, "bravo");
     assert_facts(l, facts, "bravo");
 
     let l = &looks[2];
     let at = assert_wrapped_at(l, HEAD_ROW, "charlie", colour::WHITE, "charlie");
-    let at = assert_wrapped_at(l, at, "nobody", colour::LIGHT_GREY, "charlie");
+    let at = assert_wrapped_at(l, at, "nobody", colour::WHITE, "charlie");
     assert_pane_blank(l, at..FACT_ROWS.start, "charlie");
 
     let l = &looks[3];
     let at = assert_wrapped_at(l, HEAD_ROW, "delta", colour::WHITE, "delta");
     assert_pane_blank(l, at..at + 1, "delta");
-    let at = assert_wrapped_at(l, at + 1, "just a note", colour::GREY, "delta");
+    let at = assert_wrapped_at(l, at + 1, "just a note", colour::LIGHT_GREY, "delta");
     assert_pane_blank(l, at..FACT_ROWS.start, "delta");
     assert_facts(l, facts, "delta");
 
@@ -4713,7 +4798,13 @@ fn ac_211_the_pane_orders_metadata_and_names_folders() {
     assert_chip(l, "folder", colour::WHITE, "'..'");
     let at = assert_wrapped_at(l, HEAD_ROW, "..", colour::WHITE, "'..'");
     assert_pane_blank(l, at..at + 1, "'..'");
-    let at = assert_wrapped_at(l, at + 1, "goes back to thetop level", colour::GREY, "'..'");
+    let at = assert_wrapped_at(
+        l,
+        at + 1,
+        "goes back to thetop level",
+        colour::LIGHT_GREY,
+        "'..'",
+    );
     assert_pane_blank(l, at..LIST_ROWS.end, "'..'");
 }
 

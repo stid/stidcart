@@ -42,6 +42,8 @@ GREY       = 12
 LIGHT_GREEN = 13
 LIGHT_BLUE = 14
 LIGHT_GREY = 15
+TEXT       = WHITE              ; names, values and what else is read first (D-070)
+DIM        = LIGHT_GREY         ; labels, notes, the status: a step back from TEXT
 
 ; The menu's own screen codes, in $60-$7F, which names never produce (screen_code turns PETSCII
 ; $A0-$BF into "?"). Each badge code+$80 holds its inverse, for the selection bar.
@@ -1790,6 +1792,14 @@ charset_init:
         pla
         sta $01
         ldx #0
+-       lda small_caps,x        ; a-z as small capitals, and their inverses (D-070)
+        sta CHAR_RAM + 1 * 8,x
+        eor #$ff
+        sta CHAR_RAM + $81 * 8,x
+        inx
+        cpx #small_caps_end - small_caps
+        bne -
+        ldx #0
 -       lda glyphs,x
         sta CHAR_RAM + ICON * 8,x
         inx
@@ -2200,9 +2210,9 @@ _word:
 
 ; --- the help -----------------------------------------------------------------------------------
 
-; Rows 5-23 blank, in grey.
+; Rows 5-23 blank, in the dim colour.
 blank_body:
-        lda #GREY
+        lda #DIM
         sta pen
         ldx #LIST
 -       stx row
@@ -2236,7 +2246,7 @@ _line:
         lda #2
         jsr at
         jsr _text
-        lda #GREY
+        lda #DIM
         sta pen
         ldx row
         lda #18
@@ -2300,7 +2310,7 @@ list_row:
         sta srow
         lda #0
         sta rvs
-        lda #LIGHT_GREY
+        lda #TEXT
         sta pen
         lda count
         bne +
@@ -2597,7 +2607,7 @@ _up:
         sta dst+1
         lda #up_text_end - up_text
         sta wlen
-        lda #GREY
+        lda #DIM
         sta pen
         jsr wrap
         jmp blank_rest
@@ -2647,7 +2657,7 @@ _entry:
         lda #WHITE              ; the title, then the name it stands for
         ldx #0
         jsr field
-        lda #GREY
+        lda #DIM
         jsr slot_name
         jmp _credit
 _plain:
@@ -2675,13 +2685,13 @@ _credit:
         sta dst
         lda #>sbuf
         sta dst+1
-        lda #LIGHT_GREY
+        lda #TEXT
         sta pen
         jsr wrap
 +       lda flen+3
         beq _fill
         jsr blank_row
-        lda #GREY
+        lda #DIM
         ldx #3
         jsr field
 _fill:
@@ -2921,7 +2931,7 @@ _done:
 fact:
         sta dst
         sty dst+1
-        lda #GREY
+        lda #DIM
         sta pen
         ldx prow
         lda #PANE
@@ -2931,11 +2941,11 @@ fact:
         jsr pad
         jmp begin
 
-; Write the value's text in row prow, columns 29-38, in light grey, and move on a row.
+; Write the value's text in row prow, columns 29-38, in the text colour, and move on a row.
 value:
         lda #0
         jsr emit
-        lda #LIGHT_GREY
+        lda #TEXT
         sta pen
         ldx prow
         lda #VALUE
@@ -2955,7 +2965,7 @@ value:
 draw_status:
         lda #0
         sta rvs
-        lda #GREY
+        lda #DIM
         sta pen
         jsr begin
         lda nshown
@@ -2993,7 +3003,7 @@ draw_status:
 draw_find:
         lda #0
         sta rvs
-        lda #GREY
+        lda #DIM
         sta pen
         ldx #FIND
         lda #1
@@ -3037,7 +3047,7 @@ draw_find:
         jsr append
         lda #0
         jsr emit
-        lda #GREY               ; pad from the text to where the count starts, at 39 - its length
+        lda #DIM               ; pad from the text to where the count starts, at 39 - its length
         sta pen
         lda #39 + 1
         sec
@@ -3110,6 +3120,37 @@ wordmark:
         .byte $07, $f3, $f3, $f3, $f3, $f3, $ff, $ff
         .byte $e7, $e7, $e7, $e7, $e7, $e7, $ff, $ff
 wordmark_end:
+
+; The lower-case letters as small capitals, a to z, for screen codes 1-26: five lines on lines 2-6
+; of the cell, strokes two pixels wide, all on the capitals' baseline (D-070).
+small_caps:
+        .byte $00, $00, $3c, $66, $7e, $66, $66, $00  ; a
+        .byte $00, $00, $7c, $66, $7c, $66, $7c, $00  ; b
+        .byte $00, $00, $3c, $66, $60, $66, $3c, $00  ; c
+        .byte $00, $00, $78, $6c, $66, $6c, $78, $00  ; d
+        .byte $00, $00, $7e, $60, $78, $60, $7e, $00  ; e
+        .byte $00, $00, $7e, $60, $78, $60, $60, $00  ; f
+        .byte $00, $00, $3c, $60, $6e, $66, $3c, $00  ; g
+        .byte $00, $00, $66, $66, $7e, $66, $66, $00  ; h
+        .byte $00, $00, $3c, $18, $18, $18, $3c, $00  ; i
+        .byte $00, $00, $1e, $0c, $0c, $6c, $38, $00  ; j
+        .byte $00, $00, $66, $6c, $78, $6c, $66, $00  ; k
+        .byte $00, $00, $60, $60, $60, $60, $7e, $00  ; l
+        .byte $00, $00, $63, $77, $7f, $6b, $63, $00  ; m
+        .byte $00, $00, $66, $76, $7e, $6e, $66, $00  ; n
+        .byte $00, $00, $3c, $66, $66, $66, $3c, $00  ; o
+        .byte $00, $00, $7c, $66, $7c, $60, $60, $00  ; p
+        .byte $00, $00, $3c, $66, $66, $6c, $36, $00  ; q
+        .byte $00, $00, $7c, $66, $7c, $6c, $66, $00  ; r
+        .byte $00, $00, $3e, $60, $3c, $06, $7c, $00  ; s
+        .byte $00, $00, $7e, $18, $18, $18, $18, $00  ; t
+        .byte $00, $00, $66, $66, $66, $66, $3c, $00  ; u
+        .byte $00, $00, $66, $66, $66, $3c, $18, $00  ; v
+        .byte $00, $00, $63, $6b, $7f, $77, $63, $00  ; w
+        .byte $00, $00, $66, $3c, $18, $3c, $66, $00  ; x
+        .byte $00, $00, $66, $66, $3c, $18, $18, $00  ; y
+        .byte $00, $00, $7e, $0c, $18, $30, $7e, $00  ; z
+small_caps_end:
 
 band_colours:                   ; the label's bars, columns 1-5
         .byte LIGHT_RED, ORANGE, YELLOW, LIGHT_GREEN, LIGHT_BLUE
