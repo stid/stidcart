@@ -2,14 +2,19 @@
 //! groups the gate runs. These pin the rules, because a rule that is too narrow passes a change
 //! without the tests that would have caught it.
 
+#[path = "support/bash.rs"]
+mod bash;
+
 use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+use bash::bash;
 
 /// The scope of a change touching `paths`, as `(rust, vice, gui)`.
 fn scope(paths: &[&str]) -> (bool, String, bool) {
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/lcd/ci/scope.sh");
-    let mut child = Command::new("bash")
+    let mut child = bash()
         .arg(script)
         .arg("-")
         .stdin(Stdio::piped())
@@ -151,11 +156,7 @@ fn a_path_no_rule_names_runs_everything() {
 #[test]
 fn all_is_everything() {
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/lcd/ci/scope.sh");
-    let out = Command::new("bash")
-        .arg(script)
-        .arg("--all")
-        .output()
-        .unwrap();
+    let out = bash().arg(script).arg("--all").output().unwrap();
     assert!(out.status.success());
     assert_eq!(
         String::from_utf8(out.stdout).unwrap(),
@@ -166,7 +167,7 @@ fn all_is_everything() {
 #[test]
 fn an_unknown_base_fails_instead_of_reading_as_no_change() {
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/lcd/ci/scope.sh");
-    let out = Command::new("bash")
+    let out = bash()
         .arg(script)
         .arg("stidcart-no-such-ref")
         .output()

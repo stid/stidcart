@@ -60,7 +60,7 @@ Waves are ordered; steps inside a wave are independent of each other.
   - Signing steps are skipped when the secrets are absent, so this lands before step 3.
   - Give `release.yml` a rule in `docs/lcd/ci/scope.sh` and a case in `scope.rs`.
   - Uses the pinned toolchain: `rustup toolchain install` with no argument, as `ci.yml` does.
-- [ ] **2. `windows-ci`** (expect Standard, may shrink to Quick). A `windows-latest` job in
+- [x] **2. `windows-ci`** (#85) (expect Standard, may shrink to Quick). A `windows-latest` job in
   `ci.yml` running the root tests, not a required check. The emulator boots skip there. Fix what
   breaks: path separators, line endings on fixtures, anything else. This says whether a Windows
   command can ship at all, and it does not touch `release.yml`.

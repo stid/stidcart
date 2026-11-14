@@ -2,19 +2,19 @@
 //! from, and refuses a tag that names another. The version reaches the bytes of every cart the
 //! released tools write, so a binary published under the wrong tag is a wrong binary.
 
+#[path = "support/bash.rs"]
+mod bash;
+
+use bash::bash;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::Output;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn run(args: &[&str]) -> Output {
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/lcd/ci/release-version.sh");
-    Command::new("bash")
-        .arg(script)
-        .args(args)
-        .output()
-        .unwrap()
+    bash().arg(script).args(args).output().unwrap()
 }
 
 fn stdout(out: &Output) -> String {
@@ -90,6 +90,23 @@ fn a_tag_without_the_v_fails() {
 #[test]
 fn it_reads_the_package_version_and_no_other() {
     let dir = tree("decoys", "1.2.3", "1.2.3");
+    let out = run(&["--root", dir.to_str().unwrap(), "v1.2.3"]);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(stdout(&out), "1.2.3\n");
+}
+
+/// A Windows checkout can hold the manifests with CRLF line ends.
+#[test]
+fn it_reads_manifests_with_crlf_line_ends() {
+    let dir = tree("crlf", "1.2.3", "1.2.3");
+    for manifest in ["Cargo.toml", "gui/src-tauri/Cargo.toml"] {
+        let text = fs::read_to_string(dir.join(manifest)).unwrap();
+        fs::write(dir.join(manifest), text.replace('\n', "\r\n")).unwrap();
+    }
     let out = run(&["--root", dir.to_str().unwrap(), "v1.2.3"]);
     assert!(
         out.status.success(),

@@ -20,8 +20,10 @@ fi
 tag="${1:-}"
 
 # The `version` key of one table of a manifest; empty when the table or the key is missing.
+# A Windows checkout can hold the manifest with CRLF line ends.
 version_in() { # FILE TABLE
   awk -v table="[$2]" '
+    { sub(/\r$/, "") }
     $0 == table { inside = 1; next }
     /^\[/ { inside = 0 }
     inside && /^version[ \t]*=/ { gsub(/^[^"]*"|".*$/, ""); print; exit }
