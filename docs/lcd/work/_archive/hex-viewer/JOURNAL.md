@@ -8,7 +8,7 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** a read-only hex viewer for the open cart in the desktop app, in its own window (issue #66)
-- **Next action:** PR #70 is open with the entry view added (S7); take the user's review. Merge only on the user's word  ← next
+- **Next action:** done; merged as PR #70
 - **Branch:** feat/hex-viewer  ·  **Updated:** 2026-11-13
 
 ## STEPS

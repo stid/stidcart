@@ -8,7 +8,7 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** make every README and doc page consistent and readable for public C64/EasyFlash hobbyists before the repo goes public (it stays PRIVATE until the user's explicit ok)
-- **Next action:** PR is open; take the user's review comments. Merge only on the user's word. The repo stays private
+- **Next action:** done; merged as PR #65
 - **Branch:** docs/docs-pass  ·  **Updated:** 2026-11-10
 
 ## STEPS
