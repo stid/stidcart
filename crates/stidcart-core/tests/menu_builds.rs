@@ -5,7 +5,7 @@ use stidcart_core::{crt, listing, read, CartBuilder, Program};
 
 /// The build `menu/menu.bin` holds now. Changing the menu fails this until the replaced build's
 /// fingerprint joins `EARLIER_STIDCART_BUILDS`, so no cart built with it is ever stranded.
-const CURRENT: u64 = 0xa133_39a0_596f_3544;
+const CURRENT: u64 = 0x544e_2896_3e6f_55f5;
 
 /// The earlier builds, oldest first, by the commit that last changed `menu/menu.bin`.
 const EARLIER: [(&str, u64); 15] = [

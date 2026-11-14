@@ -8,7 +8,34 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-069 -->
+<!-- Next id: D-070 -->
+
+---
+
+## D-069 · 2026-11-13 · The C64 menu's header is a cartridge label; the pane leads with what a person reads
+
+- **Context:** menu-label. The user found the menu's design naive. Six directions were drawn pixel
+  for pixel beside the current screen (artifact "Stidcart Menu Directions"); the user chose B, "Label".
+- **Decision:**
+  - Rows 0-3 are a label: reverse spaces in light grey, with the five bands as one reverse cell each
+    in columns 1-5 down all four rows. A wordmark drawn at 12 pixels tall with 2-pixel strokes sits in
+    columns 8-16 of rows 1-2, its 18 cells stored with the ink as background at `$EC-$FD`. The cart
+    name and the count of visible entries end at column 38 of rows 1 and 2. All of it is black on
+    light grey, the only ink a reverse cell has.
+  - The block logo, the cartridge mark and the raster strip go, with the quarter-block glyphs and the
+    multicolour cells.
+  - The raster interrupt stays, drawing nothing: it is the menu's 50 Hz tick, which the stick's
+    repeat is counted in, and AC-127 and AC-128 hold as written.
+  - The pane leads with a chip for the kind, then the title or name, the stored name under a title,
+    author and year on one line, and the note. Size, load address or bank, and start sit in rows
+    18-20 with light grey values. The "type" row goes: the chip says it.
+  - The key bar is light grey, as the label.
+- **Alternatives rejected:** A "Index", C "Raster", D "Spine", E "Catalogue", F "Directory" (user's
+  choice). Removing the interrupt for the CIA timer's: jiffies would run at 60 Hz and change the
+  stick's repeat. Storing the wordmark in `$60-$7F` and reversing it: 17 codes are free there and it
+  needs 18.
+- **Scope:** `menu/src/menu.s`, `menu/menu.bin`, the menu's boot tests, `docs/guide/menu.md`
+- **Status:** active · supersedes D-048's logo, mark and strip, D-041's block logo and pane order
 
 ---
 
