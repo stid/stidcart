@@ -8,7 +8,26 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-068 -->
+<!-- Next id: D-069 -->
+
+---
+
+## D-068 · 2026-11-13 · The hex viewer also shows one entry on its own
+
+- **Context:** on first use the user expected to see an individual entry's bytes, not the whole
+  image with a jump (D-067).
+- **Decision:** (user's choices) keep the whole-image view and add a Selected entry view beside
+  it, its rows addressed by offset from the entry's first byte. (Claude's choices) the window
+  still opens on the whole cart; the entry is the one selected in the main window, so there is
+  no second picker; a cartridge entry reads in bank order, ROML then ROMH of each of its banks,
+  the order of the whole-image view; the entry view carries no owner tints, since every byte has
+  the same owner.
+- **Alternatives rejected:** an entry view only (offered): the directory, loader and free space
+  would no longer be viewable. Bank + C64 addresses in the entry view, or both columns (offered,
+  not chosen). All ROML banks then all ROMH for a cartridge: it differs from the whole-image
+  view for no gain.
+- **Scope:** `crates/stidcart-core/src/hexmap.rs`, `gui/src-tauri/src/hex.rs`,
+  `gui/src/lib/HexView.svelte`
 
 ---
 

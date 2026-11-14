@@ -150,6 +150,27 @@ export interface HexInfo {
   regions: HexRegion[];
   /** The entry selected in the listing, if any. */
   selected: number | null;
+  /** Every entry, as the listing numbers them: what the single-entry view can show. */
+  entries: HexEntry[];
+}
+
+export interface HexEntry {
+  index: number;
+  /** The words its regions are named with. */
+  label: string;
+  family: string;
+  /** Bytes in the entry, and that figure as the listing reads it. */
+  size: number;
+  sizeText: string;
+}
+
+/** One row of a single entry's bytes. */
+export interface HexEntryLine {
+  /** Offset of the row's first byte from the entry's first. */
+  offset: number;
+  /** A full row, or fewer bytes in the entry's last. */
+  bytes: number[];
+  text: string;
 }
 
 export interface HexLine {
@@ -168,6 +189,8 @@ export interface HexHost {
   /** Rejects with the reason when no cart is open. */
   info(): Promise<HexInfo>;
   lines(first: number, count: number): Promise<HexLine[]>;
+  /** Rows of one entry alone, counted from its first byte. */
+  entryLines(entry: number, first: number, count: number): Promise<HexEntryLine[]>;
   /** The cart is another one, or another step of it. */
   onChanged(cb: () => void): void;
   /** The listing's selection moved to this entry. */

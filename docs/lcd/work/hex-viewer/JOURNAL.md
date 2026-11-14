@@ -8,7 +8,7 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** a read-only hex viewer for the open cart in the desktop app, in its own window (issue #66)
-- **Next action:** the PR is open; take the user's review. Merge only on the user's word  ← next
+- **Next action:** PR #70 is open with the entry view added (S7); take the user's review. Merge only on the user's word  ← next
 - **Branch:** feat/hex-viewer  ·  **Updated:** 2026-11-13
 
 ## STEPS
@@ -18,6 +18,7 @@
 - [x] S4 — frontend `HexView.svelte` (virtualised rows, tints, owner readout, jump select) with tests; `main.ts` mounts it in the `hex` window
 - [x] S5 — main window: selection reaches the hex window, entry menu gets Show in Hex Viewer
 - [x] S6 — live check, SPEC + MAP + guide, D-067, audit, PR
+- [x] S7 — after the user tried it: a Whole cart / Selected entry switch; the entry view shows one entry's bytes from offset `$0000` (AC-205, AC-206)
 
 ## DECISIONS (this work-item)
 - User's answers (2026-11-13, question dialog): whole image with a jump from the selected entry; rows addressed by bank + C64 address; a separate window; text column, entry ownership and reserved bank-0 marking all in the first version.
@@ -25,6 +26,7 @@
 - ROMH reads `$A000` throughout, as the issue's example does, although Ultimax carts and the boot code see it at `$E000` (Claude's choice; one fixed address per half keeps a row's label independent of who owns it).
 - Addresses, the text column and ownership come from the core; the frontend only draws them (MAP: no format knowledge in `gui/`).
 - The hex window shows the current step, which is what saving would write, and follows edits, undo and open.
+- User, 2026-11-13, after trying the app ("so this is the entire cart catalog not the individual carts"): add an entry view beside the whole image, rows addressed by offset in the entry (question dialog). A cartridge entry reads in bank order, ROML then ROMH of each bank (Claude's choice). The window still opens on the whole cart (Claude's choice).
 - No caching: each row request re-parses the container (a 1 MiB copy).
 
 ## OPEN QUESTIONS
@@ -58,7 +60,13 @@
 
 **AC-204** (surfaces: RENDER): the hex window follows the cart: after an edit, undo, redo, open or New it shows the new bytes and owners. Only the rows in view are fetched and drawn.
 
+**AC-205** (surfaces: RENDER): the hex window has a Whole cart / Selected entry switch, starting on the whole cart. Selected entry shows only the bytes of the entry selected in the main window, first to last, rows counted from `$0000`, with its name and size in the top bar and no owner tints, key or jump list; a program reads as the file it was added from and a cartridge in bank order. Switching back shows the whole cart at that entry.
+
+**AC-206** (surfaces: RENDER): the entry view follows the selection and the cart: selecting another entry shows that one from its first byte, an edit or undo shows the new bytes, and with no entry selected it asks for one.
+
 ## LOG (append-only; not read on resume)
+
+- 2026-11-13 — S7 built test-first after the user's feedback; audit: PASS (test-presence) for AC-205 and AC-206, both gates green; reconciled into the SPEC row. Not live-checked by Claude: the user is trying it in the dev app.
 
 - 2026-11-13 — reconciled: folded AC-200..AC-204 → SPEC.md/RENDER
 - 2026-11-13 — audit: PASS (test-presence). AC-200..AC-204 (RENDER) each have tests carrying the token; root gate and gui gate green.

@@ -5,7 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { message, open, save } from '@tauri-apps/plugin-dialog';
-import type { Document, Edit, HexHost, HexInfo, HexLine, Host, MenuId } from './types';
+import type { Document, Edit, HexEntryLine, HexHost, HexInfo, HexLine, Host, MenuId } from './types';
 import { unsavedChoice } from './viewer.svelte';
 
 const CRT = { name: 'Cartridge image', extensions: ['crt'] };
@@ -93,6 +93,9 @@ export const hexHost: HexHost = {
   },
   lines(first, count) {
     return invoke<HexLine[]>('hex_lines', { first, count });
+  },
+  entryLines(entry, first, count) {
+    return invoke<HexEntryLine[]>('hex_entry_lines', { entry, first, count });
   },
   onChanged(cb) {
     void listen('hex-changed', () => cb());

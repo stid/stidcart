@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/sv
 import { afterEach, expect, test, vi } from 'vitest';
 import golden from './fixtures/hex.json';
 import HexView from './HexView.svelte';
-import type { HexHost, HexInfo, HexLine } from './types';
+import type { HexEntryLine, HexHost, HexInfo, HexLine } from './types';
 
 afterEach(cleanup);
 
@@ -35,6 +35,18 @@ function fakeHost(over: Partial<HexInfo> = {}) {
     lines: vi.fn(async (first: number, count: number) =>
       Array.from({ length: Math.min(count, info.lines - first) }, (_, i) => line(first + i)),
     ),
+    // Entry 0 is the golden hello; any other entry is 40 bytes of its own index.
+    entryLines: vi.fn(async (entry: number, first: number, count: number): Promise<HexEntryLine[]> => {
+      const all: HexEntryLine[] =
+        entry === 0
+          ? golden.entryLines
+          : [0, 16, 32].map((offset) => ({
+              offset,
+              bytes: Array(offset === 32 ? 8 : 16).fill(entry),
+              text: '.'.repeat(offset === 32 ? 8 : 16),
+            }));
+      return all.slice(first, first + count);
+    }),
     onChanged: vi.fn((cb: () => void) => (changed = cb)),
     onGoto: vi.fn((cb: (entry: number | null) => void) => (goto = cb)),
   } satisfies HexHost;
@@ -42,6 +54,7 @@ function fakeHost(over: Partial<HexInfo> = {}) {
 }
 
 const rows = () => [...document.querySelectorAll('[data-row]')];
+const hexOf = (byte: number) => byte.toString(16).toUpperCase().padStart(2, '0');
 
 test('AC-200 (RENDER): rows show bank, half, C64 address and sixteen bytes, from the top of the image', async () => {
   const { host } = fakeHost();
@@ -176,4 +189,83 @@ test('AC-204 (RENDER): with no cart open the window says so, and shows one when 
 
   changed();
   expect(await screen.findByText('$8000')).toBeInTheDocument();
+});
+
+const mode = (name: RegExp) => screen.getByRole('radio', { name });
+
+test('AC-205 (RENDER): the window starts on the whole cart and offers the selected entry alone', async () => {
+  const { host } = fakeHost({ selected: 0 });
+  render(HexView, { props: { host } });
+  await screen.findByText('$8BB0');
+  expect(mode(/whole cart/i)).toBeChecked();
+  expect(mode(/selected entry/i)).not.toBeChecked();
+  expect(host.entryLines).not.toHaveBeenCalled();
+
+  await fireEvent.click(mode(/selected entry/i));
+  expect(mode(/selected entry/i)).toBeChecked();
+  // Rows count from the entry's first byte, and there are only its own.
+  const first = (await screen.findByText('$0000')).closest('[data-row]')!;
+  expect(first.querySelector('[data-byte]')).toHaveTextContent(hexOf(golden.entryLines[0].bytes[0]));
+  expect(screen.getByText('$0060')).toBeInTheDocument();
+  expect(rows()).toHaveLength(7);
+  expect(rows()[6].querySelectorAll('[data-byte]')).toHaveLength(6);
+  expect(screen.getByText(golden.entryLines[0].text)).toBeInTheDocument();
+  expect(host.entryLines).toHaveBeenCalledWith(0, 0, expect.any(Number));
+
+  // The header names the entry and its size; the whole-cart tools are away.
+  expect(screen.getByText('0 · hello (PRG)')).toBeInTheDocument();
+  expect(screen.getByText('102 bytes')).toBeInTheDocument();
+  expect(screen.queryByText(/^bank /)).toBeNull();
+  expect(screen.queryByRole('combobox', { name: /jump to/i })).toBeNull();
+
+  await fireEvent.pointerOver(rows()[1].querySelectorAll('[data-byte]')[2]);
+  expect(screen.getByRole('status')).toHaveTextContent('$0012 · 0 · hello (PRG)');
+});
+
+test('AC-205 (RENDER): back on the whole cart, the view is at the selected entry', async () => {
+  const { host } = fakeHost({ selected: 0 });
+  render(HexView, { props: { host } });
+  await screen.findByText('$8BB0');
+  await fireEvent.click(mode(/selected entry/i));
+  await screen.findByText('$0000');
+
+  await fireEvent.click(mode(/whole cart/i));
+  expect(await screen.findByText('$8BB0')).toBeInTheDocument();
+  expect(screen.getByText('bank 01 ROML')).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: /jump to/i })).toBeInTheDocument();
+});
+
+test('AC-206 (RENDER): with no entry selected the entry view asks for one, then follows the selection', async () => {
+  const { host, goto } = fakeHost();
+  render(HexView, { props: { host } });
+  await screen.findByText('$8000');
+  await fireEvent.click(mode(/selected entry/i));
+  expect(await screen.findByText(/select an entry in the main window/i)).toBeInTheDocument();
+  expect(rows()).toHaveLength(0);
+
+  host.info.mockImplementation(async () => ({ ...info, selected: 1 }));
+  goto(1);
+  expect(await screen.findByText('1 · ramp (PRG)')).toBeInTheDocument();
+  await waitFor(() => expect(rows()).toHaveLength(3));
+  expect(rows()[0]).toHaveTextContent('$0000');
+  expect(rows()[0].querySelector('[data-byte]')).toHaveTextContent('01');
+  expect(mode(/selected entry/i)).toBeChecked();
+
+  host.info.mockImplementation(async () => ({ ...info, selected: 0 }));
+  goto(0);
+  expect(await screen.findByText('0 · hello (PRG)')).toBeInTheDocument();
+  await waitFor(() => expect(rows()).toHaveLength(7));
+});
+
+test('AC-206 (RENDER): the entry view follows the cart when it changes', async () => {
+  const { host, changed } = fakeHost({ selected: 0 });
+  render(HexView, { props: { host } });
+  await screen.findByText('$8BB0');
+  await fireEvent.click(mode(/selected entry/i));
+  await screen.findByText('$0000');
+  const fetched = host.entryLines.mock.calls.length;
+
+  changed();
+  await waitFor(() => expect(host.entryLines.mock.calls.length).toBeGreaterThan(fetched));
+  expect(screen.getByText('$0000')).toBeInTheDocument();
 });

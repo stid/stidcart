@@ -57,6 +57,10 @@ them; nothing there can be changed.
   owner.
 - Select an entry in the main window and the hex window moves to its first byte. An entry's menu
   has Show in Hex Viewer, and Jump to… in the hex window lists every owner.
+- Whole cart / Selected entry at the top switches between the whole image and the bytes of the
+  entry selected in the main window on their own. An entry's rows count from `$0000` at its
+  first byte: a program reads as the file you added, load address first, and a cartridge bank
+  by bank.
 - The window shows the cart as it would be saved now, so it changes with every edit and undo.
 
 ## Saving
