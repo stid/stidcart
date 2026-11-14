@@ -8,7 +8,33 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-067 -->
+<!-- Next id: D-068 -->
+
+---
+
+## D-067 · 2026-11-13 · The hex viewer is a second window over values the core computes
+
+- **Context:** issue #66 asked for a read-only hex view of the cart and left open its scope, its
+  addressing, where it sits and which extras to include.
+- **Decision:** (user's choices, through the question dialog) the whole flash image with a jump
+  from the selected entry; rows addressed by bank and C64 address; a separate window; the text
+  column, entry ownership and the reserved bank-0 marking all in the first version. (Claude's
+  choices) `stidcart_core::hexmap` computes the rows and the owned ranges, so the frontend holds
+  no format knowledge, as with `listing` (D-032). Rows run bank by bank, ROML then ROMH, where an
+  interleaved program is one contiguous run. ROMH always reads `$A000`, as the issue's example
+  does. The window is the same page as the editor, told apart in `main.ts` by its label `hex`,
+  with its own capability file. It shows the document's current step, so what saving would write
+  (D-035), and the Rust side tells it when that changes or the selection moves. Each row request
+  re-parses the container; nothing is cached.
+- **Alternatives rejected:** a switch or a pane in the main window (offered; the user chose the
+  window). The image's own order, all ROML halves then all ROMH: it splits every interleaved
+  program into alternating far-apart pieces. `$E000` for ROMH on Ultimax entries and the boot
+  code: a row's address would depend on its owner, and unowned rows have none. CRT file offsets:
+  offered, not chosen. Decoding addresses or PETSCII in the frontend: a second copy of format
+  facts. A URL query to pick the view: the window label needs no routing and cannot be mistyped
+  into the wrong page.
+- **Scope:** `crates/stidcart-core/src/hexmap.rs`, `gui/src-tauri/src/hex.rs`,
+  `gui/src-tauri/src/lib.rs`, `gui/src/lib/HexView.svelte`, `gui/src-tauri/capabilities/hex.json`
 
 ---
 
