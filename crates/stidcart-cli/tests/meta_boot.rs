@@ -100,8 +100,8 @@ fn easyloader_shows(screen: &[u8], name: &str) -> bool {
 // AC-155: EasyLoader skips the metadata entry like any hidden entry
 #[test]
 fn ac_155_easyloader_does_not_list_the_metadata_entry() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-155: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-155: skipping");
         return;
     }
     let dir = scratch("easyloader");
@@ -129,8 +129,8 @@ fn ac_155_easyloader_does_not_list_the_metadata_entry() {
 // bravo, the folder lists alpha alone.
 #[test]
 fn ac_155_our_menu_does_not_list_the_metadata_entry() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-155: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-155: skipping");
         return;
     }
     let dir = scratch("ours");

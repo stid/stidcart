@@ -24,17 +24,37 @@ Read `docs/lcd/MAP.md` first on a cold start — it says where things live and l
 hold across all work here. `docs/lcd/SPEC.md` says what the tool currently does; read the surface
 section you're about to touch. Non-trivial work routes through triage first (see below).
 
-**The gate**, green before every commit, and the same step CI requires on `main`:
+**The gate**, green before every commit:
 
 ```bash
-cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace
+docs/lcd/ci/gate.sh              # what the working tree changes against HEAD
+docs/lcd/ci/gate.sh origin/main  # that, plus the branch's commits: before a PR
+docs/lcd/ci/gate.sh --all        # everything
 ```
+
+It runs only the groups the change can affect (D-071), and CI's two jobs take the same scope from
+the same script, `docs/lcd/ci/scope.sh`:
+
+| Change | Root fmt, clippy, tests | VICE boots (`STIDCART_VICE`) | GUI gate |
+|---|---|---|---|
+| Prose, `docs/`, `.claude/`, `scripts/` | no | none | no |
+| `menu/` | yes | full | no |
+| `crates/` sources, `firmware/`, `Cargo.*`, the toolchain pin | yes | cart, the 17 boots that depend on what the builder writes | yes |
+| A root test or `fixtures/` | yes | none; full for a boot test or `tests/support/` | no |
+| `gui/` | no | none | yes |
+| `ci.yml`, `docs/lcd/ci/`, a path no rule names | yes | full | yes |
+
+A new path that is not prose needs a rule in `scope.sh` and a case in
+`crates/stidcart-cli/tests/scope.rs`; until then it runs everything. A boot test whose outcome
+depends on the builder's output gates on `vice::require_cart_tool`, any other on
+`vice::require_tool`. Run `--all` when a scoped green is not enough evidence, and say so in the PR.
+A bare `cargo test --workspace` still runs every boot.
 
 The compiler that runs it is pinned by `rust-toolchain.toml` (for both workspaces), and the pin binds only through
 rustup's shims — a Homebrew `cargo` ignores the file silently (D-010).
 
-The GUI (`gui/`) is its own Cargo workspace, so the gate above never builds it. Its gate is
-`docs/lcd/ci/gui-gate.sh` (CI job `gui`); run it before committing GUI changes. It builds the
+The GUI (`gui/`) is its own Cargo workspace, so the root cargo commands never build it. Its gate is
+`docs/lcd/ci/gui-gate.sh` (CI job `gui`), which `gate.sh` calls when the scope says so. It builds the
 frontend first because Tauri embeds `gui/dist` at compile time, so a bare `cargo test` in
 `gui/src-tauri` fails until `npm run build` has run (D-030).
 

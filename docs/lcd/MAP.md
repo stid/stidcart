@@ -43,7 +43,8 @@ this MAP is structural. Read `SPEC.md`'s surface section before scoping a change
 - `cargo run -p stidcart-cli -- list out.crt` → same file; prints the directory as the image records it
 - `npm run tauri dev` in `gui/` → the desktop app (`gui/src-tauri/src/lib.rs`, `gui/src/App.svelte`); `docs/lcd/ci/gui-gate.sh` is its gate
 - `menu/build.sh menu/` → reassembles the menu into `menu.bin` + `menu.lbl` (64tass); commit both with any change to `menu/src/`
-- `cargo test --workspace` → the full suite, including the parity test against the frozen fixtures
+- `docs/lcd/ci/gate.sh` → the gate, scoped by `docs/lcd/ci/scope.sh` to what changed (D-071); `--all` for everything
+- `cargo test --workspace` → the root workspace's full suite, including the parity test against the frozen fixtures and every boot
 - Library consumers start at `crates/stidcart-core/src/lib.rs`
 
 ## Surfaces in use

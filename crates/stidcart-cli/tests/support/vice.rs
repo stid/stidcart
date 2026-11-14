@@ -84,13 +84,68 @@ pub enum Step {
     Shot,
 }
 
-/// Whether `name` is on PATH. Absent, the caller skips — unless `STIDCART_REQUIRE_TOOLS=1`, as CI
-/// sets it, where an absent tool fails the test instead (AC-94).
+/// Which boots a run asks for (D-071). The gate sets `STIDCART_VICE` from what changed; unset, a
+/// run asks for every boot, so a bare `cargo test` is still the whole suite.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Boots {
+    /// No boot: nothing the change touches reaches a cart or the menu.
+    None,
+    /// The boots that depend on what the builder writes into a cart.
+    Cart,
+    /// Every boot.
+    Full,
+}
+
+impl Boots {
+    /// Whether this run asks for a boot, given whether the boot is one of the cart set.
+    pub fn asks_for(self, cart_boot: bool) -> bool {
+        match self {
+            Boots::None => false,
+            Boots::Cart => cart_boot,
+            Boots::Full => true,
+        }
+    }
+}
+
+/// [`Boots`] for a value of `STIDCART_VICE`. Anything but the three names panics: a typo must not
+/// read as a scope.
+pub fn boots_in(value: Option<&str>) -> Boots {
+    match value {
+        None | Some("full") => Boots::Full,
+        Some("cart") => Boots::Cart,
+        Some("none") => Boots::None,
+        Some(other) => panic!("STIDCART_VICE is {other:?}; it takes none, cart or full"),
+    }
+}
+
+/// Whether a boot that needs `name` should run: this run asks for every boot and `name` is on
+/// PATH. Absent, the caller skips — unless `STIDCART_REQUIRE_TOOLS=1`, as CI sets it, where an
+/// absent tool fails the test instead (AC-94).
 pub fn require_tool(name: &str) -> bool {
-    require_tool_in(
+    require_boot(name, false)
+}
+
+/// [`require_tool`] for a boot of the cart set: one whose outcome depends on what the builder
+/// writes (the directory, placement, cartridge kinds, the metadata entry), so it also runs when
+/// the builder changed and the menu did not.
+pub fn require_cart_tool(name: &str) -> bool {
+    require_boot(name, true)
+}
+
+fn require_boot(name: &str, cart_boot: bool) -> bool {
+    let boots = boots_in(std::env::var("STIDCART_VICE").ok().as_deref());
+    if !boots.asks_for(cart_boot) {
+        eprintln!("STIDCART_VICE leaves this boot out of the run ({boots:?})");
+        return false;
+    }
+    let present = require_tool_in(
         name,
         std::env::var("STIDCART_REQUIRE_TOOLS").as_deref() == Ok("1"),
-    )
+    );
+    if !present {
+        eprintln!("{name} is not installed");
+    }
+    present
 }
 
 /// [`require_tool`] with the requirement passed in rather than read from the environment.

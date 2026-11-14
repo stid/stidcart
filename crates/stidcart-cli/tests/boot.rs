@@ -48,8 +48,8 @@ fn boot(dir: &Path, cart: &Path) -> Option<Vec<u8>> {
 
 #[test]
 fn ac_4_cli_produced_image_boots_and_menu_lists_entries() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-4 (CLI): skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-4 (CLI): skipping");
         return;
     }
 

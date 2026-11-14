@@ -121,8 +121,8 @@ fn corrupted(dir: &Path, cart: &Path) -> PathBuf {
 // AC-87: the menu lists visible entries in order, hidden ones absent, first selected
 #[test]
 fn ac_87_the_menu_lists_visible_entries_in_order_with_the_first_selected() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-87: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-87: skipping");
         return;
     }
     let dir = scratch("ac87");
@@ -166,8 +166,8 @@ fn ac_87_the_menu_lists_visible_entries_in_order_with_the_first_selected() {
 // AC-88: a list longer than the screen scrolls, and the last entry starts
 #[test]
 fn ac_88_a_long_list_scrolls_and_the_last_entry_starts() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-88: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-88: skipping");
         return;
     }
     let dir = scratch("ac88");
@@ -215,8 +215,8 @@ fn ac_88_a_long_list_scrolls_and_the_last_entry_starts() {
 // AC-89: programs start — RUN for a load address at or below $0801, SYS above — with the cart out
 #[test]
 fn ac_89_programs_start_with_the_cart_switched_out() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-89: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-89: skipping");
         return;
     }
     let dir = scratch("ac89");
@@ -250,8 +250,8 @@ fn ac_89_programs_start_with_the_cart_switched_out() {
 // AC-90: every cartridge kind other than Ocean starts from the menu
 #[test]
 fn ac_90_every_non_ocean_cartridge_kind_starts() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-90: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-90: skipping");
         return;
     }
     for kind in CartKind::ALL {
@@ -279,8 +279,8 @@ fn ac_90_every_non_ocean_cartridge_kind_starts() {
 /// returns "NO CART EXISTS", `c64carthooks.c`), so it only meets them inside an EasyFlash image.
 #[test]
 fn every_marker_cart_runs_on_its_own() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("marker control: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("marker control: skipping");
         return;
     }
     let generic = [
@@ -306,7 +306,7 @@ const BASIC_MAIN: u16 = 0xa480;
 #[test]
 fn ac_91_run_stop_leaves_to_basic_with_full_memory() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-91: skipping — x64sc is not installed");
+        eprintln!("AC-91: skipping");
         return;
     }
     let dir = scratch("ac91");
@@ -326,7 +326,7 @@ fn ac_91_run_stop_leaves_to_basic_with_full_memory() {
 #[test]
 fn ac_92_no_visible_entries_says_so_and_leaving_works() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-92: skipping — x64sc is not installed");
+        eprintln!("AC-92: skipping");
         return;
     }
     let dir = scratch("ac92");
@@ -397,6 +397,25 @@ fn ac_94_ci_runs_the_boot_checks_instead_of_skipping() {
         std::panic::catch_unwind(|| vice::require_tool_in("stidcart-no-such-tool", true)).is_err(),
         "a required but missing tool did not fail"
     );
+}
+
+// test-scopes (D-071): STIDCART_VICE picks which boots a run asks for
+#[test]
+fn stidcart_vice_picks_the_boots_a_run_asks_for() {
+    use vice::Boots;
+    // Unset is every boot, so a bare `cargo test` is still the whole suite.
+    assert_eq!(vice::boots_in(None), Boots::Full);
+    assert_eq!(vice::boots_in(Some("full")), Boots::Full);
+    assert_eq!(vice::boots_in(Some("cart")), Boots::Cart);
+    assert_eq!(vice::boots_in(Some("none")), Boots::None);
+    // A typo must not read as a scope, least of all as "none".
+    assert!(std::panic::catch_unwind(|| vice::boots_in(Some("non"))).is_err());
+    assert!(std::panic::catch_unwind(|| vice::boots_in(Some(""))).is_err());
+
+    // A cart boot runs in a cart run and a full run; any other boot in a full run only.
+    assert!(Boots::Full.asks_for(true) && Boots::Full.asks_for(false));
+    assert!(Boots::Cart.asks_for(true) && !Boots::Cart.asks_for(false));
+    assert!(!Boots::None.asks_for(true) && !Boots::None.asks_for(false));
 }
 
 // --- menu-search-sort: the filter and the sort toggle (AC-96..AC-101, D-039) -----------------
@@ -487,7 +506,7 @@ fn write_in(dir: &Path, sub: &str, name: &str, bytes: &[u8]) -> PathBuf {
 #[test]
 fn ac_96_typing_filters_to_visible_entries_containing_the_text() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-96: skipping — x64sc is not installed");
+        eprintln!("AC-96: skipping");
         return;
     }
     let dir = scratch("ac96");
@@ -538,7 +557,7 @@ fn ac_96_typing_filters_to_visible_entries_containing_the_text() {
 #[test]
 fn ac_97_del_and_clr_home_edit_the_text() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-97: skipping — x64sc is not installed");
+        eprintln!("AC-97: skipping");
         return;
     }
     let dir = scratch("ac97");
@@ -591,7 +610,7 @@ fn ac_97_del_and_clr_home_edit_the_text() {
 #[test]
 fn ac_98_the_selection_moves_through_matches_and_starts_one() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-98: skipping — x64sc is not installed");
+        eprintln!("AC-98: skipping");
         return;
     }
     let dir = scratch("ac98");
@@ -634,7 +653,7 @@ fn ac_98_the_selection_moves_through_matches_and_starts_one() {
 #[test]
 fn ac_99_no_match_says_so_and_recovers() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-99: skipping — x64sc is not installed");
+        eprintln!("AC-99: skipping");
         return;
     }
     let dir = scratch("ac99");
@@ -688,7 +707,7 @@ fn ac_99_no_match_says_so_and_recovers() {
 #[test]
 fn ac_100_f1_toggles_between_directory_order_and_a_to_z() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-100: skipping — x64sc is not installed");
+        eprintln!("AC-100: skipping");
         return;
     }
     let dir = scratch("ac100");
@@ -747,7 +766,7 @@ fn ac_100_f1_toggles_between_directory_order_and_a_to_z() {
 #[test]
 fn ac_101_filter_and_sort_combine() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-101: skipping — x64sc is not installed");
+        eprintln!("AC-101: skipping");
         return;
     }
     let dir = scratch("ac101");
@@ -1246,7 +1265,7 @@ fn the_thumb_follows_the_rounding_the_spec_gives() {
 #[test]
 fn ac_105_the_menu_draws_from_a_ram_charset_with_its_own_glyphs() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-105: skipping — x64sc is not installed");
+        eprintln!("AC-105: skipping");
         return;
     }
     let dir = scratch("ac105");
@@ -1309,7 +1328,7 @@ fn ac_105_the_menu_draws_from_a_ram_charset_with_its_own_glyphs() {
 #[test]
 fn ac_213_lower_case_shows_as_small_capitals() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-213: skipping — x64sc is not installed");
+        eprintln!("AC-213: skipping");
         return;
     }
     let dir = scratch("ac213");
@@ -1358,7 +1377,7 @@ fn ac_213_lower_case_shows_as_small_capitals() {
 #[test]
 fn ac_106_the_frame_has_the_label_rule_and_help_bar() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-106: skipping — x64sc is not installed");
+        eprintln!("AC-106: skipping");
         return;
     }
     let dir = scratch("ac106");
@@ -1388,7 +1407,7 @@ fn ac_106_the_frame_has_the_label_rule_and_help_bar() {
 #[test]
 fn ac_107_entries_carry_their_kind_icon() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-107: skipping — x64sc is not installed");
+        eprintln!("AC-107: skipping");
         return;
     }
     let dir = scratch("ac107");
@@ -1535,7 +1554,7 @@ fn assert_pane_blank(l: &Look, rows: std::ops::Range<usize>, what: &str) {
 #[test]
 fn ac_210_the_pane_leads_with_the_kind_and_ends_with_the_facts() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-210: skipping — x64sc is not installed");
+        eprintln!("AC-210: skipping");
         return;
     }
     let dir = scratch("ac210");
@@ -1611,7 +1630,7 @@ fn ac_210_the_pane_leads_with_the_kind_and_ends_with_the_facts() {
 #[test]
 fn ac_109_the_scroll_bar_shows_where_the_view_is() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-109: skipping — x64sc is not installed");
+        eprintln!("AC-109: skipping");
         return;
     }
     let dir = scratch("ac109");
@@ -1654,7 +1673,7 @@ fn ac_109_the_scroll_bar_shows_where_the_view_is() {
 #[test]
 fn ac_110_the_status_shows_the_position_and_the_filter_its_matches() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-110: skipping — x64sc is not installed");
+        eprintln!("AC-110: skipping");
         return;
     }
     let dir = scratch("ac110");
@@ -1701,7 +1720,7 @@ fn ac_110_the_status_shows_the_position_and_the_filter_its_matches() {
 #[test]
 fn ac_111_a_cursor_move_rewrites_only_the_rows_it_changes() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-111: skipping — x64sc is not installed");
+        eprintln!("AC-111: skipping");
         return;
     }
     let dir = scratch("ac111");
@@ -1745,7 +1764,7 @@ fn ac_111_a_cursor_move_rewrites_only_the_rows_it_changes() {
 #[test]
 fn ac_104_what_the_menu_hands_over_has_the_c64_colours() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-104: skipping — x64sc is not installed");
+        eprintln!("AC-104: skipping");
         return;
     }
     let dir = scratch("ac104");
@@ -1861,7 +1880,7 @@ fn shot_after_boot(dir: &Path, cart: &Path) -> vice::Shot {
 #[test]
 fn ac_123_the_selection_bar_is_cyan() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-123: skipping — x64sc is not installed");
+        eprintln!("AC-123: skipping");
         return;
     }
     let dir = scratch("ac123");
@@ -1889,7 +1908,7 @@ fn shot_pixel(shot: &vice::Shot, x: usize, y: usize) -> u8 {
 #[test]
 fn ac_207_the_label_fills_rows_0_to_3() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-207: skipping — x64sc is not installed");
+        eprintln!("AC-207: skipping");
         return;
     }
     let dir = scratch("ac207");
@@ -1945,7 +1964,7 @@ fn ac_207_the_label_fills_rows_0_to_3() {
 #[test]
 fn ac_208_the_wordmark_is_drawn_on_the_label() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-208: skipping — x64sc is not installed");
+        eprintln!("AC-208: skipping");
         return;
     }
     let dir = scratch("ac208");
@@ -1979,7 +1998,7 @@ fn ac_208_the_wordmark_is_drawn_on_the_label() {
 #[test]
 fn ac_209_the_label_names_the_cart_and_counts_its_entries() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-209: skipping — x64sc is not installed");
+        eprintln!("AC-209: skipping");
         return;
     }
     let dir = scratch("ac209");
@@ -2003,7 +2022,7 @@ fn ac_209_the_label_names_the_cart_and_counts_its_entries() {
 #[test]
 fn ac_212_the_key_bar_is_light_grey_on_the_menu_and_the_help() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-212: skipping — x64sc is not installed");
+        eprintln!("AC-212: skipping");
         return;
     }
     let dir = scratch("ac212");
@@ -2058,7 +2077,7 @@ fn bank_writes(log: &str) -> Vec<(bool, bool)> {
 #[test]
 fn ac_127_no_bank_is_switched_while_the_raster_interrupt_is_live() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-127: skipping — x64sc is not installed");
+        eprintln!("AC-127: skipping");
         return;
     }
     const STOPS: usize = 60;
@@ -2173,7 +2192,7 @@ fn the_bank_write_parser_reads_the_flags_and_the_interrupt_mask() {
 #[test]
 fn ac_128_every_exit_puts_the_interrupts_back() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-128: skipping — x64sc is not installed");
+        eprintln!("AC-128: skipping");
         return;
     }
     let dir = scratch("ac128");
@@ -2257,7 +2276,7 @@ fn row_name(screen: &[u8], n: usize) -> Vec<u8> {
 #[test]
 fn ac_136_shift_return_loads_a_program_without_running_it() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-136: skipping — x64sc is not installed");
+        eprintln!("AC-136: skipping");
         return;
     }
     let dir = scratch("ac136");
@@ -2361,7 +2380,7 @@ fn ac_136_shift_return_loads_a_program_without_running_it() {
 #[test]
 fn ac_137_crsr_right_and_left_move_a_page() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-137: skipping — x64sc is not installed");
+        eprintln!("AC-137: skipping");
         return;
     }
     let dir = scratch("ac137");
@@ -2412,7 +2431,7 @@ fn ac_137_crsr_right_and_left_move_a_page() {
 #[test]
 fn ac_138_home_and_clr_go_to_the_ends_without_text() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-138: skipping — x64sc is not installed");
+        eprintln!("AC-138: skipping");
         return;
     }
     let dir = scratch("ac138");
@@ -2466,7 +2485,7 @@ fn ac_138_home_and_clr_go_to_the_ends_without_text() {
 #[test]
 fn ac_139_f3_filters_by_kind() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-139: skipping — x64sc is not installed");
+        eprintln!("AC-139: skipping");
         return;
     }
     let dir = scratch("ac139");
@@ -2575,7 +2594,7 @@ fn ac_139_f3_filters_by_kind() {
 #[test]
 fn ac_140_f5_picks_a_random_listed_entry() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-140: skipping — x64sc is not installed");
+        eprintln!("AC-140: skipping");
         return;
     }
     let dir = scratch("ac140");
@@ -2645,7 +2664,7 @@ fn ac_140_f5_picks_a_random_listed_entry() {
 #[test]
 fn ac_141_f7_shows_help_and_any_key_returns() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-141: skipping — x64sc is not installed");
+        eprintln!("AC-141: skipping");
         return;
     }
     let dir = scratch("ac141");
@@ -2785,7 +2804,7 @@ fn position(screen: &[u8]) -> usize {
 #[test]
 fn ac_142_the_stick_moves_the_selection_as_the_cursor_keys_do() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-142: skipping — x64sc is not installed");
+        eprintln!("AC-142: skipping");
         return;
     }
     let dir = scratch("ac142");
@@ -2826,7 +2845,7 @@ fn ac_142_the_stick_moves_the_selection_as_the_cursor_keys_do() {
 #[test]
 fn ac_143_a_held_stick_repeats_and_stops_when_released() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-143: skipping — x64sc is not installed");
+        eprintln!("AC-143: skipping");
         return;
     }
     let dir = scratch("ac143");
@@ -2860,7 +2879,7 @@ fn ac_143_a_held_stick_repeats_and_stops_when_released() {
 #[test]
 fn ac_144_fire_starts_the_selection_and_a_held_fire_waits_for_a_release() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-144: skipping — x64sc is not installed");
+        eprintln!("AC-144: skipping");
         return;
     }
     let dir = scratch("ac144");
@@ -2924,7 +2943,7 @@ fn ac_144_fire_starts_the_selection_and_a_held_fire_waits_for_a_release() {
 #[test]
 fn ac_145_the_stick_leaves_the_help_and_does_nothing_else() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-145: skipping — x64sc is not installed");
+        eprintln!("AC-145: skipping");
         return;
     }
     let dir = scratch("ac145");
@@ -2972,7 +2991,7 @@ fn ac_145_the_stick_leaves_the_help_and_does_nothing_else() {
 #[test]
 fn ac_146_the_keyboard_works_beside_the_stick_and_no_bank_moves_under_the_interrupt() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-146: skipping — x64sc is not installed");
+        eprintln!("AC-146: skipping");
         return;
     }
     let dir = scratch("ac146");
@@ -3157,7 +3176,7 @@ fn boot_with_state(dir: &Path, cart: &Path, bytes: &[u8]) -> Vec<u8> {
 #[test]
 fn ac_147_a_soft_reset_comes_back_to_the_entry_started() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-147: skipping — x64sc is not installed");
+        eprintln!("AC-147: skipping");
         return;
     }
     let dir = scratch("ac147");
@@ -3225,7 +3244,7 @@ fn ac_147_a_soft_reset_comes_back_to_the_entry_started() {
 #[test]
 fn ac_148_run_stop_then_a_soft_reset_comes_back_to_the_selection() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-148: skipping — x64sc is not installed");
+        eprintln!("AC-148: skipping");
         return;
     }
     let dir = scratch("ac148");
@@ -3267,7 +3286,7 @@ fn ac_148_run_stop_then_a_soft_reset_comes_back_to_the_selection() {
 #[test]
 fn ac_149_a_power_cycle_a_changed_byte_or_another_cart_starts_fresh() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-149: skipping — x64sc is not installed");
+        eprintln!("AC-149: skipping");
         return;
     }
     let dir = scratch("ac149");
@@ -3365,7 +3384,7 @@ fn ac_149_a_power_cycle_a_changed_byte_or_another_cart_starts_fresh() {
 #[test]
 fn ac_150_a_kind_filter_that_hides_the_entry_falls_back_to_all() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-150: skipping — x64sc is not installed");
+        eprintln!("AC-150: skipping");
         return;
     }
     let dir = scratch("ac150");
@@ -3443,7 +3462,7 @@ fn ac_151_the_launch_routines_leave_the_state_alone() {
     );
 
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-151: skipping the boots — x64sc is not installed");
+        eprintln!("AC-151: skipping the boots");
         return;
     }
     let dir = scratch("ac151");
@@ -3542,7 +3561,7 @@ fn ac_151_the_launch_routines_leave_the_state_alone() {
 #[test]
 fn ac_152_the_help_names_the_joystick() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-152: skipping — x64sc is not installed");
+        eprintln!("AC-152: skipping");
         return;
     }
     let dir = scratch("ac152");
@@ -3640,8 +3659,8 @@ fn assert_copied_to_ram(d: &[Vec<u8>], m: &Marker, what: &str) {
 /// started by `SYS 49152`.
 #[test]
 fn ac_160_a_program_reaching_into_d000_ffff_lands_in_ram() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-160: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-160: skipping");
         return;
     }
     let dir = scratch("ac160");
@@ -3656,8 +3675,8 @@ fn ac_160_a_program_reaching_into_d000_ffff_lands_in_ram() {
 /// the program is started with SHIFT+RETURN, which stops at `READY.` with the bytes in place.
 #[test]
 fn ac_161_a_bank_boundary_in_d000_dfff_and_shift_return() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-161: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-161: skipping");
         return;
     }
     let dir = scratch("ac161");
@@ -3713,8 +3732,8 @@ fn ac_161_a_bank_boundary_in_d000_dfff_and_shift_return() {
 /// format holds, to `$E7FE`) runs by `RUN`, with BASIC's pointers set from its end.
 #[test]
 fn ac_162_a_basic_program_past_d000_runs() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-162: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-162: skipping");
         return;
     }
     let dir = scratch("ac162");
@@ -3756,7 +3775,7 @@ fn ac_162_a_basic_program_past_d000_runs() {
 #[test]
 fn ac_165_the_second_copy_keeps_the_interrupt_rules() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-165: skipping — x64sc is not installed");
+        eprintln!("AC-165: skipping");
         return;
     }
     let dir = scratch("ac165-watch");
@@ -3896,8 +3915,8 @@ fn badge(screen: &[u8], n: usize) -> [u8; 2] {
 /// A-Z sorts by what each row shows.
 #[test]
 fn ac_166_titles_in_the_list_and_every_field_in_the_pane() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-166: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-166: skipping");
         return;
     }
     let dir = scratch("ac166");
@@ -4027,8 +4046,8 @@ fn folder_cart(dir: &Path) -> FolderCart {
 /// folder keys.
 #[test]
 fn ac_167_groups_show_as_folders() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-167: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-167: skipping");
         return;
     }
     let dir = scratch("ac167");
@@ -4232,7 +4251,7 @@ fn ac_167_groups_show_as_folders() {
 #[test]
 fn ac_168_text_at_the_top_searches_every_folder() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-168: skipping — x64sc is not installed");
+        eprintln!("AC-168: skipping");
         return;
     }
     let dir = scratch("ac168");
@@ -4411,8 +4430,8 @@ fn meta_cart(dir: &Path, meta: Option<&[u8]>) -> PathBuf {
 /// in that one respect.
 #[test]
 fn ac_169_the_metadata_entry_is_checked_before_use() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-169: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-169: skipping");
         return;
     }
     let alpha = meta_record(0, "alpha", 1, "Alpha Title");
@@ -4541,8 +4560,8 @@ fn stored_slots(cart: &Path) -> Vec<stidcart_core::directory::DirEntry> {
 #[test]
 fn ac_169_a_metadata_entry_confined_to_one_half_is_read() {
     use stidcart_core::directory::EntryType;
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-169: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-169: skipping");
         return;
     }
     for (kind, tag, want) in [
@@ -4610,8 +4629,8 @@ fn ac_169_a_metadata_entry_confined_to_one_half_is_read() {
 /// metadata, and with the last one lacking the magic, the one before it is.
 #[test]
 fn ac_169_the_last_of_two_metadata_entries_is_the_one() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-169: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-169: skipping");
         return;
     }
     let titles = |prefix: &str| {
@@ -4717,7 +4736,7 @@ fn assert_back_at(s: &[u8], at: usize, name: &str, count: usize, what: &str) {
 #[test]
 fn ac_211_the_pane_orders_metadata_and_names_folders() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-211: skipping — x64sc is not installed");
+        eprintln!("AC-211: skipping");
         return;
     }
     let dir = scratch("ac211");
@@ -4814,7 +4833,7 @@ fn ac_211_the_pane_orders_metadata_and_names_folders() {
 #[test]
 fn ac_170_a_folder_starts_with_a_row_that_goes_back_up() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-170: skipping — x64sc is not installed");
+        eprintln!("AC-170: skipping");
         return;
     }
     let dir = scratch("ac170");
@@ -4876,7 +4895,7 @@ fn ac_170_a_folder_starts_with_a_row_that_goes_back_up() {
 #[test]
 fn ac_171_the_up_row_is_always_listed_first() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-171: skipping — x64sc is not installed");
+        eprintln!("AC-171: skipping");
         return;
     }
     let dir = scratch("ac171");
@@ -4932,7 +4951,7 @@ fn ac_171_the_up_row_is_always_listed_first() {
 #[test]
 fn ac_172_the_up_row_is_not_an_entry() {
     if !vice::require_tool("x64sc") {
-        eprintln!("AC-172: skipping — x64sc is not installed");
+        eprintln!("AC-172: skipping");
         return;
     }
     let dir = scratch("ac172");
@@ -5020,8 +5039,8 @@ fn ac_172_the_up_row_is_not_an_entry() {
 /// ordered folder list (D-063).
 #[test]
 fn ac_191_folders_follow_the_carts_order_and_an_empty_one_is_hidden() {
-    if !vice::require_tool("x64sc") {
-        eprintln!("AC-191: skipping — x64sc is not installed");
+    if !vice::require_cart_tool("x64sc") {
+        eprintln!("AC-191: skipping");
         return;
     }
     let dir = scratch("ac191");
