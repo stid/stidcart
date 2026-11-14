@@ -1,7 +1,7 @@
-# Builds what a release ships (D-072) and, for a tag, attaches it to a draft GitHub release that
-# the owner reads and publishes by hand. The Windows files are the command as a .zip and the app as
-# an unsigned installer. docs/release-roadmap.md has the steps still to come: signing and
-# notarization, the Linux app.
+# Builds what a release ships (D-072): the command for macOS, Linux and Windows, the macOS app as a
+# .dmg, the Linux app as an AppImage and a .deb, and the Windows app as an unsigned installer. For a
+# tag, it attaches them to a draft GitHub release that the owner reads and publishes by hand.
+# docs/release-roadmap.md has the steps still to come: signing and notarization.
 #
 #   a `v*` tag             builds everything and creates the draft release
 #   a PR changing this     the same build as a dry run: the files are workflow artifacts and no
@@ -213,6 +213,128 @@ jobs:
           path: ${{ env.NAME }}.dmg
           if-no-files-found: error
 
+  app-linux:
+    name: app (linux-x86_64)
+    needs: version
+    # The oldest image GitHub still offers, and the oldest Ubuntu with WebKitGTK 4.1. Unlike the
+    # static command, the app links the system's glibc and WebKitGTK, so the image it is built on
+    # sets the oldest Linux it runs on.
+    runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      NAME: stidcart-${{ needs.version.outputs.version }}-linux-x86_64
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        run: rustup toolchain install --no-self-update
+
+      # The gui job's packages (ci.yml), plus patchelf and xdg-utils, which Tauri's own GitHub
+      # example adds for the AppImage, and Xvfb and xwininfo for the start-up check.
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev \
+            patchelf xdg-utils file xvfb x11-utils
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: gui/.nvmrc
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+
+      # Bundling is turned on for the run, as in the macOS job.
+      - name: Build
+        working-directory: gui
+        run: |
+          npm ci
+          npm run tauri build -- --config '{"bundle":{"active":true,"targets":["deb","appimage"]}}'
+
+      - name: Check and collect
+        run: |
+          bundle=gui/src-tauri/target/release/bundle
+          debs=("$bundle"/deb/*.deb)
+          images=("$bundle"/appimage/*.AppImage)
+          [[ ${#debs[@]} -eq 1 ]] || { echo "expected one .deb, found ${#debs[@]}" >&2; exit 1; }
+          [[ ${#images[@]} -eq 1 ]] || { echo "expected one .AppImage, found ${#images[@]}" >&2; exit 1; }
+          cp "${debs[0]}" "$NAME.deb"
+          cp "${images[0]}" "$NAME.AppImage"
+
+          # The package: its name, version and architecture, and what it asks the system for.
+          dpkg-deb -I "$NAME.deb"
+          dpkg-deb -c "$NAME.deb"
+          for field in Package:stidcart Version:"$VERSION" Architecture:amd64; do
+            built="$(dpkg-deb -f "$NAME.deb" "${field%%:*}")"
+            [[ $built == "${field#*:}" ]] || { echo "the .deb says ${field%%:*} $built, not ${field#*:}" >&2; exit 1; }
+          done
+          depends="$(dpkg-deb -f "$NAME.deb" Depends)"
+          for dep in libwebkit2gtk-4.1-0 libgtk-3-0; do
+            [[ $depends == *"$dep"* ]] || { echo "the .deb does not depend on $dep: $depends" >&2; exit 1; }
+          done
+
+          # It installs one program, the app, and that is what the menu entry starts.
+          dpkg-deb -x "$NAME.deb" deb-root
+          binaries=(deb-root/usr/bin/*)
+          [[ ${#binaries[@]} -eq 1 ]] || { echo "expected one program in usr/bin, found ${#binaries[@]}" >&2; exit 1; }
+          app="$(basename "${binaries[0]}")"
+          grep -qx "Exec=$app" deb-root/usr/share/applications/stidcart.desktop \
+            || { echo "stidcart.desktop does not start $app" >&2; exit 1; }
+          file "${binaries[0]}" | grep -q 'ELF 64-bit LSB .*x86-64'
+          echo "newest glibc it asks for: $(objdump -T "${binaries[0]}" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
+
+          # The AppImage holds the same program. --appimage-extract needs no FUSE, which the
+          # runners lack.
+          [[ -x $NAME.AppImage ]] || { echo "the .AppImage is not executable" >&2; exit 1; }
+          "./$NAME.AppImage" --appimage-extract >/dev/null
+          [[ -x squashfs-root/AppRun && -x squashfs-root/usr/bin/$app ]] \
+            || { echo "the .AppImage holds no AppRun or usr/bin/$app" >&2; exit 1; }
+          echo "APP=$app" >>"$GITHUB_ENV"
+
+      # The .deb installs here (apt resolves what it depends on), and both it and the AppImage open
+      # their window on a virtual display and keep running until stopped. Each gets a display of
+      # its own, so a window left over from the first cannot pass the second. On a runner the window
+      # takes about 25 seconds to appear, likely a D-Bus call waiting out its timeout with no
+      # session bus there, so each gets 90.
+      - name: Start it
+        run: |
+          sudo apt-get install -y "./$NAME.deb"
+          Xvfb :1 -screen 0 1280x800x24 &
+          Xvfb :2 -screen 0 1280x800x24 &
+          opens() {
+            local pid tries
+            # Xvfb takes a moment to listen, and GTK gives up at once on a display that is not there.
+            for tries in $(seq 20); do
+              xdpyinfo -display ":$1" >/dev/null 2>&1 && break
+              sleep 0.5
+            done
+            xdpyinfo -display ":$1" >/dev/null || { echo "display :$1 never came up" >&2; return 1; }
+            DISPLAY=":$1" "$2" &
+            pid=$!
+            for tries in $(seq 90); do
+              if xwininfo -display ":$1" -root -tree 2>/dev/null | grep -q '"stidcart"'; then
+                echo "$2 opened its window"
+                kill "$pid"
+                wait "$pid" || true
+                return 0
+              fi
+              kill -0 "$pid" 2>/dev/null || { echo "$2 exited before it opened a window" >&2; return 1; }
+              sleep 1
+            done
+            echo "$2 opened no window in $tries seconds" >&2
+            kill "$pid"
+            return 1
+          }
+          opens 1 "/usr/bin/$APP"
+          opens 2 squashfs-root/AppRun
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-linux-x86_64
+          path: |
+            ${{ env.NAME }}.deb
+            ${{ env.NAME }}.AppImage
+          if-no-files-found: error
+
   app-windows:
     name: app (windows-x86_64)
     needs: version
@@ -272,14 +394,14 @@ jobs:
           $dir = "$env:LOCALAPPDATA\stidcart"
           $app = Start-Process -FilePath "$dir\stidcart-gui.exe" -PassThru
           $title = ''
-          foreach ($try in 1..30) {
+          foreach ($try in 1..60) {
             Start-Sleep -Seconds 1
             $app.Refresh()
             if ($app.HasExited) { throw "the app exited with $($app.ExitCode) before it opened a window" }
             $title = $app.MainWindowTitle
             if ($title -eq 'stidcart') { break }
           }
-          if ($title -ne 'stidcart') { throw "no window titled stidcart after 30 seconds (found '$title')" }
+          if ($title -ne 'stidcart') { throw "no window titled stidcart after 60 seconds (found '$title')" }
           "the installed app opened its window"
           Stop-Process -Id $app.Id -Force
           $app.WaitForExit()
@@ -294,7 +416,7 @@ jobs:
 
   release:
     name: release
-    needs: [version, command, app, app-windows]
+    needs: [version, command, app, app-linux, app-windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

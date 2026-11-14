@@ -76,8 +76,10 @@ All three add a leg to `release.yml`, so run them in separate worktrees and merg
     and staples the `.dmg`.
   - Done when a dry-run `.dmg`, downloaded through a browser onto a Mac, opens with no Gatekeeper
     prompt, and `spctl -a -vv` reports a notarized Developer ID.
-- [ ] **4. `linux-app`** (expect Quick). AppImage and `.deb` from the Linux leg, with the system
+- [x] **4. `linux-app`** (#86) (expect Quick). AppImage and `.deb` from the Linux leg, with the system
   packages the `gui` job already installs. Open it once in a Linux VM, or ship it marked untested.
+  - Nobody has yet opened the Linux app on a desktop; the job only sees it open a window on a
+    virtual display.
 - [ ] **5. `windows-app`** (expect Standard). Needs step 2 green. A Windows leg: the command as a
   `.zip` and the app as an installer *(recon: NSIS or MSI)*. The window config uses macOS-only
   title bar options, so expect layout fixes. The owner runs the dry-run build on the gaming PC or
