@@ -8,9 +8,33 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-072 -->
+<!-- Next id: D-073 -->
 
 ---
+
+## D-072 · 2026-11-14 · Releases are built by a tag, signed on macOS, and reach Mac users through a Homebrew tap
+
+- **Context:** the repository is about to go public and the only way to get stidcart is to build
+  it. The owner wants stable builds for people who will not compile. Nothing is tagged or released
+  yet, and only the macOS build has ever been run by a person.
+- **Decision:**
+  - A `v*` tag runs a hand-written `release.yml` that builds the command and the app and attaches
+    them to a draft GitHub release. The owner publishes it by hand.
+  - macOS builds are signed with a Developer ID and notarized. The owner pays for the Apple
+    Developer Program and expects to reuse it for other projects.
+  - macOS universal comes first, then Linux x86_64, then Windows x64 once the owner has run a
+    build on a real PC or a VM. A platform nobody has run is held back or labelled untested.
+  - Mac users install and update through the project's own Homebrew tap.
+  - The work is split into steps in `docs/release-roadmap.md`, one work-item each.
+- **Rejected:**
+  - Unsigned macOS builds with a README workaround. Free, but every download meets a Gatekeeper
+    block that current macOS only lifts from System Settings.
+  - `cargo-dist`. It generates the workflow and installers for the command, but does not bundle
+    the Tauri app, so the app would need a second pipeline next to a generated one.
+  - Shipping every platform CI can build on day one. A green job says the build compiles, and the
+    Windows window has never been drawn.
+  - Publishing on every tag with no draft. A release is public the moment it exists, and a wrong
+    asset cannot be recalled from whoever fetched it.
 
 ## D-071 · 2026-11-14 · The gate runs the test groups a change can affect
 
