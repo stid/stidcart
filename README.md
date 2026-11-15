@@ -68,10 +68,10 @@ For the command alone, on any system:
 cargo install --path crates/stidcart-cli --locked
 ```
 
-I develop and use stidcart on a Mac. The command-line tool and the app also build on Linux in
-CI, but I don't use them there day to day; [CONTRIBUTING.md](CONTRIBUTING.md) has what the app
-needs to build there. I have never tried Windows. If you run it on either,
-I would like to hear how it went.
+I develop and use stidcart on a Mac. I have also run the app on Windows, on a real PC, and on an
+Ubuntu desktop, and gone through my test list on both, and the command's tests run on Linux and
+Windows in CI. I don't use either day to day, so if you run it there, I would like to hear how it
+went. [CONTRIBUTING.md](CONTRIBUTING.md) has what the app needs to build on Linux.
 
 ## Your first cart
 
