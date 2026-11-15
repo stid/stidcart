@@ -95,7 +95,7 @@
   }
 
   /* The system draws the title bar above the page, so there are no traffic lights to clear. */
-  .app[data-platform='windows'] .titlebar {
+  .app:not([data-platform='macos']) .titlebar {
     padding-left: var(--space-4);
   }
 

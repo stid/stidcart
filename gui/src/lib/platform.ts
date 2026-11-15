@@ -1,19 +1,22 @@
-// What the window does differently on Windows, in one place. The window was drawn for macOS: an
-// overlay title bar with the traffic lights in it, and shortcuts written with ⌘. On Windows the
-// title bar is the system's own, above the page, the menu's shortcuts use Ctrl, and the page has
-// to pass them on, because the webview holds the keyboard. The native menu's side of this is
-// `gui/src-tauri/src/menu.rs`.
+// What the window does differently off a Mac, in one place. The window was drawn for macOS: an
+// overlay title bar with the traffic lights in it, and shortcuts written with ⌘. On Windows and
+// Linux the title bar is the system's own, above the page, and the menu's shortcuts use Ctrl. On
+// Windows the page also has to pass them on, because the webview holds the keyboard. The native
+// menu's side of this is `gui/src-tauri/src/menu.rs`.
 
 import type { MenuId } from './types';
 
-export type Platform = 'macos' | 'windows';
+export type Platform = 'macos' | 'windows' | 'linux';
 
 /**
- * The platform a webview's user agent names. Only WebView2 says "Windows"; everything else,
- * Linux and the test runner included, is drawn as on a Mac, as it was before Windows existed.
+ * The platform a webview's user agent names. WebView2 says "Windows" and WebKitGTK "Linux";
+ * everything else, the test runner included (jsdom writes "linux" in lower case), is drawn as on
+ * a Mac.
  */
 export function platformOf(userAgent: string): Platform {
-  return userAgent.includes('Windows') ? 'windows' : 'macos';
+  if (userAgent.includes('Windows')) return 'windows';
+  if (userAgent.includes('Linux')) return 'linux';
+  return 'macos';
 }
 
 /** This window's platform. `App.svelte` puts it on the page as `data-platform`. */
@@ -21,15 +24,15 @@ export function platform(): Platform {
   return platformOf(navigator.userAgent);
 }
 
-/** A menu shortcut as this platform writes it: ⇧⌘N on a Mac, Ctrl+Shift+N on Windows. */
+/** A menu shortcut as this platform writes it: ⇧⌘N on a Mac, Ctrl+Shift+N elsewhere. */
 export function shortcut(key: string, { shift = false }: { shift?: boolean } = {}, on: Platform = platform()): string {
-  if (on === 'windows') return `Ctrl+${shift ? 'Shift+' : ''}${key}`;
+  if (on !== 'macos') return `Ctrl+${shift ? 'Shift+' : ''}${key}`;
   return `${shift ? '⇧' : ''}⌘${key}`;
 }
 
 /**
  * The value of `data-tauri-drag-region` on the title bar's parts. On a Mac the page's bar is the
- * window's title bar, so it drags the window. On Windows the system's title bar does that, and a
+ * window's title bar, so it drags the window. Elsewhere the system's title bar does that, and a
  * drag region under it would also maximize the window on a double-click between the buttons.
  */
 export function dragRegion(): '' | undefined {
@@ -59,7 +62,8 @@ export function menuKey(event: KeyboardEvent): MenuKey | null {
  * On Windows, pass the menu's shortcuts on to `send`; returns how to stop. There the webview has
  * the keyboard whenever the window does, and the native menu's accelerators never see a key
  * (seen on a Windows runner: every item worked by click and none by its shortcut). On a Mac the
- * menu gets the key itself, so forwarding it as well would run each command twice.
+ * and on Linux the menu gets the key itself (seen on Ubuntu 26.04), so forwarding it as well
+ * would run each command twice.
  */
 export function forwardMenuKeys(send: (id: MenuKey) => void): () => void {
   if (platform() !== 'windows') return () => {};
