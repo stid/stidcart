@@ -78,8 +78,11 @@ All three add a leg to `release.yml`, so run them in separate worktrees and merg
     prompt, and `spctl -a -vv` reports a notarized Developer ID.
 - [x] **4. `linux-app`** (#86) (expect Quick). AppImage and `.deb` from the Linux leg, with the system
   packages the `gui` job already installs. Open it once in a Linux VM, or ship it marked untested.
-  - Nobody has yet opened the Linux app on a desktop; the job only sees it open a window on a
-    virtual display.
+  - The app was opened on an Ubuntu 26.04 desktop on 2026-11-14, in an ARM VM and built
+    from source there. The x86_64 `.deb` and AppImage themselves have only been opened by the
+    job, on a virtual display.
+  - That look found the window drawn as on a Mac (a gap for traffic lights, `⌘` labels, an app
+    menu). Linux now gets the Windows layout; its menu shortcuts already worked.
 - [x] **5. `windows-app`** (#88) (expect Standard). Needs step 2 green. A Windows leg: the command as a
   `.zip` and the app as an installer *(recon: NSIS or MSI)*. The window config uses macOS-only
   title bar options, so expect layout fixes. The owner runs the dry-run build on the gaming PC or

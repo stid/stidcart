@@ -6,9 +6,10 @@
 //! to the field. Cut, Copy, Paste and Select All are the standard items, so text fields keep their
 //! native behaviour.
 //!
-//! On a Mac the first menu is the app's own (About, Hide, Quit). Windows has no such menu and draws
-//! the bar inside each window, so there Quit is File ▸ Exit, About is under Help, and the Hide
-//! items are left out: Windows has no way to bring a hidden window back.
+//! On a Mac the first menu is the app's own (About, Hide, Quit). Windows and Linux have no such
+//! menu and draw the bar inside each window, so there Quit is at the end of File (Exit on Windows,
+//! Quit on Linux), About is under Help, and the Hide items are left out: a hidden window has no
+//! way back.
 
 use tauri::menu::{
     AboutMetadataBuilder, Menu, MenuBuilder, MenuItem, MenuItemBuilder, PredefinedMenuItem,
@@ -30,8 +31,8 @@ const IDS: [&str; 8] = [
     "quit",
 ];
 
-/// Whether the menu is laid out for Windows. Linux keeps the macOS layout, as before.
-const WINDOWS: bool = cfg!(target_os = "windows");
+/// Whether the menu bar sits inside the window, as on Windows and Linux, with no app menu.
+const IN_WINDOW: bool = !cfg!(target_os = "macos");
 
 /// View ▸ Hex Viewer. Handled here, not forwarded: it opens a window, which is this side's job.
 const HEX: &str = "hex";
@@ -62,7 +63,13 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
     // This one asks the window, which runs the unsaved-changes question first.
     let quit = item(
         "quit",
-        if WINDOWS { "Exit" } else { "Quit stidcart" },
+        if cfg!(target_os = "windows") {
+            "Exit"
+        } else if IN_WINDOW {
+            "Quit"
+        } else {
+            "Quit stidcart"
+        },
         "CmdOrCtrl+Q",
     )?;
 
@@ -77,7 +84,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&save_as)
         .separator()
         .item(&PredefinedMenuItem::close_window(app, None)?);
-    if WINDOWS {
+    if IN_WINDOW {
         file = file.separator().item(&quit);
     }
     let file = file.build()?;
@@ -97,8 +104,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&PredefinedMenuItem::minimize(app, None)?)
         .build()?;
 
-    let menu = if WINDOWS {
-        // Without metadata the item does nothing on Windows: there is no bundle to read it from.
+    let menu = if IN_WINDOW {
+        // Without metadata the item does nothing off a Mac: there is no bundle to read it from.
         let about = AboutMetadataBuilder::new()
             .name(Some("stidcart"))
             .version(Some(app.package_info().version.to_string()))
