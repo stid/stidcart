@@ -13,6 +13,10 @@ for the C64 side. I use it with an EasyFlash 3.
 
 *The desktop app, with the same cart open.*
 
+![The app's hex viewer showing bank 0 of the cart: the directory, with each entry's name readable in the character column, and a legend of what owns the tinted bytes](docs/guide/img/hex.png)
+
+*The app's hex viewer, at the cart's directory.*
+
 ## Why I wrote this
 
 I have an EasyFlash 3 and a recent Mac, and every time I wanted to put a new set of programs on

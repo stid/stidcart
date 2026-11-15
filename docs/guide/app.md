@@ -46,6 +46,8 @@ The cart is saved in the order you see, so EasyLoader's flat list follows it too
 View ▸ Hex Viewer (⇧⌘H) opens a second window with the cart's bytes, 16 to a row. It only shows
 them; nothing there can be changed.
 
+![The hex viewer at the cart's directory, with the entry names in the character column](img/hex.png)
+
 - Rows run bank by bank, the low half (ROML) of each bank and then the high half (ROMH). Each row
   starts with its bank and half, then the address the C64 sees: `$8000` to `$9FFF` in ROML,
   `$A000` to `$BFFF` in ROMH. The top bar names the bank at the top of the view.
