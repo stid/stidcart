@@ -11,9 +11,10 @@
 //! Quit on Linux), About is under Help, and the Hide items are left out: a hidden window has no
 //! way back.
 
+use tauri::image::Image;
 use tauri::menu::{
-    AboutMetadataBuilder, Menu, MenuBuilder, MenuItem, MenuItemBuilder, PredefinedMenuItem,
-    SubmenuBuilder,
+    AboutMetadata, AboutMetadataBuilder, Menu, MenuBuilder, MenuItem, MenuItemBuilder,
+    PredefinedMenuItem, SubmenuBuilder,
 };
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
@@ -33,6 +34,31 @@ const IDS: [&str; 8] = [
 
 /// Whether the menu bar sits inside the window, as on Windows and Linux, with no app menu.
 const IN_WINDOW: bool = !cfg!(target_os = "macos");
+
+/// Who wrote stidcart and where it lives, as the About box says them.
+const AUTHOR: &str = "By Stefano Furiosi";
+const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
+
+/// What the About box shows. On a Mac the name, version and icon come from the bundle, and the
+/// panel has one free text, the credits. Elsewhere there is no bundle to read, so everything is
+/// given here: without a name the item does nothing, and without an icon GTK's dialog draws a
+/// broken-image mark.
+fn about(version: String, icon: Option<Image<'_>>) -> AboutMetadata<'_> {
+    if IN_WINDOW {
+        AboutMetadataBuilder::new()
+            .name(Some("stidcart"))
+            .version(Some(version))
+            .icon(icon)
+            .comments(Some(AUTHOR))
+            .website(Some(REPOSITORY))
+            .website_label(Some(REPOSITORY.trim_start_matches("https://")))
+            .build()
+    } else {
+        AboutMetadataBuilder::new()
+            .credits(Some(format!("{AUTHOR}\n{REPOSITORY}")))
+            .build()
+    }
+}
 
 /// View ▸ Hex Viewer. Handled here, not forwarded: it opens a window, which is this side's job.
 const HEX: &str = "hex";
@@ -104,14 +130,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&PredefinedMenuItem::minimize(app, None)?)
         .build()?;
 
+    let about = about(
+        app.package_info().version.to_string(),
+        app.default_window_icon().cloned(),
+    );
     let menu = if IN_WINDOW {
-        // Without metadata the item does nothing off a Mac: there is no bundle to read it from.
-        let about = AboutMetadataBuilder::new()
-            .name(Some("stidcart"))
-            .version(Some(app.package_info().version.to_string()))
-            // GTK's dialog draws a broken-image mark when it is given none.
-            .icon(app.default_window_icon().cloned())
-            .build();
         let help = SubmenuBuilder::new(app, "Help")
             .item(&PredefinedMenuItem::about(
                 app,
@@ -124,7 +147,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
             .build()?
     } else {
         let app_menu = SubmenuBuilder::new(app, "stidcart")
-            .item(&PredefinedMenuItem::about(app, None, None)?)
+            .item(&PredefinedMenuItem::about(app, None, Some(about))?)
             .separator()
             .item(&PredefinedMenuItem::hide(app, None)?)
             .item(&PredefinedMenuItem::hide_others(app, None)?)
@@ -173,7 +196,23 @@ pub fn sync(app: &AppHandle, doc: Option<&DocumentDto>) {
 
 #[cfg(test)]
 mod tests {
-    use super::IDS;
+    use super::{about, IDS};
+
+    /// The About box names the author and the repository, whichever fields the platform shows.
+    #[test]
+    fn the_about_box_names_the_author_and_the_repository() {
+        let about = about("1.2.3".into(), None);
+        let shown = [about.comments, about.credits, about.website]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(shown.contains("By Stefano Furiosi"), "{shown}");
+        assert!(
+            shown.contains("https://github.com/stid/stidcart"),
+            "{shown}"
+        );
+    }
 
     /// Every id the frontend's `MenuId` names is forwarded; one missing here is a menu item that does
     /// nothing (found live for File ▸ New Folder, D-063).
