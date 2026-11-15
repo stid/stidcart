@@ -109,6 +109,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         let about = AboutMetadataBuilder::new()
             .name(Some("stidcart"))
             .version(Some(app.package_info().version.to_string()))
+            // GTK's dialog draws a broken-image mark when it is given none.
+            .icon(app.default_window_icon().cloned())
             .build();
         let help = SubmenuBuilder::new(app, "Help")
             .item(&PredefinedMenuItem::about(
