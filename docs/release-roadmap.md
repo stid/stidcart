@@ -83,6 +83,9 @@ All three add a leg to `release.yml`, so run them in separate worktrees and merg
     job, on a virtual display.
   - That look found the window drawn as on a Mac (a gap for traffic lights, `⌘` labels, an app
     menu). Linux now gets the Windows layout; its menu shortcuts already worked.
+  - With that fixed, the Windows test script was run there: open, new folder, undo and redo, a
+    drop from the Files app, Save As to a path with spaces, the unsaved-changes question, the hex
+    window and About all worked.
 - [x] **5. `windows-app`** (#88) (expect Standard). Needs step 2 green. A Windows leg: the command as a
   `.zip` and the app as an installer *(recon: NSIS or MSI)*. The window config uses macOS-only
   title bar options, so expect layout fixes. The owner runs the dry-run build on the gaming PC or
