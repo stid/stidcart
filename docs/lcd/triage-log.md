@@ -80,3 +80,4 @@
 2026-11-14 · windows-ci · closeout · Standard · audit: n/a (no surface declared) · re-routes: 0 · interventions: 1 (orchestrator merged main and fixed the CRLF manifest read)
 2026-11-14 · linux-app · 1 signals · Quick · hard:no · risk:no
 2026-11-14 · windows-app · 3 signals · Standard · hard:no · risk:no
+2026-11-14 · windows-app · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0

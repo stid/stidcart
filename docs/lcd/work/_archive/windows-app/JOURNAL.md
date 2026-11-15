@@ -7,8 +7,8 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** The release workflow builds the command as a `.zip` and the app as an installer for Windows x64, and the window is right on Windows, so the owner can try a dry-run build on a real PC (step 5 of the release roadmap, D-072).
-- **Next action:** the owner runs "The owner's test" below on a real PC and reports. Then S7: fix what the report finds, fold AC-214..AC-216 into `SPEC.md`, tick step 5 in `docs/release-roadmap.md`, archive this work-item.
-- **Branch:** feat/release-windows  ·  **Updated:** 2026-11-14 13:58
+- **Next action:** none. Done: the owner ran the test on a real PC on 2026-11-14 and reported it working.
+- **Branch:** feat/release-windows  ·  **Updated:** 2026-11-14 15:10
 
 ## STEPS
 - [x] S1 — recon: Tauri Windows bundle targets, WebView2, what the macOS title bar keys do on Windows
@@ -17,7 +17,7 @@
 - [x] S4 — `release.yml`: the `windows-x86_64` command leg and the `app-windows` job, both in `release`
 - [x] S5 — PR #88, dry run green, the `release` artifact read: names and checksums
 - [x] S6 — docs: CONTRIBUTING, the workflow's header; the probe workflow deleted
-- [ ] S7 — after the owner's report from a real PC: closeout, step 5 ticked in `docs/release-roadmap.md`  ← next
+- [x] S7 — the owner's report from a real PC: closeout, step 5 ticked in `docs/release-roadmap.md`
 
 ## DECISIONS (this work-item)
 - NSIS, not MSI: it installs for the current user with no administrator prompt, takes any version string (an `.msi` refuses a pre-release like `-rc.1`), and needs nothing on the runner (WiX needs the VBSCRIPT feature Microsoft is retiring).
@@ -108,3 +108,5 @@ anything flashed white at start-up.
 - 2026-11-14 13:38 — merged `origin/main` (the Linux app leg, #86): both jobs kept, `release` needs both.
 - 2026-11-14 13:58 — not seen by anyone: drag and drop from Explorer, dark mode, display scaling, SmartScreen, a PC without WebView2, the save dialog's result on disk. These are the owner's test.
 - 2026-11-14 14:15 — PR #88. Dry run 43645616603 green with `gate`, `gui`, `windows`. The `release` artifact, downloaded: eight files, `SHA256SUMS` verifies all seven; `stidcart-cli-0.30.0-windows-x86_64.zip` (320 KB) holds `stidcart.exe`, `COPYING`, `COPYING.firmware`; `stidcart-0.30.0-windows-x86_64-setup.exe` (2.2 MB) is an NSIS installer. In the job the installer installed silently, the installed app opened its window, and it uninstalled.
+- 2026-11-14 15:10 — the owner's report from the gaming PC: tested, working, nothing to fix. Step 5 ticked in `docs/release-roadmap.md`. The two open questions (Linux window, Ctrl+Y) stay with the owner.
+- 2026-11-14 15:10 — reconciled: folded AC-214..AC-216 → SPEC.md/RENDER, provenance D-073.

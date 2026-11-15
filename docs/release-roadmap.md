@@ -80,10 +80,12 @@ All three add a leg to `release.yml`, so run them in separate worktrees and merg
   packages the `gui` job already installs. Open it once in a Linux VM, or ship it marked untested.
   - Nobody has yet opened the Linux app on a desktop; the job only sees it open a window on a
     virtual display.
-- [ ] **5. `windows-app`** (expect Standard). Needs step 2 green. A Windows leg: the command as a
+- [x] **5. `windows-app`** (#88) (expect Standard). Needs step 2 green. A Windows leg: the command as a
   `.zip` and the app as an installer *(recon: NSIS or MSI)*. The window config uses macOS-only
   title bar options, so expect layout fixes. The owner runs the dry-run build on the gaming PC or
   a VM and reports; the step closes on that report, not on a green job.
+  - The owner ran the test script on a real PC on 2026-11-14 and reported it working, with
+    nothing to fix (D-073).
 
 ### Wave C: needs steps 1 and 3, and the owner's word
 

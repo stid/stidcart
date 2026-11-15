@@ -8,9 +8,33 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-073 -->
+<!-- Next id: D-074 -->
 
 ---
+
+## D-073 · 2026-11-14 · On Windows the app ships as an NSIS installer and the page forwards the menu shortcuts
+
+- **Context:** step 5 of the release roadmap (D-072). The window was laid out for macOS: room for
+  traffic lights, `⌘` on the buttons, a macOS app menu. On Windows the webview keeps the keyboard,
+  so no menu accelerator fired. The owner ran the dry-run build on a real PC on 2026-11-14 and
+  reported it working.
+- **Decision:**
+  - The app is an NSIS installer: per user, no administrator prompt. WebView2 stays on Tauri's
+    default, a bootstrapper download when the runtime is missing.
+  - The command is a `.zip` with the C runtime linked statically; the job fails if the `.exe`
+    names `vcruntime`.
+  - Platform differences live in `gui/src/lib/platform.ts` and behind the `WINDOWS` constant in
+    `gui/src-tauri/src/menu.rs`. Only a Windows webview is treated as Windows.
+  - On Windows the page forwards menu shortcuts to the `menu_key` command, which takes the same
+    path as a click. On a Mac the page forwards nothing.
+  - The installed program keeps the name `stidcart-gui.exe`, shown as "stidcart".
+- **Rejected:**
+  - MSI: refuses a pre-release version string and needs WiX, which depends on a Windows feature
+    Microsoft is retiring.
+  - Embedding WebView2: adds 127 MB for a runtime Windows 10 from 1803 and Windows 11 already have.
+  - Renaming the program with `mainBinaryName`: it also renames the binary in the macOS bundle.
+  - Giving Linux the same window treatment in this step: nobody has looked at the Linux window.
+- **Status:** active
 
 ## D-072 · 2026-11-14 · Releases are built by a tag, signed on macOS, and reach Mac users through a Homebrew tap
 
