@@ -50,6 +50,17 @@ The parity test needs only the checked-in fixtures; `ndeft` does not have to be 
 boot tests need VICE's `x64sc` and the menu's reassembly check needs 64tass. Without them those
 tests skip, except under `STIDCART_REQUIRE_TOOLS=1`, which CI sets, where a missing tool fails.
 
+A VICE with a window opens one for every boot, about ninety of them in a full run. To keep them
+off your screen, build VICE without a UI (`docs/lcd/ci/install-menu-tools.sh` has the configure
+line CI uses; on macOS it also needs `dos2unix` and `xa` from Homebrew) and point the tests at it:
+
+```bash
+export STIDCART_X64SC=~/.local/vice-headless/bin/x64sc
+```
+
+Unset, the boots run the `x64sc` on PATH. A path given there that does not run fails the boot
+tests instead of skipping them.
+
 The desktop app is its own Cargo workspace under `gui/src-tauri`, so that gate never builds it. It
 needs Node 24, pinned in `gui/.nvmrc` (`nvm use` in `gui/` picks it up), and, on Linux, the
 WebKitGTK packages the CI `gui` job installs.

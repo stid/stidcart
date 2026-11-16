@@ -399,6 +399,19 @@ fn ac_94_ci_runs_the_boot_checks_instead_of_skipping() {
     );
 }
 
+// D-074: STIDCART_X64SC names the emulator the boots run
+#[test]
+fn stidcart_x64sc_names_the_emulator_the_boots_run() {
+    // Unset is the `x64sc` on PATH, as before.
+    assert_eq!(vice::x64sc_in(None), "x64sc");
+    assert_eq!(
+        vice::x64sc_in(Some("/opt/vice-headless/bin/x64sc")),
+        "/opt/vice-headless/bin/x64sc"
+    );
+    // Set but empty is a mistake, not "use the default".
+    assert!(std::panic::catch_unwind(|| vice::x64sc_in(Some(""))).is_err());
+}
+
 // test-scopes (D-071): STIDCART_VICE picks which boots a run asks for
 #[test]
 fn stidcart_vice_picks_the_boots_a_run_asks_for() {

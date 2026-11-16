@@ -8,7 +8,27 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-074 -->
+<!-- Next id: D-075 -->
+
+---
+
+## D-074 · 2026-11-15 · `STIDCART_X64SC` names the emulator the boot tests run
+
+- **Context:** on a developer Mac the `x64sc` on PATH is Homebrew's GTK build, which opens a
+  window for each of the ~90 boots and takes focus while the owner works on the same machine. CI
+  already runs a headless build (D-038). A headless VICE 3.10 built on macOS with CI's configure
+  line passed the whole suite on 2026-11-15 (366 tests, every boot, no window).
+- **Decision:** `tests/support/vice.rs` runs the program named by `STIDCART_X64SC`, and the
+  `x64sc` on PATH when it is unset. Set but empty panics, and a path that does not run fails the
+  boot instead of skipping it. CI sets nothing and is unchanged.
+- **Rejected:**
+  - Putting the headless build first on PATH: `x64sc` typed in a terminal would then open no
+    window either, and looking at a cart is what the GTK build is kept for.
+  - Probing a fixed location such as `~/.local/vice-headless` from the test code: a path that is
+    one machine's convention does not belong in the repo.
+  - Passing `-minimized` to the GTK build: not tried. It would still start the GTK app for each
+    boot, and local runs would keep differing from CI's build.
+  - Running the boots in a Linux VM: a VM kept up all day for a loop that runs on the Mac.
 
 ---
 
