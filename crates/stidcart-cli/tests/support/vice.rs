@@ -118,6 +118,23 @@ pub fn boots_in(value: Option<&str>) -> Boots {
     }
 }
 
+/// The emulator a boot runs, for a value of `STIDCART_X64SC` (D-074). Unset, it is the `x64sc` on
+/// PATH. Set, it is that program: a path to another build, such as a headless one that opens no
+/// window. Empty panics, because a variable set to nothing is a mistake and not a request for the
+/// default.
+pub fn x64sc_in(value: Option<&str>) -> String {
+    match value {
+        None => "x64sc".to_string(),
+        Some("") => panic!("STIDCART_X64SC is set but empty; unset it or give it a path"),
+        Some(path) => path.to_string(),
+    }
+}
+
+/// [`x64sc_in`] for this run's environment.
+fn x64sc() -> String {
+    x64sc_in(std::env::var("STIDCART_X64SC").ok().as_deref())
+}
+
 /// Whether a boot that needs `name` should run: this run asks for every boot and `name` is on
 /// PATH. Absent, the caller skips — unless `STIDCART_REQUIRE_TOOLS=1`, as CI sets it, where an
 /// absent tool fails the test instead (AC-94).
@@ -138,12 +155,21 @@ fn require_boot(name: &str, cart_boot: bool) -> bool {
         eprintln!("STIDCART_VICE leaves this boot out of the run ({boots:?})");
         return false;
     }
+    // A boot asks for "x64sc"; STIDCART_X64SC may name another build of it. A path given there
+    // that does not run fails the test rather than skipping it: the boots would otherwise go quiet
+    // on a typo.
+    let overridden = name == "x64sc" && std::env::var_os("STIDCART_X64SC").is_some();
+    let tool = if name == "x64sc" {
+        x64sc()
+    } else {
+        name.to_string()
+    };
     let present = require_tool_in(
-        name,
-        std::env::var("STIDCART_REQUIRE_TOOLS").as_deref() == Ok("1"),
+        &tool,
+        overridden || std::env::var("STIDCART_REQUIRE_TOOLS").as_deref() == Ok("1"),
     );
     if !present {
-        eprintln!("{name} is not installed");
+        eprintln!("{tool} is not installed");
     }
     present
 }
@@ -156,7 +182,10 @@ pub fn require_tool_in(name: &str, required: bool) -> bool {
         .map(|s| s.success())
         .unwrap_or(false);
     if !present && required {
-        panic!("{name} is required (STIDCART_REQUIRE_TOOLS=1) but is not on PATH");
+        panic!(
+            "{name} is required (STIDCART_REQUIRE_TOOLS=1, or named by STIDCART_X64SC) but does \
+             not resolve to a program"
+        );
     }
     present
 }
@@ -324,7 +353,7 @@ pub fn boot_with(dir: &Path, cart: &Path, extra: &[&str], steps: &[Step]) -> Opt
 fn has_option(option: &str) -> bool {
     static HELP: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     let help = HELP.get_or_init(|| {
-        Command::new("x64sc")
+        Command::new(x64sc())
             .arg("-help")
             .stdin(Stdio::null())
             .output()
@@ -342,17 +371,15 @@ fn has_option(option: &str) -> bool {
 #[cfg(target_os = "macos")]
 fn under_script(args: &[String]) -> Command {
     let mut cmd = Command::new("script");
-    cmd.args(["-q", "/dev/null", "x64sc"]).args(args);
+    cmd.args(["-q", "/dev/null", &x64sc()]).args(args);
     cmd
 }
 
 #[cfg(not(target_os = "macos"))]
 fn under_script(args: &[String]) -> Command {
-    let quoted: Vec<String> = std::iter::once("x64sc".to_string())
-        .chain(
-            args.iter()
-                .map(|a| format!("'{}'", a.replace('\'', r"'\''"))),
-        )
+    let quoted: Vec<String> = std::iter::once(x64sc())
+        .chain(args.iter().cloned())
+        .map(|a| format!("'{}'", a.replace('\'', r"'\''")))
         .collect();
     let mut cmd = Command::new("script");
     cmd.args(["-q", "-e", "-c", &quoted.join(" "), "/dev/null"]);
