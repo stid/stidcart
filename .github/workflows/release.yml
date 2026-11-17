@@ -152,7 +152,8 @@ jobs:
       # keychain made for the run. The notary takes a .zip, a .dmg or a .pkg, so the binary goes up
       # in a .zip that is then dropped. A bare binary cannot carry its ticket: Gatekeeper looks it
       # up online the first time a quarantined copy runs. notarytool exits 0 for a rejected
-      # upload, so the last line is the one that proves the ticket exists.
+      # upload, so the last line is the one that proves the ticket exists. The keychain and the
+      # two key files are gone when the step ends, before anything built here runs.
       - name: Sign and notarize
         if: env.SIGNED == 'true'
         env:
@@ -164,10 +165,11 @@ jobs:
         run: |
           keychain="$RUNNER_TEMP/signing.keychain-db"
           password="$(uuidgen)"
+          trap 'security delete-keychain "$keychain"; rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/AuthKey.p8"' EXIT
           printf '%s' "$CERTIFICATE" | base64 --decode >"$RUNNER_TEMP/certificate.p12"
           printf '%s\n' "$API_KEY_P8" >"$RUNNER_TEMP/AuthKey.p8"
           security create-keychain -p "$password" "$keychain"
-          security set-keychain-settings -lut 3600 "$keychain"
+          security set-keychain-settings -lut 900 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
           security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
@@ -243,7 +245,12 @@ jobs:
       # has it notarized, staples it, and signs the .dmg. It reads them from the variables
       # exported here, and takes an empty one as set, not as absent: an empty certificate fails
       # the import. So they are exported only when the secrets exist, and otherwise the identity
-      # "-" signs ad hoc.
+      # "-" signs ad hoc. `npm ci` runs the packages' install scripts, so it has a step of its own
+      # with no secret in it.
+      - name: Install the frontend's packages
+        working-directory: gui
+        run: npm ci
+
       - name: Build
         working-directory: gui
         env:
@@ -261,18 +268,19 @@ jobs:
           else
             export APPLE_SIGNING_IDENTITY=-
           fi
-          npm ci
           npm run tauri build -- --target universal-apple-darwin \
             --config '{"bundle":{"active":true,"targets":["app","dmg"]}}'
 
       # Tauri notarizes the app and not the .dmg around it, and the .dmg is what a browser
-      # downloads and quarantines. With a ticket stapled to it, it opens with no network.
+      # downloads and quarantines. With a ticket stapled to it, it opens with no network. The key
+      # file is not needed after this, whether the step passes or fails.
       - name: Notarize the disk image
         if: env.SIGNED == 'true'
         env:
           API_KEY: ${{ secrets.APPLE_API_KEY }}
           API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
+          trap 'rm -f "$RUNNER_TEMP/AuthKey.p8"' EXIT
           dmgs=(gui/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
           [[ ${#dmgs[@]} -eq 1 ]] || { echo "expected one .dmg, found ${#dmgs[@]}" >&2; exit 1; }
           xcrun notarytool submit "${dmgs[0]}" --wait \
