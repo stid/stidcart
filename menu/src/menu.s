@@ -2563,8 +2563,8 @@ _cell:
 
 ; Columns 23-38 of rows 5-20, every cell written on every update (D-041), in the order a person
 ; reads (D-069): a chip in row 5 with the selection's kind, in the kind's colour; from row 7 the
-; title, or the name without one, in white; under a title the stored name, in grey; the author, two
-; spaces and the year; a blank row and the note. Rows 18-20 hold the size, the load address or
+; title, or the name without one, in white; under a title the stored name, in grey, unless the
+; title is that name over again; the author, two spaces and the year; a blank row and the note. Rows 18-20 hold the size, the load address or
 ; first bank, and how it starts. A folder row shows a "folder" chip and its group's name, and ".."
 ; that it goes back to the top level (D-058).
 draw_pane:
@@ -2657,6 +2657,8 @@ _entry:
         lda #WHITE              ; the title, then the name it stands for
         ldx #0
         jsr field
+        jsr title_is_name
+        bcs _credit
         lda #DIM
         jsr slot_name
         jmp _credit
@@ -2839,6 +2841,38 @@ field_at:
         sta dst
         lda fhi,x
         sta dst+1
+        rts
+
+; C set if the selection's title is the name in the slot at ptr over again, whatever the case of
+; its letters: a name is 16 bytes at most, and ends at a zero when shorter. Keeps ptr.
+title_is_name:
+        ldx #0
+        jsr field_at
+        lda wlen
+        cmp #17
+        bcs _differs
+        ldy #0
+-       cpy wlen
+        beq _ended
+        lda (ptr),y
+        jsr fold
+        sta tmp
+        lda (dst),y
+        jsr fold
+        cmp tmp
+        bne _differs
+        iny
+        bne -
+_ended:
+        cpy #16
+        beq _same
+        lda (ptr),y
+        bne _differs
+_same:
+        sec
+        rts
+_differs:
+        clc
         rts
 
 ; Append the selection's field X to the text.
