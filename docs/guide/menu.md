@@ -61,7 +61,8 @@ closed the help screen. Port 1 isn't read, because its lines are shared with the
 - The selected entry sits in a cyan bar. When the list is longer than the screen, the divider to
   its right becomes a scroll bar.
 - The pane on the right describes the selection. A chip names its kind. Under it come the title
-  (or the name when it has none), the name under a title, the author and year, and the note. At the
+  (or the name when it has none), the name under a title that differs from it, the author and year,
+  and the note. At the
   foot are its size, its load address (a program) or first bank (a cartridge), and how it starts.
 - Under the list are the position ("17 of 40"), the order in use and the kind listed. Then comes
   the filter text, in yellow, with how many entries match. The last line names the main keys.
