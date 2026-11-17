@@ -8,7 +8,36 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-075 -->
+<!-- Next id: D-076 -->
+
+---
+
+## D-075 · 2026-11-16 · The release workflow signs and notarizes the macOS app, its disk image and the command
+
+- **Context:** step 3 of the release roadmap (D-072). The owner's Apple Developer account became
+  active on 2026-11-16. Tauri (CLI 2.12.2) signs the app and the `.dmg` and notarizes only the
+  app. It logs a line and carries on when it has no key to notarize with, and reads an empty
+  variable as a set one. The roadmap had left open whether the standalone command is signed.
+- **Decision:**
+  - Five repository secrets hold the Developer ID certificate as a `.p12`, its password, and an
+    App Store Connect team API key. `release.yml` exports Tauri's variables only when they exist.
+  - The job notarizes and staples the `.dmg` itself, then asks `stapler` and `spctl` whether the
+    app and the `.dmg` are notarized, so a skipped notarization fails the job.
+  - The macOS command is signed with the hardened runtime and notarized inside a `.zip`. A bare
+    binary cannot carry its ticket, so Gatekeeper looks it up online on first run.
+  - A run without the secrets builds ad hoc. A tag without them fails in the `version` job.
+  - The key files and the command job's keychain are removed when the step that needs them ends,
+    and `npm ci` runs in a step that holds no secret.
+  - No entitlements file: the app passed notarization and ran without one.
+- **Rejected:**
+  - Leaving the command unsigned: a browser download unpacked in Finder is quarantined, and the
+    certificate is already there.
+  - Notarizing with an Apple ID and an app-specific password: the API key is scoped to a role
+    and revoked on its own, and the notary accepted a team key from an individual account.
+  - Trusting Tauri's exit status: it is 0 when notarization was skipped or stapling failed.
+  - Passing the secrets straight into the build step's `APPLE_*` variables: a run without them
+    would hand Tauri an empty certificate and fail the import.
+- **Status:** active
 
 ---
 
