@@ -401,8 +401,11 @@ jobs:
       - name: Start it
         run: |
           sudo apt-get install -y "./$NAME.deb"
-          Xvfb :1 -screen 0 1280x800x24 &
-          Xvfb :2 -screen 0 1280x800x24 &
+          # -noreset: Xvfb otherwise starts over when its last client leaves, and the xdpyinfo
+          # below is its first. An app that connects during that is refused ("Failed to
+          # initialize GTK", seen once on 2026-11-16).
+          Xvfb :1 -noreset -screen 0 1280x800x24 &
+          Xvfb :2 -noreset -screen 0 1280x800x24 &
           opens() {
             local pid tries
             # Xvfb takes a moment to listen, and GTK gives up at once on a display that is not there.
