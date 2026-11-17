@@ -127,3 +127,17 @@ fn ac_5_cli_a_missing_input_file_is_reported_not_ignored() {
     assert!(String::from_utf8_lossy(&result.stderr).contains("does-not-exist.prg"));
     assert!(!out.exists());
 }
+
+/// AC-218 (CLI): `--version` prints the name and the version the carts it builds carry, on
+/// standard output, and exits successfully.
+#[test]
+fn ac_218_cli_version_prints_the_version() {
+    let out = stidcart().arg("--version").output().unwrap();
+
+    assert!(out.status.success(), "--version should exit successfully");
+    assert_eq!(
+        String::from_utf8(out.stdout).unwrap(),
+        format!("stidcart {}\n", env!("CARGO_PKG_VERSION"))
+    );
+    assert!(out.stderr.is_empty(), "--version should print nothing else");
+}

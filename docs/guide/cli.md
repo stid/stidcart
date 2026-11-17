@@ -25,6 +25,7 @@ stidcart edit out.crt --import meta.toml   # see "Titles for many entries at onc
 usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT]... -o OUTPUT INPUT...
        stidcart list [--bytes] CART.crt
        stidcart edit CART.crt [-o OUTPUT] [OPERATION]...
+       stidcart --version
 
   build           create a cartridge image from programs and cartridge images
   -e NAME         cartridge name shown by the menu (default: "(no EF-Name)")

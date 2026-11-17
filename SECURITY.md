@@ -5,8 +5,8 @@ makes it crash, hang or write outside the paths it was given is a security bug.
 
 Please report one privately, through
 [a security advisory](https://github.com/stid/stidcart/security/advisories/new), and not in a
-public issue. Say which version you ran (the app's About box shows it, and so does the "built by"
-line of `stidcart list` on a cart it made), on which system, and attach the file if you can.
+public issue. Say which version you ran (`stidcart --version`, or the app's About box), on which
+system, and attach the file if you can.
 
 This is a hobby project with one maintainer. I read every report and fix what I can reproduce, with
 no promise on timing. Only the latest release gets fixes.

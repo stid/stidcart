@@ -20,6 +20,7 @@ const USAGE: &str = "\
 usage: stidcart build [-e NAME] [--menu MENU] [--hide INPUT]... [--align INPUT]... -o OUTPUT INPUT...
        stidcart list [--bytes] CART.crt
        stidcart edit CART.crt [-o OUTPUT] [OPERATION]...
+       stidcart --version
 
   build           create a cartridge image from programs and cartridge images
   -e NAME         cartridge name shown by the menu (default: \"(no EF-Name)\")
@@ -78,6 +79,10 @@ pub fn run(args: &[String]) -> Result<Option<String>, String> {
         "build" => build(&args[1..]),
         "list" => list(&args[1..]).map(|()| None),
         "edit" => edit(&args[1..]),
+        "--version" => {
+            println!("stidcart {}", env!("CARGO_PKG_VERSION"));
+            Ok(None)
+        }
         other => Err(format!("unknown command '{other}'\n{USAGE}")),
     }
 }

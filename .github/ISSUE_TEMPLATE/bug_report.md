@@ -13,7 +13,7 @@ The command you ran, or what you did in the app, step by step.
 
 **Versions**
 
-- stidcart: <!-- the app's About box, or the "built by" line of `stidcart list` on a cart it made -->
+- stidcart: <!-- `stidcart --version`, or the app's About box -->
 - System: <!-- macOS 15, Windows 11, Ubuntu 24.04 ... -->
 - Where the cart ran, if it got that far: <!-- VICE 3.9, EasyFlash 3 on a C64C, Ultimate 64 ... -->
 
