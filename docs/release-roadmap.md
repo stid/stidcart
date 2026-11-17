@@ -39,6 +39,10 @@ Each belongs to the step named, to be settled there and logged as a decision if 
 Left out on purpose until someone asks: Linux arm64, the Tauri auto-updater, Windows code signing,
 the official `homebrew-cask` repository (it has notability rules *(recon)*), crates.io.
 
+For Windows signing, look at [SignPath Foundation](https://signpath.org) first once the repository
+is public: it signs open source projects for free, by application *(recon: its terms)*. Azure
+Trusted Signing is the paid alternative *(recon)*.
+
 ## Steps
 
 Waves are ordered; steps inside a wave are independent of each other.
