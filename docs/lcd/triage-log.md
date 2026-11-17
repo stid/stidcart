@@ -82,3 +82,5 @@
 2026-11-14 · windows-app · 3 signals · Standard · hard:no · risk:no
 2026-11-14 · windows-app · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
 2026-11-14 · linux-window · 1 signals · Quick · hard:no · risk:no
+2026-11-16 · macos-signing · 3 signals · Standard · hard:no · risk:no
+2026-11-16 · macos-signing · closeout · Standard · audit: n/a (no surface) · re-routes: 0 · interventions: 1 (security review rework)

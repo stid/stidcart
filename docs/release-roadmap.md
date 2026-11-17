@@ -34,12 +34,14 @@ Each belongs to the step named, to be settled there and logged as a decision if 
 - The version of the first public release: carry on from 0.30.x or something else (step 6).
 - How the tap is laid out: a cask that installs the app and links the command from inside the
   bundle, or a cask for the app plus a separate formula for the command (step 7).
-- Whether the command's standalone macOS archive is signed and notarized too. A browser download
-  is quarantined, a Homebrew or `cargo install` one is not (step 3).
 - Whether the Linux app ships as "untested" or waits for a look in a VM (step 4).
 
 Left out on purpose until someone asks: Linux arm64, the Tauri auto-updater, Windows code signing,
 the official `homebrew-cask` repository (it has notability rules *(recon)*), crates.io.
+
+For Windows signing, look at [SignPath Foundation](https://signpath.org) first once the repository
+is public: it signs open source projects for free, by application *(recon: its terms)*. Azure
+Trusted Signing is the paid alternative *(recon)*.
 
 ## Steps
 
@@ -69,13 +71,17 @@ Waves are ordered; steps inside a wave are independent of each other.
 
 All three add a leg to `release.yml`, so run them in separate worktrees and merge one at a time.
 
-- [ ] **3. `macos-signing`** (expect Quick or Standard). Needs the Apple Developer account.
+- [x] **3. `macos-signing`** (#97) (expect Quick or Standard). Needs the Apple Developer account.
   - The owner creates a Developer ID Application certificate and an App Store Connect API key, and
     sets the repository secrets with `gh secret set`. Secrets never go through a Claude session.
   - Tauri reads them from environment variables *(recon: the exact names)* and signs, notarizes
     and staples the `.dmg`.
   - Done when a dry-run `.dmg`, downloaded through a browser onto a Mac, opens with no Gatekeeper
     prompt, and `spctl -a -vv` reports a notarized Developer ID.
+  - Done on 2026-11-16 (D-075): the owner downloaded the dry-run `.dmg` in Safari and it opened
+    with the ordinary "downloaded from the Internet" question, saying Apple had checked it. On that
+    copy `spctl` reported `Notarized Developer ID`. The command is signed and notarized too.
+  - The certificate expires on 2027-12-16.
 - [x] **4. `linux-app`** (#86) (expect Quick). AppImage and `.deb` from the Linux leg, with the system
   packages the `gui` job already installs. Open it once in a Linux VM, or ship it marked untested.
   - The app was opened on an Ubuntu 26.04 desktop on 2026-11-14, in an ARM VM and built

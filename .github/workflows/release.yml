@@ -1,7 +1,17 @@
 # Builds what a release ships (D-072): the command for macOS, Linux and Windows, the macOS app as a
 # .dmg, the Linux app as an AppImage and a .deb, and the Windows app as an unsigned installer. For a
 # tag, it attaches them to a draft GitHub release that the owner reads and publishes by hand.
-# docs/release-roadmap.md has the steps still to come: signing and notarization.
+#
+# The macOS app and command are signed with a Developer ID and notarized when the repository holds
+# the five secrets below (CONTRIBUTING.md says how to make them). Without them, as in a fork's
+# pull request, the run still builds: the app is signed ad hoc and the command not at all. A tag
+# refuses to build that way.
+#
+#   APPLE_CERTIFICATE           the Developer ID Application certificate and key, a base64 .p12
+#   APPLE_CERTIFICATE_PASSWORD  the password of that .p12
+#   APPLE_API_KEY               the ID of an App Store Connect API key, for notarization
+#   APPLE_API_ISSUER            the issuer ID shown above the list of keys
+#   APPLE_API_KEY_P8            the contents of the key's .p8 file
 #
 #   a `v*` tag             builds everything and creates the draft release
 #   a PR changing this     the same build as a dry run: the files are workflow artifacts and no
@@ -40,11 +50,20 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
+    env:
+      SIGNED: ${{ secrets.APPLE_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@v7
         with:
           # The check below needs main's history.
           fetch-depth: 0
+
+      # A release never ships a macOS build that Gatekeeper would block (D-072).
+      - name: A release is signed
+        if: github.ref_type == 'tag' && env.SIGNED != 'true'
+        run: |
+          echo "the signing secrets are not set, so this tag cannot be built" >&2
+          exit 1
 
       # Fails unless the tag names the version in the manifests, and the app's agrees with the
       # tools'. Without a tag it only reads the version.
@@ -94,6 +113,7 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
       NAME: stidcart-cli-${{ needs.version.outputs.version }}-${{ matrix.platform }}
       EXE: ${{ matrix.platform == 'windows-x86_64' && '.exe' || '' }}
+      SIGNED: ${{ matrix.platform == 'macos-universal' && secrets.APPLE_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -127,6 +147,42 @@ jobs:
           fi
           cp COPYING "$NAME/COPYING"
           cp firmware/COPYING "$NAME/COPYING.firmware"
+
+      # The macOS command, signed with the Developer ID and notarized. The certificate goes into a
+      # keychain made for the run. The notary takes a .zip, a .dmg or a .pkg, so the binary goes up
+      # in a .zip that is then dropped. A bare binary cannot carry its ticket: Gatekeeper looks it
+      # up online the first time a quarantined copy runs. notarytool exits 0 for a rejected
+      # upload, so the last line is the one that proves the ticket exists. The keychain and the
+      # two key files are gone when the step ends, before anything built here runs.
+      - name: Sign and notarize
+        if: env.SIGNED == 'true'
+        env:
+          CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          API_KEY: ${{ secrets.APPLE_API_KEY }}
+          API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(uuidgen)"
+          trap 'security delete-keychain "$keychain"; rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/AuthKey.p8"' EXIT
+          printf '%s' "$CERTIFICATE" | base64 --decode >"$RUNNER_TEMP/certificate.p12"
+          printf '%s\n' "$API_KEY_P8" >"$RUNNER_TEMP/AuthKey.p8"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 900 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          identity="$(security find-identity -v -p codesigning "$keychain" | awk '/Developer ID Application/ { print $2; exit }')"
+          [[ -n $identity ]] || { echo "the certificate is not a Developer ID Application one" >&2; exit 1; }
+
+          codesign --force --options runtime --timestamp --sign "$identity" "$NAME/stidcart"
+          ditto -c -k "$NAME/stidcart" "$RUNNER_TEMP/stidcart.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/stidcart.zip" --wait \
+            --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$API_KEY" --issuer "$API_ISSUER"
+          codesign --verify --strict --verbose=2 "$NAME/stidcart"
+          codesign --verify --verbose=2 -R="notarized" --check-notarization "$NAME/stidcart"
 
       # The built command writes a cart, reads it back, and the cart carries this version.
       - name: Run it
@@ -167,6 +223,7 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
       NAME: stidcart-${{ needs.version.outputs.version }}-macos-universal
+      SIGNED: ${{ secrets.APPLE_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -182,17 +239,56 @@ jobs:
           cache-dependency-path: gui/package-lock.json
 
       # tauri.conf.json keeps bundling off, so the gate never bundles; this turns it on for the
-      # run, as scripts/install.sh does. The identity "-" signs ad hoc: the app is not yet signed
-      # for distribution (the macos-signing step of the roadmap replaces this).
+      # run, as scripts/install.sh does.
+      #
+      # Given the certificate and the API key, Tauri signs the app with the hardened runtime,
+      # has it notarized, staples it, and signs the .dmg. It reads them from the variables
+      # exported here, and takes an empty one as set, not as absent: an empty certificate fails
+      # the import. So they are exported only when the secrets exist, and otherwise the identity
+      # "-" signs ad hoc. `npm ci` runs the packages' install scripts, so it has a step of its own
+      # with no secret in it.
+      - name: Install the frontend's packages
+        working-directory: gui
+        run: npm ci
+
       - name: Build
         working-directory: gui
         env:
-          APPLE_SIGNING_IDENTITY: "-"
+          CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          API_KEY: ${{ secrets.APPLE_API_KEY }}
+          API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
         run: |
-          npm ci
+          if [[ $SIGNED == true ]]; then
+            printf '%s\n' "$API_KEY_P8" >"$RUNNER_TEMP/AuthKey.p8"
+            export APPLE_CERTIFICATE="$CERTIFICATE" APPLE_CERTIFICATE_PASSWORD="$CERTIFICATE_PASSWORD"
+            export APPLE_API_KEY="$API_KEY" APPLE_API_ISSUER="$API_ISSUER"
+            export APPLE_API_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          else
+            export APPLE_SIGNING_IDENTITY=-
+          fi
           npm run tauri build -- --target universal-apple-darwin \
             --config '{"bundle":{"active":true,"targets":["app","dmg"]}}'
 
+      # Tauri notarizes the app and not the .dmg around it, and the .dmg is what a browser
+      # downloads and quarantines. With a ticket stapled to it, it opens with no network. The key
+      # file is not needed after this, whether the step passes or fails.
+      - name: Notarize the disk image
+        if: env.SIGNED == 'true'
+        env:
+          API_KEY: ${{ secrets.APPLE_API_KEY }}
+          API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          trap 'rm -f "$RUNNER_TEMP/AuthKey.p8"' EXIT
+          dmgs=(gui/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          [[ ${#dmgs[@]} -eq 1 ]] || { echo "expected one .dmg, found ${#dmgs[@]}" >&2; exit 1; }
+          xcrun notarytool submit "${dmgs[0]}" --wait \
+            --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$API_KEY" --issuer "$API_ISSUER"
+          xcrun stapler staple "${dmgs[0]}"
+
+      # Tauri carries on when it has no key to notarize with and when stapling fails, so a signed
+      # run asks Gatekeeper itself: both the app and the .dmg are notarized and carry a ticket.
       - name: Check and collect
         run: |
           bundle=gui/src-tauri/target/universal-apple-darwin/release/bundle
@@ -206,6 +302,13 @@ jobs:
           dmgs=("$bundle"/dmg/*.dmg)
           [[ ${#dmgs[@]} -eq 1 ]] || { echo "expected one .dmg, found ${#dmgs[@]}" >&2; exit 1; }
           cp "${dmgs[0]}" "$NAME.dmg"
+          if [[ $SIGNED == true ]]; then
+            xcrun stapler validate "$app"
+            xcrun stapler validate "$NAME.dmg"
+            spctl -a -t exec -vv "$app" 2>&1 | tee /dev/stderr | grep -q 'source=Notarized Developer ID'
+            spctl -a -t open --context context:primary-signature -vv "$NAME.dmg" 2>&1 \
+              | tee /dev/stderr | grep -q 'source=Notarized Developer ID'
+          fi
 
       - uses: actions/upload-artifact@v7
         with:
@@ -298,8 +401,11 @@ jobs:
       - name: Start it
         run: |
           sudo apt-get install -y "./$NAME.deb"
-          Xvfb :1 -screen 0 1280x800x24 &
-          Xvfb :2 -screen 0 1280x800x24 &
+          # -noreset: Xvfb otherwise starts over when its last client leaves, and the xdpyinfo
+          # below is its first. An app that connects during that is refused ("Failed to
+          # initialize GTK", seen once on 2026-11-16).
+          Xvfb :1 -noreset -screen 0 1280x800x24 &
+          Xvfb :2 -noreset -screen 0 1280x800x24 &
           opens() {
             local pid tries
             # Xvfb takes a moment to listen, and GTK gives up at once on a display that is not there.
