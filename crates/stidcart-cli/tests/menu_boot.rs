@@ -4840,6 +4840,54 @@ fn ac_211_the_pane_orders_metadata_and_names_folders() {
     assert_pane_blank(l, at..LIST_ROWS.end, "'..'");
 }
 
+/// AC-217 (none): a title that is the stored name over again, whatever the case of its letters, is
+/// shown once: the pane goes from the title straight to the author and year. A title that differs
+/// from the name still has the name under it, one that merely starts with the name included.
+#[test]
+fn ac_217_the_pane_shows_a_name_once_when_the_title_repeats_it() {
+    if !vice::require_tool("x64sc") {
+        eprintln!("AC-217: skipping");
+        return;
+    }
+    let dir = scratch("ac217");
+    let hello = std::fs::read(fixtures().join("hello.prg")).unwrap();
+    let inputs = ["alpha", "bravo", "charlie"].map(|n| write(&dir, &format!("{n}.prg"), &hello));
+    let cart = build(&dir, "repeats", &[], &inputs);
+    edit(
+        &cart,
+        &[
+            "--title",
+            "0",
+            "Alpha",
+            "--author",
+            "0",
+            "stid",
+            "--title",
+            "1",
+            "bravo",
+            "--title",
+            "2",
+            "charlie two",
+        ],
+    );
+    let down = vec![key::DOWN];
+    let looks = looks_after(&dir, &cart, &[vec![], down.clone(), down]);
+
+    let l = &looks[0];
+    let at = assert_wrapped_at(l, HEAD_ROW, "Alpha", colour::WHITE, "alpha");
+    let at = assert_wrapped_at(l, at, "stid", colour::WHITE, "alpha");
+    assert_pane_blank(l, at..FACT_ROWS.start, "alpha");
+
+    let l = &looks[1];
+    let at = assert_wrapped_at(l, HEAD_ROW, "bravo", colour::WHITE, "bravo");
+    assert_pane_blank(l, at..FACT_ROWS.start, "bravo");
+
+    let l = &looks[2];
+    let at = assert_wrapped_at(l, HEAD_ROW, "charlie two", colour::WHITE, "charlie");
+    let at = assert_wrapped_at(l, at, "charlie", colour::LIGHT_GREY, "charlie");
+    assert_pane_blank(l, at..FACT_ROWS.start, "charlie");
+}
+
 /// AC-170 (none): a folder opens with `..` as its first row, wearing the folder badge, and the first
 /// entry below it selected. RETURN on `..`, and fire on the joystick in port 2, go back to the top
 /// level with the folder that was open selected. The pane on `..` says it goes back to the top level.
