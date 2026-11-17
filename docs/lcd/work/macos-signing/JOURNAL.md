@@ -6,16 +6,16 @@
 
 - **Lane:** Standard
 - **Goal:** `release.yml` signs the macOS app and command with a Developer ID, notarizes them and staples the `.dmg`, and still builds ad hoc when the secrets are absent.
-- **Next action:** read the recon digest, then write the signing steps into the `app` and `command` jobs (S3).
+- **Next action:** wait for the owner to set the five secrets (CONTRIBUTING.md, "Signing the macOS builds"), then re-run the PR's Release workflow and read the `app` and `command (macos-universal)` logs (S5).
 - **Branch:** ci/macos-signing · **Updated:** 2026-11-16 10:00
 
 ## STEPS
 
 - [x] S1 — triage, branch, JOURNAL
-- [ ] S2 — recon: Tauri's signing and notarization variables, what it staples, the bare-binary path ← next
-- [ ] S3 — `release.yml`: sign, notarize and staple in `app`; sign and notarize the macOS `command`; both skipped without secrets; checks (`codesign`, `spctl`, `stapler validate`) run only when signed
-- [ ] S4 — owner steps written into `CONTRIBUTING.md` (certificate, API key, `gh secret set`)
-- [ ] S5 — owner sets the secrets; PR dry run goes green with signing on
+- [x] S2 — recon: Tauri's signing and notarization variables, what it staples, the bare-binary path
+- [x] S3 — `release.yml`: sign, notarize and staple in `app`; sign and notarize the macOS `command`; both skipped without secrets; checks (`codesign`, `spctl`, `stapler validate`) run only when signed
+- [x] S4 — owner steps written into `CONTRIBUTING.md` (certificate, API key, `gh secret set`)
+- [ ] S5 — owner sets the secrets; PR dry run goes green with signing on ← next
 - [ ] S6 — owner downloads the dry-run `.dmg` through a browser: opens with no Gatekeeper prompt, `spctl -a -vv` reports a notarized Developer ID
 - [ ] S7 — decision logged, roadmap step 3 ticked, SPEC and README mention updated if they say "unsigned", closeout
 
@@ -44,3 +44,9 @@
 ## LOG (append-only; not read on resume)
 
 - 2026-11-16 — Owner reported the Apple Developer account active. Triage → Standard (3 signals). At the start: no code-signing identity in the local keychain, no repository secrets, no tags.
+- 2026-11-16 — Recon (tauri-cli 2.12.2, bundler 2.10.2, read from the tagged source and v2.tauri.app):
+  - Tauri imports `APPLE_CERTIFICATE` + `APPLE_CERTIFICATE_PASSWORD` into a keychain of its own; `APPLE_API_KEY`, `APPLE_API_ISSUER`, `APPLE_API_KEY_PATH` notarize. An empty variable counts as set, so they are exported only when the secrets exist.
+  - Tauri notarizes and staples the app, signs the `.dmg`, and does not notarize the `.dmg`. Missing credentials only log a line and a stapler failure is ignored, so the job asserts with `stapler validate` and `spctl`.
+  - A bare binary: sign with `--options runtime --timestamp`, notarize inside a `.zip`, no stapling.
+  - Not confirmed: that `spctl` assesses on a GitHub runner; that an individually enrolled account can make a team API key (fallback: Apple ID, app-specific password, team ID); that the app needs no entitlements. The first signed dry run answers the first and third.
+- 2026-11-16 — S3, S4 written. `actionlint` clean. A tag now fails in `version` when the secrets are absent.
