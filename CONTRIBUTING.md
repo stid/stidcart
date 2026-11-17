@@ -119,8 +119,10 @@ done once:
    gh secret set APPLE_API_KEY_P8 <AuthKey_XXXXXXXXXX.p8
    ```
 
-The certificate lasts five years. Keep the `.p12` and the `.p8` somewhere safe and out of the
-repository.
+The certificate expires (the one in use on 2027-12-16), and the developer site shows the date.
+After that nothing new can be signed until steps 1 to 3 are repeated and the two certificate
+secrets set again; builds already released keep opening. Keep the `.p12` and the `.p8` somewhere
+safe and out of the repository.
 
 The Windows installer is not signed, so SmartScreen stops it with "Windows protected your PC":
 "More info", then "Run anyway". It installs for the current user and asks for no administrator
