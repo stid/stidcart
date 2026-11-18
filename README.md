@@ -70,14 +70,24 @@ sorts it A-Z, shows folders, and after a reset comes back to the entry you last 
 
 ## Your first cart
 
+You can make one in the app or on the command line. Both write the same bytes.
+
+### In the app
+
+Choose New (⌘N on a Mac), drop your `.prg` files and cartridge images on the window, and save it
+as `my.crt`. Click an entry to give it a title, year, author and note, or drag it onto a folder.
+
+### On the command line
+
 ```bash
 stidcart build -e "my easyflash" -o my.crt game.prg demo.prg tool.crt
 stidcart list my.crt
 stidcart edit my.crt --add another.prg --folder 0 Games
 ```
 
-`build` makes the image, `list` shows what is on it, and `edit` changes it in place. In the app,
-choose New, drop your files on the window and save.
+`build` makes the image, `list` shows what is on it, and `edit` changes it in place.
+
+### Onto the cartridge
 
 To put `my.crt` on the cartridge, copy it to an SD card or a disk and flash it with EasyProg, the
 EasyFlash flashing program, on the C64. You can try it first in VICE:
