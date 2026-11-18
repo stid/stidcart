@@ -26,6 +26,32 @@ menu/                   our own C64 menu, GPL 6502, committed assembled (see men
 fixtures/               ndeft-built carts, frozen, with the exact command line for each
 ```
 
+## Building it yourself
+
+You need [Rust](https://rustup.rs) installed through rustup, which picks up the compiler version
+this repo pins. The desktop app also needs [Node](https://nodejs.org) 24.
+
+```bash
+git clone https://github.com/stid/stidcart.git
+cd stidcart
+```
+
+On a Mac, one script builds the app into `/Applications` and installs the `stidcart` command:
+
+```bash
+scripts/install.sh
+```
+
+It leaves the command alone if Homebrew has already installed it.
+
+For the command alone, on any system:
+
+```bash
+cargo install --path crates/stidcart-cli --locked
+```
+
+What the app needs to build on Linux is under the next heading.
+
 ## Building and testing
 
 The Rust toolchain is pinned in `rust-toolchain.toml`, and the pin only binds through rustup. A
