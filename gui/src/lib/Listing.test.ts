@@ -26,7 +26,7 @@ test('AC-51 (RENDER): every listing value is shown', () => {
   });
 
   expect(screen.getByText(/2 entries/)).toBeInTheDocument();
-  expect(screen.getByText(new RegExp(listing.freeText.replace(/[$()]/g, '\\$&')))).toBeInTheDocument();
+  expect(screen.getByText(listing.freeText)).toBeInTheDocument();
 });
 
 test('AC-85 (RENDER): the window shows which menu the cart carries', () => {
