@@ -8,7 +8,35 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-077 -->
+<!-- Next id: D-078 -->
+
+---
+
+## D-077 · 2026-11-17 · Homebrew installs come from the project's own tap, as a formula and a cask
+
+- **Context:** step 7 of the release roadmap (D-072), with the repository public and v0.31.1
+  published. Recon against Homebrew 7.0 on 2026-11-17: a cask and a formula cannot share a name
+  (the formula wins and the docs suffix the cask `-app`), a cask downloads one file, and since
+  6.0 a third-party tap is trusted per item when installed by its full name. The app bundle
+  does not hold the command, which ships as its own notarized tarball. A release is created as
+  a draft, and a draft's files cannot be downloaded until the owner publishes it.
+- **Decision:**
+  - The tap is the public repository `stid/homebrew-tap`. Formula `stidcart` installs the
+    command from the macOS tarball, and cask `stidcart-app` installs the app from the `.dmg`.
+  - The README gives the full names, `stid/tap/stidcart` and `stid/tap/stidcart-app`.
+  - A job of our own updates both recipes from `SHA256SUMS` when a release is published, with
+    a token that can write to the tap and nothing else.
+- **Rejected:**
+  - One cask that links the command from inside the app: the app build would have to embed
+    and sign the command, and the command could not be installed alone.
+  - A cask for the app only: the command would stay a manual download.
+  - The official `homebrew-cask` and `homebrew-core`: they turn away projects below their
+    notability bar, and core builds from source.
+  - A bump action (`mislav/bump-homebrew-formula-action`, `dawidd6/action-homebrew-bump-formula`,
+    `macauley/action-homebrew-bump-cask`): each wants a classic token or a pull request, or
+    supports casks poorly, for what is two lines rewritten in two files.
+  - Updating the tap from the tag's run: the files are not public until the release is.
+- **Status:** active
 
 ---
 
