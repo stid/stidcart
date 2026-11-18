@@ -8,6 +8,6 @@
 # Homebrew or a distro package ignores it (see D-010 on keeping local and CI aligned).
 
 [toolchain]
-channel = "1.97.1"
+channel = "1.100.0"
 components = ["rustfmt", "clippy"]
 profile = "minimal"

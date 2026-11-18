@@ -169,12 +169,8 @@ impl Placer {
     }
 
     fn mark_banks(&mut self, bank: usize, l_off: usize, l_num: usize, h_off: usize, h_num: usize) {
-        for b in bank + l_off..bank + l_off + l_num {
-            self.used[0][b] = BANK_SIZE;
-        }
-        for b in bank + h_off..bank + h_off + h_num {
-            self.used[1][b] = BANK_SIZE;
-        }
+        self.used[0][bank + l_off..bank + l_off + l_num].fill(BANK_SIZE);
+        self.used[1][bank + h_off..bank + h_off + h_num].fill(BANK_SIZE);
     }
 
     /// The next gap below `top_bank` holding at least `min_size` bytes, scanning ROML then ROMH
