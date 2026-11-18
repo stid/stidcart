@@ -64,7 +64,7 @@ frontend first because Tauri embeds `gui/dist` at compile time, so a bare `cargo
 - **Never commit to `main`.** Branch, PR, conventional commits (`feat:`/`fix:`/`refactor:`/`chore:`/
   `test:`/`docs:`). Required checks: `gate` and `gui` (D-065).
 - **Releases come from a `v*` tag** through `.github/workflows/release.yml` (D-072). A PR that
-  changes that file dry-runs it; `CONTRIBUTING.md` has the steps to cut one. Publishing the draft
+  changes that file dry-runs it; `RELEASING.md` has the steps to cut one. Publishing the draft
   runs `.github/workflows/tap.yml`, which updates the Homebrew tap `stid/homebrew-tap` (D-077).
 - **Log a decision when a real fork gets decided** — append to `docs/lcd/DECISIONS.md`, newest at top,
   including the alternatives rejected and why. Write it when the decision is made, not at the end.
