@@ -85,3 +85,4 @@
 2026-11-16 · macos-signing · 3 signals · Standard · hard:no · risk:no
 2026-11-16 · macos-signing · closeout · Standard · audit: n/a (no surface) · re-routes: 0 · interventions: 1 (security review rework)
 2026-11-17 · homebrew-tap · 3 signals · Standard · hard:no · risk:no
+2026-11-17 · guides-polish · 1 signals · Quick · hard:no · risk:no
