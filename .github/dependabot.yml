@@ -1,0 +1,15 @@
+# The workflows name each action by commit, so that a tag moved upstream cannot change what runs
+# here (D-078). Dependabot reads the version in the comment beside each pin and offers the next
+# one, all in one pull request a week. Cargo and npm are updated by hand; for those Dependabot
+# only opens a pull request when an advisory names a version in a lockfile.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+    groups:
+      actions:
+        patterns: ["*"]

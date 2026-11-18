@@ -154,6 +154,12 @@ fn the_tap_workflow_runs_nothing() {
     assert_eq!(scope(&[".github/workflows/tap.yml"]), nothing());
 }
 
+/// dependabot.yml tells GitHub which pins to offer updates for. Nothing here reads it.
+#[test]
+fn the_dependabot_config_runs_nothing() {
+    assert_eq!(scope(&[".github/dependabot.yml"]), nothing());
+}
+
 #[test]
 fn a_path_no_rule_names_runs_everything() {
     assert_eq!(scope(&["some/new/place.xyz"]), all());
