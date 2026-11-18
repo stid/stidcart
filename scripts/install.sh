@@ -6,6 +6,9 @@
 #
 #   scripts/install.sh
 #
+# Where Homebrew has installed the command (`brew install stid/tap/stidcart`), this leaves the
+# command alone: Homebrew's comes first on PATH, so a second copy here would never run.
+#
 # The app's checked-in config keeps bundling off (CI never bundles), so the build turns it on for
 # this run only, for a macOS .app.
 set -euo pipefail
@@ -30,8 +33,12 @@ echo "-- installing $app"
 rm -rf "$app"
 ditto "$bundle" "$app"
 
-echo "-- installing the stidcart command"
-cargo install --path "$repo/crates/stidcart-cli" --locked --quiet
+if command -v brew >/dev/null && brew list --formula stidcart >/dev/null 2>&1; then
+  echo "-- leaving the stidcart command to Homebrew"
+else
+  echo "-- installing the stidcart command"
+  cargo install --path "$repo/crates/stidcart-cli" --locked --quiet
+fi
 
 echo "-- installed"
 echo "app:     $app ($(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist"))"
