@@ -60,7 +60,7 @@ jobs:
       - name: Cache 64tass and VICE
         if: steps.scope.outputs.rust == 'true'
         id: menu-tools
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/stidcart-menu-tools
           key: menu-tools-ubuntu-24.04-${{ hashFiles('docs/lcd/ci/install-menu-tools.sh') }}
