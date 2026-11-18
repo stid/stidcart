@@ -48,6 +48,8 @@ in 16K mode at bank 0, with the KERNAL not initialised. The full contract is in
   point where the menu waits with an empty buffer and the stick at rest, and the tests break there.
   The stick tests plug VICE's "Joyport I/O simulation" device into port 2
   (`-controlport2device 37`) and set its lines from the monitor with `jpdb`.
+- F5's random pick mixes the CIA timer, the raster line and the jiffy clock, which differ at every
+  key press a person makes.
 - `src/launch.s` holds what has to run while the cartridge or its bank is switched away:
   - leaving
   - starting a cartridge: bank and mode, the entry's first bank left in `$DF00/$DF01` for xbank

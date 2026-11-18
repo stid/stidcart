@@ -8,7 +8,9 @@ works inside, and how to rebuild it, is in [menu/README.md](../../menu/README.md
 
 ## The stidcart menu or EasyLoader
 
-A cart boots into one of two menus. You choose with `--menu` or in the app.
+A cart boots into one of two menus. You choose with `--menu` on the
+[command line](cli.md#the-menu-a-cart-boots-into) or with the menu picker in the
+[app](app.md#the-menu-the-cart-boots-into).
 
 |                                        | stidcart menu | EasyLoader |
 | -------------------------------------- | ------------- | ---------- |
@@ -62,66 +64,81 @@ closed the help screen. Port 1 isn't read, because its lines are shared with the
   its right becomes a scroll bar.
 - The pane on the right describes the selection. A chip names its kind. Under it come the title
   (or the name when it has none), the name under a title that differs from it, the author and year,
-  and the note. At the
-  foot are its size, its load address (a program) or first bank (a cartridge), and how it starts.
+  and the note. At the foot are its size, its load address (a program) or first bank (a
+  cartridge), and how it starts.
 - Under the list are the position ("17 of 40"), the order in use and the kind listed. Then comes
   the filter text, in yellow, with how many entries match. The last line names the main keys.
 
+## Filtering, sorting and moving
+
 The filter and A-Z both ignore case. The filter takes up to 16 characters, any printable one
 except `"`. The kind filter (F3) combines with the text, and changing either lists again from the
-first match. The menu starts in the cart's own order with all kinds listed, unless it is coming
-back from a reset (see the last section).
+first match. The menu starts in the cart's own order with all kinds listed, unless it is
+[coming back after a reset](#coming-back-after-a-reset).
 
-A move that leaves the view (CRSR, a page, HOME/CLR, F5) scrolls only as far as it takes to show the
-selection, so one page down from the top puts it on the last row. F5 mixes the CIA timer, the raster
-line and the jiffy clock, which differ at every key press a person makes. The help screen keeps the
-label and replaces everything under it; the key that ends it, RUN/STOP and RETURN included,
-does nothing else.
+A move that leaves the view (CRSR, a page, HOME/CLR, F5) scrolls only as far as it takes to show
+the selection, so one page down from the top puts it on the last row.
 
-A program that loads at or below `$0801` is started with `RUN`, and any other with `SYS` to its load
-address. SHIFT+RETURN copies a program the same way and sets BASIC's pointers, but types nothing, so
-`LIST`, `RUN` or a `SYS` work from `READY.`. Either way the program finds the C64's own colours and
-upper-case character set, as after a reset.
+The help screen (F7) keeps the label and replaces everything under it. The key that ends it,
+RUN/STOP and RETURN included, does nothing else.
+
+## What it can start
+
+The menu starts programs and every kind of cartridge except Ocean.
+
+A program that loads at or below `$0801` is started with `RUN`, and any other with `SYS` to its
+load address. SHIFT+RETURN copies a program the same way and sets BASIC's pointers, but types
+nothing, so `LIST`, `RUN` or a `SYS` work from `READY.`. Either way the program finds the C64's
+own colours and upper-case character set, as after a reset.
 
 A program can run from below `$D000` up to `$FFFF`. Its bytes from `$D000` on go into the RAM
 under I/O and the KERNAL, not into the VIC, SID, CIAs or colour RAM as a KERNAL `LOAD` would put
-them. The tool refuses to put this menu on a cart with an Ocean entry, or with a
-program that the menu can't start:
+them.
+
+stidcart refuses to put this menu on a cart with an Ocean entry, or with a program the menu can't
+start:
 
 - a program that loads at `$D000` or above, since the menu would start it inside I/O or the KERNAL
 - a program that runs past `$FFFF`
 - a program that reaches `$D000` and loads below `$0150`, over the routine that copies that part
 
-EasyLoader itself won't start programs that reach `$D000`.
-The tool doesn't check EasyLoader carts for any of this.
+Such a cart has to use EasyLoader. EasyLoader itself won't start programs that reach `$D000`, and
+stidcart doesn't check EasyLoader carts for any of this.
 
 ## Titles and folders
 
-A cart can carry a title, year, author, note and folder for each entry, set with `edit --title`,
-`--year`, `--author`, `--note`, `--folder` or `--import`, or in the desktop app. They are stored in a
+A cart can carry a title, year, author, note and folder for each entry, set
+[on the command line](cli.md#titles-details-and-folders) or [in the desktop app](app.md#titles-and-details). They are stored in a
 hidden entry, `STIDCART.META`, which the menu reads once at boot.
+
+### Titles
 
 - An entry with a title shows the title in its row instead of its name, cut to the row's 16
   characters. A-Z sorts by what the rows show.
 - The pane shows the title in full, the entry's name under it, the author and year on one line,
   and after a blank row the note. Each wraps every 16 characters, and all of them fit at their
-  longest above the size, load address and start at the foot. An entry with no title shows its
-  name where the title would be.
+  longest above the size, load address and start at the foot.
+- An entry with no title shows its name where the title would be.
+
+### Folders
+
 - The top level lists one row per folder that has a visible entry, with a folder badge, the
-  folder's name and its number of entries, then the entries in no folder. An empty folder isn't
-  listed. RETURN or
-  fire opens a folder, with its first entry selected. Inside, the keys act on the folder's entries,
-  and DEL with no text or RUN/STOP goes back to the top level with the folder selected. A name too
-  long for the row is cut to leave room for the count.
-- Inside a folder the first row is `..`, with the folder badge. RETURN or fire on it goes back to
-  the top level as DEL and RUN/STOP do, so the joystick can leave a folder. It stays first
-  under A-Z, the kind filter and filter text, even when nothing matches. It isn't an entry: the
-  position and the match count leave it out, so on it the position reads 0, F5 never picks it, and a reset never comes
-  back to it. HOME selects it and CLR the last entry.
+  folder's name and its number of entries. The entries in no folder come after. An empty folder
+  isn't listed, and a name too long for the row is cut to leave room for the count.
+- RETURN or fire opens a folder, with its first entry selected. Inside, the keys act on the
+  folder's entries.
+- DEL with no filter text, or RUN/STOP, goes back to the top level with the folder selected.
+- Inside a folder the first row is `..`, with the folder badge. RETURN or fire on it also goes
+  back to the top level, so the joystick can leave a folder. It stays first under A-Z, the kind
+  filter and filter text, even when nothing matches. HOME selects it and CLR the last entry.
+- `..` isn't an entry. The position and the match count leave it out, so on it the position
+  reads 0. F5 never picks it, and a reset never comes back to it.
 - Text typed at the top level searches every entry, in every folder, by name or title, and lists
   the matches without folders.
 - Folder rows ignore the kind filter and stay in the cart's own folder order, also under A-Z. You
   set that order in the app or with `edit --move-folder`.
+
+### When titles can't be read
 
 If the menu can't read a cart's titles and folders, it shows the cart as one without any: plain
 names, no folders. That happens when the hidden `STIDCART.META` entry is missing, damaged, larger
@@ -133,10 +150,18 @@ titles.
 
 After a soft reset the menu comes back where it was left: the entry last started, or the one
 selected at RUN/STOP, is selected and in view, in the same order and kind filter. An entry in a
-folder comes back inside that folder, wherever it was started from. The filter text isn't kept.
-RUN/STOP with a folder row selected leaves nothing to come back to, so the next boot starts at the
-top. If the kind filter would hide that entry, all kinds are listed. A power cycle starts at
-the top, and so does a reset after a program that wrote the menu's state (an EAPI or xbank game
-may). The state is checked before it is used, so state that was damaged or written for another cart
-starts at the top too. This works in VICE and with an
-EasyFlash 3's own RESET button on a real C64.
+folder comes back inside that folder, wherever it was started from. The filter text isn't kept,
+and if the kind filter would hide the entry, all kinds are listed.
+
+The menu starts at the top instead:
+
+- after a power cycle
+- after RUN/STOP with a folder row selected, which leaves nothing to come back to
+- after a program that wrote over the menu's state (an EAPI or xbank game may)
+- when the state is damaged or was written for another cart, since it is checked before it is used
+
+This works in VICE and with an EasyFlash 3's own RESET button on a real C64.
+
+---
+
+See also: [the command line](cli.md) · [the desktop app](app.md) · [README](../../README.md)

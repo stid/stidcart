@@ -1,29 +1,62 @@
 # The desktop app
 
-The app does in a window what `stidcart edit` does on the command line, and saves the same bytes.
-Installing it is in the [README](../../README.md#installing). The shortcuts here are the macOS ones.
+The app builds and edits EasyFlash cartridge images in a window. It does what the `stidcart`
+command does, and saves the same bytes. Installing it is in the
+[README](../../README.md#installing).
+
+The shortcuts here are the macOS ones. On Windows and Linux, Ctrl takes the place of ⌘.
 
 ![The app with a cart open and one entry selected](img/app.png)
 
-## Using it
+## Your first cart
 
-Open a `.crt` with Open…, ⌘O or by dropping it on the window. It shows the cart name, the
-producing tool, every entry and the free space: the values `list` prints, from the same code. Sizes read in bytes, KB or MB; hover one to see its exact byte count. A file it
-can't describe shows the same reason `list` gives.
+1. Choose New (⌘N). It starts an empty cart.
+2. Drop your `.prg` files and cartridge images on the window, or use Add….
+3. Click the cart name to change it. This is the name the menu shows on the C64.
+4. Click an entry to give it a title, year, author and note, or to put it in a folder.
+5. Save with ⌘S.
 
-The window edits what `edit` edits:
-- Drop programs or cartridge images on an open cart, or use Add… / Add Aligned….
-- Rename an entry by clicking its name. Its "⋯" or right-click menu replaces, hides or shows,
-  aligns or removes it. A hidden entry stays on the cart but neither menu lists it; aligning
-  places a multi-bank cartridge on a 64 KB boundary (see [cli.md](cli.md#what-goes-on-a-cart)).
-- Click the cart name or the header name to change either one.
-- Click an entry to show it in the inspector beside the list: its number, name, kind and size, and
-  its title, year, author, note and folder. Click a field to change it, or pick its folder. Each
-  change is one undoable edit, refused in `edit`'s words when invalid.
-- Choose the menu the cart boots into, EasyLoader or stidcart, from the menu picker under the
-  names. A cart the stidcart menu can't run (an Ocean entry, or a program it can't start; see
-  [cli.md](cli.md)) refuses it and names the entry, as `edit --menu` does.
-- New (⌘N) starts an empty cart.
+The cart boots into the stidcart menu unless you pick EasyLoader. To get the saved `.crt` onto
+the cartridge, see the [README](../../README.md#your-first-cart).
+
+## Opening a cart
+
+Open a `.crt` with Open…, ⌘O or by dropping it on the window. The app shows the cart name, the
+tool that made it, every entry and the free space. Sizes read in bytes, KB or MB; hover one to
+see its exact byte count.
+
+These are the values `stidcart list` prints. A file the app can't describe shows the reason, and
+[Carts it won't open or edit](cli.md#carts-it-wont-open-or-edit) lists what those are.
+
+## Adding and changing entries
+
+- **Add:** drop programs or cartridge images on an open cart, or use Add…. What can go on a cart
+  is in [What goes on a cart](cli.md#what-goes-on-a-cart).
+- **Rename:** click an entry's name.
+- **Replace, hide, remove:** use the entry's "⋯" button or right-click it. Replace… swaps the
+  entry's data and keeps its name and place. A hidden entry stays on the cart, but neither menu
+  lists it on the C64; Show brings it back.
+- **Align:** Add Aligned… adds a multi-bank cartridge on a 64 KB boundary, and Align to 64 KB in
+  an entry's menu does the same for one already on the cart. Use it if a cartridge doesn't start
+  without it.
+- **Names:** click the cart name or the header name to change either one.
+
+## Titles and details
+
+Click an entry to show it in the inspector beside the list: its number, name, kind and size, and
+its title, year, author, note and folder. Click a field to change it, or pick its folder.
+
+Each change is one edit that you can undo. A value that doesn't fit is refused with the reason;
+the limits are in [Titles, details and folders](cli.md#titles-details-and-folders).
+
+## The menu the cart boots into
+
+The menu picker under the names chooses between the stidcart menu and EasyLoader.
+[The menu on the C64](menu.md#the-stidcart-menu-or-easyloader) compares the two.
+
+The stidcart menu can't run every cart: not one with an Ocean cartridge, and not one with a
+program it [can't start](menu.md#what-it-can-start). The picker refuses the stidcart menu for
+such a cart and names the entry.
 
 ## Folders
 
@@ -68,12 +101,24 @@ them; nothing there can be changed.
 ## Saving
 
 Changes stay in memory until you save:
+
 - Undo and redo cover every edit since the cart was opened, and an "Edited" dot marks unsaved
   changes.
-- ⌘S replaces the file and ⌘⇧S saves as. A saved cart is byte-identical to what `edit` or `build`
-  writes for the same request.
+- ⌘S replaces the file and ⌘⇧S saves as. A saved cart is byte-identical to what `stidcart edit`
+  or `stidcart build` writes for the same request.
 - Closing, quitting, opening another cart or New asks first.
 
-A cart `edit` refuses, such as firmware that differs from the embedded copy, opens view-only with
-the reason. When the only reason is a loader the tool doesn't know, the menu picker stays: choosing
-a menu replaces the loader and makes the cart editable.
+## Carts that open view-only
+
+Some carts can be shown but not safely written back, such as one whose firmware differs from the
+copy stidcart carries. The app opens such a cart view-only and gives the reason. These are the
+carts `stidcart edit` refuses; see
+[Carts it won't open or edit](cli.md#carts-it-wont-open-or-edit).
+
+When the only reason is a menu stidcart doesn't know, the menu picker stays. Choosing a menu
+there replaces the one on the cart and makes it editable.
+
+---
+
+See also: [the command line](cli.md) · [the menu on the C64](menu.md) ·
+[README](../../README.md)
