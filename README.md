@@ -46,7 +46,33 @@ sorts it A-Z, shows folders, and after a reset comes back to the entry you last 
 
 ## Getting it
 
-There are no downloads yet. You build it from source, which takes a few minutes.
+Downloads are on the [latest release](https://github.com/stid/stidcart/releases/latest). The app
+and the command are separate downloads, and each works without the other.
+
+| System | The app | The command |
+|---|---|---|
+| macOS, Intel or Apple silicon | `stidcart-…-macos-universal.dmg` | `stidcart-cli-…-macos-universal.tar.gz` |
+| Windows 10 or 11, 64-bit | `stidcart-…-windows-x86_64-setup.exe` | `stidcart-cli-…-windows-x86_64.zip` |
+| Linux, x86_64 | `stidcart-…-linux-x86_64.deb` or `.AppImage` | `stidcart-cli-…-linux-x86_64.tar.gz` |
+
+- **macOS.** Open the `.dmg` and drag stidcart to Applications. The app and the command are signed
+  and checked by Apple, so they open like any downloaded app.
+- **Windows.** The installer is not signed, so Windows shows "Windows protected your PC": choose
+  "More info", then "Run anyway". It installs for your user and asks for no administrator rights.
+- **Linux.** The `.deb` is for Ubuntu 22.04 or newer and Debian systems of that age, and brings in
+  WebKitGTK. The `.AppImage` runs elsewhere once you make it executable (`chmod +x`). Neither is
+  signed.
+
+The command is one file, `stidcart`. Unpack it and put it somewhere on your `PATH`.
+
+`SHA256SUMS` on the release lists what each file should hash to.
+
+I develop and use stidcart on a Mac. I have also run the app on Windows, on a real PC, and on an
+Ubuntu desktop, and gone through my test list on both, and the command's tests run on Linux and
+Windows in CI. I don't use either day to day, so if you run it there, I would like to hear how it
+went.
+
+### Building it yourself
 
 You need [Rust](https://rustup.rs) installed through rustup, which picks up the compiler version
 this repo pins. The desktop app also needs [Node](https://nodejs.org) 24.
@@ -68,10 +94,7 @@ For the command alone, on any system:
 cargo install --path crates/stidcart-cli --locked
 ```
 
-I develop and use stidcart on a Mac. I have also run the app on Windows, on a real PC, and on an
-Ubuntu desktop, and gone through my test list on both, and the command's tests run on Linux and
-Windows in CI. I don't use either day to day, so if you run it there, I would like to hear how it
-went. [CONTRIBUTING.md](CONTRIBUTING.md) has what the app needs to build on Linux.
+[CONTRIBUTING.md](CONTRIBUTING.md) has what the app needs to build on Linux.
 
 ## Your first cart
 
