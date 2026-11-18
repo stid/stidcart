@@ -96,6 +96,12 @@ The workflow refuses a tag that names another version or a commit that is not on
 request that changes the workflow runs the same build as a dry run: nothing is released, and the
 files are in the run's `release` artifact. To repeat the run for a tag, delete the draft first.
 
+A `v*` tag cannot be moved or deleted once pushed, and a published release cannot be changed:
+its files and its tag are locked (D-078). Homebrew checks each download against the checksum in
+the tap, so a file is never replaced. A release that went out wrong is followed by a new version.
+A tag pushed on the wrong commit is removed by switching off the "release tags" ruleset in the
+repository's settings for as long as that takes.
+
 ### The Homebrew tap
 
 [stid/homebrew-tap](https://github.com/stid/homebrew-tap) holds two recipes: formula `stidcart`

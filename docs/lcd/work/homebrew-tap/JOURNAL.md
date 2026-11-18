@@ -9,7 +9,7 @@
 
 - **Lane:** Standard
 - **Goal:** `brew install` from the project's own tap, `stid/homebrew-tap`, gives a working app and command on a Mac, and each published release updates the tap (roadmap step 7).
-- **Next action:** README install section and roadmap ticks (S6), then open the PR; its dry run of `tap.yml` is the workflow's check.
+- **Next action:** open the PR and read its `tap.yml` dry run. Then the owner sets `TAP_TOKEN` (S4), and the next release shows the push and `brew upgrade` (S7).
 - **Branch:** feat/homebrew-tap · **Updated:** 2026-11-17 20:24
 
 ## STEPS
@@ -19,7 +19,7 @@
 - [x] S3 — create `stid/homebrew-tap` (owner approved, Claude creates it); recipes written against v0.31.1, checked with `brew style` and `brew audit`, and installed on a clean runner by the tap's own workflow
 - [ ] S4 — owner makes a token scoped to the tap and sets it as a repository secret
 - [x] S5 — `.github/workflows/tap.yml` updates the tap when a release is published; scope rule and test added
-- [ ] S6 ← next — README and CONTRIBUTING say how to install with Homebrew and what the release does to the tap; roadmap steps 6 and 7 ticked
+- [x] S6 — README and CONTRIBUTING say how to install with Homebrew and what the release does to the tap; roadmap steps 6 and 7 ticked
 - [ ] S7 — check on a clean Mac; `brew upgrade` checked at the next release
 
 ## DECISIONS (this work-item)
@@ -29,7 +29,7 @@
 
 ## OPEN QUESTIONS
 
-- Can the cask depend on the formula, so one install gives both? Tried in S3.
+- none
 - The release is created as a draft and published by hand, and a draft's files cannot be downloaded anonymously. So the tap update has to run when the release is published, not in the job that creates the draft.
 
 ## EDIT BOUNDARY (paths this work may touch)
@@ -64,3 +64,5 @@
   - Recommendation: cask `stidcart-app` for the `.dmg` and formula `stidcart` for the command tarball, updated by a hand-written job on `release: published`.
 - 2026-11-17 20:55 — Owner chose the formula and cask layout and asked Claude to create the tap repository. → D-077.
 - 2026-11-17 21:35 — S3: `stid/homebrew-tap` created and pushed. Recipes pass `brew style`, `brew audit --strict --online` and `brew livecheck` locally (Homebrew 7.0.14), and the tap's `Tests` run installed both on `macos-latest`; `spctl` accepted the app. `depends_on macos:` with a version is disabled in 7.0, so the cask says `depends_on :macos`. S5: `tap.yml` written, the rewrite simulated locally against a made-up 0.32.0, full gate green.
+- 2026-11-17 22:10 — The cask cannot depend on the formula: installed by its full name from an untrusted tap, Homebrew trusted the cask and refused to load the formula. The dependency is gone and the tap's `Tests` run installs each alone from an untrusted tap; `spctl` reports the app as Notarized Developer ID. The setup action in the tap is pinned to a commit.
+- 2026-11-17 22:10 — Owner asked for public-repository hardening. Applied: approval for all outside contributors' workflow runs (both repositories), ruleset "release tags", immutable releases, CodeQL default setup, a ruleset on the tap's `main`. Owner declined a release environment. → D-078. Pinning actions and Dependabot go in their own PR.

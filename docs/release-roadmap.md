@@ -101,18 +101,23 @@ All three add a leg to `release.yml`, so run them in separate worktrees and merg
 
 ### Wave C: needs steps 1 and 3, and the owner's word
 
-- [ ] **6. First public release.** After the repository is public (its own plan, the owner's call).
+- [x] **6. First public release.** After the repository is public (its own plan, the owner's call).
   Tag, let the workflow run, read the draft, publish. Check one download per platform shipped.
   Rewrite the README's "Getting it" section around downloads, keeping the build-from-source path.
+  - Done on 2026-11-17: the repository went public and v0.31.0, then v0.31.1, were published.
 
 ### Wave D: needs a published release
 
 Release assets of a private repository cannot be downloaded anonymously, so the tap waits for step 6.
 
-- [ ] **7. `homebrew-tap`** (expect Standard). A new public repository, `homebrew-tap`, which the
+- [x] **7. `homebrew-tap`** (expect Standard). A new public repository, `homebrew-tap`, which the
   owner creates or approves by name. The release job updates it after a release is published,
   using a token scoped to that one repository. Done when `brew install` from the tap gives a
   working app and command on a clean Mac, and `brew upgrade` picks up the next release.
+  - Done on 2026-11-17 (D-077), as formula `stidcart` and cask `stidcart-app` in
+    `stid/homebrew-tap`. The tap's own workflow installs both on a clean macOS runner.
+  - Still to see: the owner sets `TAP_TOKEN`, and the next release shows `tap.yml` pushing and
+    `brew upgrade` following it.
 
 ## Working notes
 
