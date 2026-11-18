@@ -55,15 +55,24 @@ and the command are separate downloads, and each works without the other.
 | Windows 10 or 11, 64-bit | `stidcart-…-windows-x86_64-setup.exe` | `stidcart-cli-…-windows-x86_64.zip` |
 | Linux, x86_64 | `stidcart-…-linux-x86_64.deb` or `.AppImage` | `stidcart-cli-…-linux-x86_64.tar.gz` |
 
-- **macOS.** Open the `.dmg` and drag stidcart to Applications. The app and the command are signed
-  and checked by Apple, so they open like any downloaded app.
+- **macOS.** With [Homebrew](https://brew.sh), from the project's own tap:
+
+  ```bash
+  brew install --cask stid/tap/stidcart-app   # the app
+  brew install stid/tap/stidcart              # the command
+  ```
+
+  `brew upgrade` then follows new releases. Without Homebrew, open the `.dmg` and drag stidcart to
+  Applications. Either way the app and the command are signed and checked by Apple, so they open
+  like any downloaded app.
 - **Windows.** The installer is not signed, so Windows shows "Windows protected your PC": choose
   "More info", then "Run anyway". It installs for your user and asks for no administrator rights.
 - **Linux.** The `.deb` is for Ubuntu 22.04 or newer and Debian systems of that age, and brings in
   WebKitGTK. The `.AppImage` runs elsewhere once you make it executable (`chmod +x`). Neither is
   signed.
 
-The command is one file, `stidcart`. Unpack it and put it somewhere on your `PATH`.
+The command is one file, `stidcart`. Unpack it and put it somewhere on your `PATH`; Homebrew does
+that for you.
 
 `SHA256SUMS` on the release lists what each file should hash to.
 

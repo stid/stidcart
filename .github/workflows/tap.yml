@@ -1,0 +1,121 @@
+# Points the Homebrew tap, stid/homebrew-tap, at a release once it is published (D-077). The tap
+# holds two recipes: formula `stidcart` for the command and cask `stidcart-app` for the app. Each
+# names a release's file and its checksum, and this rewrites both from the release's SHA256SUMS.
+#
+# It waits for publication because release.yml creates a draft, and a draft's files cannot be
+# downloaded. A prerelease is left out: Homebrew offers the latest full release.
+#
+#   TAP_TOKEN   a fine-grained personal access token with read and write access to the contents
+#               of stid/homebrew-tap, and to nothing else
+#
+#   a published release    updates the tap and pushes
+#   "Run workflow"         the same for the tag given, to repeat an update that failed
+#   a PR changing this     a dry run against the latest release: it prints the change and pushes
+#   file                   nothing, so it needs no token
+#
+# No test reads this file (docs/lcd/ci/scope.sh), so the dry run is its check. The tap's own
+# workflow installs both recipes on a clean Mac after every push to it.
+
+name: Tap
+
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - .github/workflows/tap.yml
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The published release to point the tap at, such as v0.31.1
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tap
+  cancel-in-progress: false
+
+jobs:
+  tap:
+    name: tap
+    if: github.event_name != 'release' || !github.event.release.prerelease
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+      HAS_TOKEN: ${{ secrets.TAP_TOKEN != '' }}
+    steps:
+      - name: Which release
+        id: release
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          tag="${TAG:-$(gh release view --json tagName --jq .tagName)}"
+          [[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "not a release tag: $tag" >&2; exit 1; }
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >>"$GITHUB_OUTPUT"
+
+      - name: The token is set
+        if: env.DRY_RUN != 'true' && env.HAS_TOKEN != 'true'
+        run: |
+          echo "TAP_TOKEN is not set, so the tap cannot be updated" >&2
+          exit 1
+
+      - uses: actions/checkout@v7
+        with:
+          repository: stid/homebrew-tap
+          path: tap
+          # A dry run only reads the tap, which is public.
+          token: ${{ secrets.TAP_TOKEN || github.token }}
+
+      # Fails for a draft: its files are not public, and the recipes would point at nothing.
+      - name: Checksums
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          [[ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" == false ]] ||
+            { echo "$TAG is not published" >&2; exit 1; }
+          gh release download "$TAG" --pattern SHA256SUMS
+
+      - name: Rewrite the recipes
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          sum() {
+            awk -v file="$1" '$2 == file { print $1 }' SHA256SUMS | grep -E '^[0-9a-f]{64}$' ||
+              { echo "SHA256SUMS has no $1" >&2; exit 1; }
+          }
+          command="$(sum "stidcart-cli-$VERSION-macos-universal.tar.gz")"
+          app="$(sum "stidcart-$VERSION-macos-universal.dmg")"
+
+          sed -i -E \
+            -e "s|/download/v[^/]+/stidcart-cli-[0-9.]+-macos|/download/v$VERSION/stidcart-cli-$VERSION-macos|" \
+            -e "s|^(  sha256 \")[0-9a-f]+\"|\1$command\"|" tap/Formula/stidcart.rb
+          sed -i -E \
+            -e "s|^(  version \")[^\"]+\"|\1$VERSION\"|" \
+            -e "s|^(  sha256 \")[0-9a-f]+\"|\1$app\"|" tap/Casks/stidcart-app.rb
+
+          # sed is silent when a pattern matches nothing, so read the result back.
+          grep -q "/download/v$VERSION/stidcart-cli-$VERSION-macos-universal.tar.gz\"" tap/Formula/stidcart.rb
+          grep -q "^  sha256 \"$command\"" tap/Formula/stidcart.rb
+          grep -q "^  version \"$VERSION\"" tap/Casks/stidcart-app.rb
+          grep -q "^  sha256 \"$app\"" tap/Casks/stidcart-app.rb
+          git -C tap diff
+
+      - name: Push
+        if: env.DRY_RUN != 'true'
+        working-directory: tap
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if git diff --quiet; then
+            echo "the tap already names $VERSION"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --all --message "feat: stidcart $VERSION"
+          git push

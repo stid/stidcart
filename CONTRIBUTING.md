@@ -89,10 +89,40 @@ A release is built by `.github/workflows/release.yml` from a tag on `main`.
 3. The workflow builds the command for macOS, Linux and Windows, the macOS app as a `.dmg`, the
    Linux app as an AppImage and a `.deb` and the Windows app as an installer, and attaches them
    with a `SHA256SUMS` file to a draft release. Read the draft, try a download, then publish it.
+4. Publishing runs `.github/workflows/tap.yml`, which points the Homebrew tap at the new release
+   (see below). Its run and the tap's own `Tests` run should both end green.
 
 The workflow refuses a tag that names another version or a commit that is not on `main`. A pull
 request that changes the workflow runs the same build as a dry run: nothing is released, and the
 files are in the run's `release` artifact. To repeat the run for a tag, delete the draft first.
+
+A `v*` tag cannot be moved or deleted once pushed, and a published release cannot be changed:
+its files and its tag are locked (D-078). Homebrew checks each download against the checksum in
+the tap, so a file is never replaced. A release that went out wrong is followed by a new version.
+A tag pushed on the wrong commit is removed by switching off the "release tags" ruleset in the
+repository's settings for as long as that takes.
+
+### The Homebrew tap
+
+[stid/homebrew-tap](https://github.com/stid/homebrew-tap) holds two recipes: formula `stidcart`
+for the command and cask `stidcart-app` for the app. Each names a release's macOS file and its
+checksum. When a release is published, `tap.yml` rewrites both from that release's `SHA256SUMS`
+and pushes, and the tap's `Tests` workflow then installs both on a Mac that has never had
+stidcart on it. A prerelease leaves the tap alone.
+
+The push needs one repository secret, `TAP_TOKEN`: a fine-grained personal access token limited to
+the `homebrew-tap` repository, with read and write access to its contents and nothing else. Make
+it under GitHub's Settings, Developer settings, Personal access tokens, then set it from a
+terminal:
+
+```bash
+gh secret set TAP_TOKEN   # asks for the value
+```
+
+The token expires on the date chosen when it was made. After that a release still publishes and
+only the tap update fails. Set a new token, then repeat the update from the Actions tab: "Tap",
+"Run workflow", with the release's tag. A pull request that changes `tap.yml` dry-runs it against
+the latest release, printing the change without pushing.
 
 ### Signing the macOS builds
 

@@ -8,7 +8,59 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-077 -->
+<!-- Next id: D-079 -->
+
+---
+
+## D-078 · 2026-11-17 · What the public repositories enforce, with one maintainer
+
+- **Context:** the repository went public on 2026-11-17 and the owner asked that nobody else can
+  approve a pull request or a release. The owner is the only collaborator on `stid/stidcart` and
+  `stid/homebrew-tap`, so merging, tagging and publishing were already theirs alone, and `main`
+  already required a pull request with `gate` and `gui` green, admins included (D-065).
+- **Decision:**
+  - A workflow run from any outside contributor's pull request waits for the owner's approval.
+  - A `v*` tag cannot be moved or deleted (ruleset "release tags"), and a published release is
+    immutable. The tap pins each file's checksum, so a file is never replaced.
+  - CodeQL's default setup scans the code and the workflows.
+  - Actions are pinned to commits, with Dependabot keeping the pins current.
+  - The tap's `main` takes direct pushes from `tap.yml` and refuses force pushes and deletion.
+- **Rejected:**
+  - Requiring an approving review or a code owner's review on `main`: an author cannot approve
+    their own pull request, so the one maintainer could merge nothing. Right once there is a
+    second collaborator.
+  - A protected environment that pauses each release for approval: only the owner can push a
+    branch or a tag, and a fork's pull request receives no secrets, so it would add a click
+    and stop dry runs from signing for no one kept out.
+- **Status:** active
+
+---
+
+## D-077 · 2026-11-17 · Homebrew installs come from the project's own tap, as a formula and a cask
+
+- **Context:** step 7 of the release roadmap (D-072), with the repository public and v0.31.1
+  published. Recon against Homebrew 7.0 on 2026-11-17: a cask and a formula cannot share a name
+  (the formula wins and the docs suffix the cask `-app`), a cask downloads one file, and since
+  6.0 a third-party tap is trusted per item when installed by its full name. The app bundle
+  does not hold the command, which ships as its own notarized tarball. A release is created as
+  a draft, and a draft's files cannot be downloaded until the owner publishes it.
+- **Decision:**
+  - The tap is the public repository `stid/homebrew-tap`. Formula `stidcart` installs the
+    command from the macOS tarball, and cask `stidcart-app` installs the app from the `.dmg`.
+  - The README gives the full names, `stid/tap/stidcart` and `stid/tap/stidcart-app`.
+  - A job of our own updates both recipes from `SHA256SUMS` when a release is published, with
+    a token that can write to the tap and nothing else.
+- **Rejected:**
+  - One cask that links the command from inside the app: the app build would have to embed
+    and sign the command, and the command could not be installed alone.
+  - A cask for the app only: the command would stay a manual download.
+  - The official `homebrew-cask` and `homebrew-core`: they turn away projects below their
+    notability bar, and core builds from source.
+  - A bump action (`mislav/bump-homebrew-formula-action`, `dawidd6/action-homebrew-bump-formula`,
+    `macauley/action-homebrew-bump-cask`): each wants a classic token or a pull request, or
+    supports casks poorly, for what is two lines rewritten in two files.
+  - Updating the tap from the tag's run: the files are not public until the release is.
+- **Status:** active
 
 ---
 
