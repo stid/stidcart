@@ -7,7 +7,7 @@
 Everything below was read out of the ndefpack C sources (`src/libndef/`) and then checked
 against a cart built by `ndeft`. It exists because the format is documented nowhere else in that
 tree — `doc/README_tool` is a usage manual, `README` describes concepts, and the byte layout lives
-only in `easyfs.c`, `cart.c`, `place.c` and `efname.c`. A successor tool that starts without this
+only in `easyfs.c`, `cart.c`, `place.c` and `efname.c`. Another tool that starts without this
 has to re-derive it by trial and error against real hardware.
 
 Target hardware is the EasyFlash 3. Output is the same `.crt` image described here; nothing below
@@ -434,8 +434,8 @@ Then `xxd -s 0x80000 -l 80 img.bin` shows the directory, and `xxd -s 0x81b00` th
 ## Using ndefpack as an oracle
 
 `ndeft` is the only implementation known to produce images that boot on real EasyFlash hardware —
-bank 63 was confirmed on an EF3 on 2026-08-09. That makes it a free test fixture for a successor,
-independent of any code being shared: build the same inputs with both and compare bytes. Pin the
+bank 63 was confirmed on an EF3 on 2026-08-09. That makes it a free test fixture for another
+implementation, independent of any code being shared: build the same inputs with both and compare bytes. Pin the
 EF-Name with `-e` on both sides so `PACKAGE_STRING` does not show up as a spurious difference.
 
 Its `.lst` text format is also a candidate interchange format, but scope the claim to what was

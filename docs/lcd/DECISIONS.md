@@ -8,7 +8,24 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-076 -->
+<!-- Next id: D-077 -->
+
+---
+
+## D-076 · 2026-11-16 · The pane leaves out a stored name that its title repeats
+
+- **Context:** under a title the pane shows the entry's stored name in grey (D-069). An entry
+  titled with its own name showed the same word twice, and with lower case drawn as small
+  capitals (D-070) "Alpha" over "alpha" reads as a repeat too. Found before the first public
+  release.
+- **Decision:** the menu skips the name row when the title equals the stored name with letters
+  folded the way the search folds them. A title that only starts with the name keeps the row.
+  The replaced build (66d71bd) joins the earlier builds, so carts carrying it still open.
+- **Rejected:**
+  - Comparing bytes exactly: a title typed with a capital would still repeat on screen.
+  - Having `edit` refuse or drop such a title: the cart's data would then depend on what one
+    menu draws, and carts written by earlier builds would still show the repeat.
+- **Status:** active
 
 ---
 
