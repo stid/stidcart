@@ -123,6 +123,8 @@ On a Mac, one script builds the app into `/Applications` and installs the `stidc
 scripts/install.sh
 ```
 
+It leaves the command alone if Homebrew has already installed it.
+
 For the command alone, on any system:
 
 ```bash
