@@ -1,7 +1,7 @@
 # The desktop app
 
 The app does in a window what `stidcart edit` does on the command line, and saves the same bytes.
-Installing it is in the [README](../../README.md#getting-it). The shortcuts here are the macOS ones.
+Installing it is in the [README](../../README.md#installing). The shortcuts here are the macOS ones.
 
 ![The app with a cart open and one entry selected](img/app.png)
 

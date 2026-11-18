@@ -5,6 +5,15 @@ It builds the `.crt` image, opens one you already have, and lets you add, remove
 sort what is on it. It comes as a command-line tool and a desktop app, and it brings its own menu
 for the C64 side. I use it with an EasyFlash 3.
 
+On a Mac, install it with [Homebrew](https://brew.sh):
+
+```bash
+brew install --cask stid/tap/stidcart-app   # the desktop app
+brew install stid/tap/stidcart              # the command-line tool
+```
+
+Windows, Linux, or a Mac without Homebrew: see [Installing](#installing).
+
 ![The stidcart menu on a C64: a folder open, with one program selected and its details beside the list](docs/guide/img/menu.png)
 
 *The menu, captured in VICE.*
@@ -44,10 +53,44 @@ more about that, and my other projects, at [stid.me](https://stid.me).
 The stidcart menu takes the keyboard or a joystick in port 2. It filters the list as you type,
 sorts it A-Z, shows folders, and after a reset comes back to the entry you last started.
 
-## Getting it
+## Installing
 
-Downloads are on the [latest release](https://github.com/stid/stidcart/releases/latest). The app
-and the command are separate downloads, and each works without the other.
+The app and the command install separately, and each works without the other.
+
+### macOS
+
+With [Homebrew](https://brew.sh), from the project's own tap:
+
+```bash
+brew install --cask stid/tap/stidcart-app   # the desktop app
+brew install stid/tap/stidcart              # the command-line tool
+```
+
+`brew upgrade` then follows new releases.
+
+Without Homebrew, download `stidcart-…-macos-universal.dmg` from the
+[latest release](https://github.com/stid/stidcart/releases/latest), open it and drag stidcart to
+Applications. The command is `stidcart-cli-…-macos-universal.tar.gz` on the same page.
+
+Either way the app and the command are signed and checked by Apple, so they open like any
+downloaded app, on Intel or Apple silicon.
+
+### Windows
+
+Download `stidcart-…-windows-x86_64-setup.exe` from the
+[latest release](https://github.com/stid/stidcart/releases/latest), for Windows 10 or 11, 64-bit.
+The installer is not signed, so Windows shows "Windows protected your PC": choose "More info",
+then "Run anyway". It installs for your user and asks for no administrator rights. The command is
+`stidcart-cli-…-windows-x86_64.zip`.
+
+### Linux
+
+Download from the [latest release](https://github.com/stid/stidcart/releases/latest), for x86_64.
+The `.deb` is for Ubuntu 22.04 or newer and Debian systems of that age, and brings in WebKitGTK.
+The `.AppImage` runs elsewhere once you make it executable (`chmod +x`). Neither is signed. The
+command is `stidcart-cli-…-linux-x86_64.tar.gz`.
+
+### All downloads
 
 | System | The app | The command |
 |---|---|---|
@@ -55,24 +98,7 @@ and the command are separate downloads, and each works without the other.
 | Windows 10 or 11, 64-bit | `stidcart-…-windows-x86_64-setup.exe` | `stidcart-cli-…-windows-x86_64.zip` |
 | Linux, x86_64 | `stidcart-…-linux-x86_64.deb` or `.AppImage` | `stidcart-cli-…-linux-x86_64.tar.gz` |
 
-- **macOS.** With [Homebrew](https://brew.sh), from the project's own tap:
-
-  ```bash
-  brew install --cask stid/tap/stidcart-app   # the app
-  brew install stid/tap/stidcart              # the command
-  ```
-
-  `brew upgrade` then follows new releases. Without Homebrew, open the `.dmg` and drag stidcart to
-  Applications. Either way the app and the command are signed and checked by Apple, so they open
-  like any downloaded app.
-- **Windows.** The installer is not signed, so Windows shows "Windows protected your PC": choose
-  "More info", then "Run anyway". It installs for your user and asks for no administrator rights.
-- **Linux.** The `.deb` is for Ubuntu 22.04 or newer and Debian systems of that age, and brings in
-  WebKitGTK. The `.AppImage` runs elsewhere once you make it executable (`chmod +x`). Neither is
-  signed.
-
-The command is one file, `stidcart`. Unpack it and put it somewhere on your `PATH`; Homebrew does
-that for you.
+A downloaded command is one file, `stidcart`. Unpack it and put it somewhere on your `PATH`.
 
 `SHA256SUMS` on the release lists what each file should hash to.
 

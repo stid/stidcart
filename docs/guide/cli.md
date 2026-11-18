@@ -1,7 +1,7 @@
 # The command line
 
 `stidcart` builds, lists and edits EasyFlash cartridge images. Some examples come first, then
-[every option](#every-option). Installing it is in the [README](../../README.md#getting-it).
+[every option](#every-option). Installing it is in the [README](../../README.md#installing).
 
 ## Examples
 
