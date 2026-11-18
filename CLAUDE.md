@@ -37,7 +37,7 @@ the same script, `docs/lcd/ci/scope.sh`:
 
 | Change | Root fmt, clippy, tests | VICE boots (`STIDCART_VICE`) | GUI gate |
 |---|---|---|---|
-| Prose, `docs/`, `.claude/`, `scripts/`, `release.yml`, `tap.yml` | no | none | no |
+| Prose, `docs/`, `.claude/`, `scripts/`, `release.yml`, `tap.yml`, `dependabot.yml` | no | none | no |
 | `menu/` | yes | full | no |
 | `crates/` sources, `firmware/`, `Cargo.*`, the toolchain pin | yes | cart, the 17 boots that depend on what the builder writes | yes |
 | A root test or `fixtures/` | yes | none; full for a boot test or `tests/support/` | no |

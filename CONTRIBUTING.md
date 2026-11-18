@@ -77,6 +77,13 @@ Commit `menu.bin` and `menu.lbl` with the source.
 Work goes on a branch and through a pull request, with conventional commit messages (`feat:`,
 `fix:`, `docs:` and so on).
 
+## Actions in the workflows
+
+Each `uses:` line names an action by commit, with its version in a comment beside it
+(`actions/checkout@3d3c42e… # v7.0.1`), so a tag moved upstream cannot change what runs here.
+Dependabot offers the newer pins in one pull request a week (`.github/dependabot.yml`). Add a new
+action the same way: the full commit of a released version, then the version.
+
 ## Cutting a release
 
 A release is built by `.github/workflows/release.yml` from a tag on `main`.

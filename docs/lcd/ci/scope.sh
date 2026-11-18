@@ -62,7 +62,7 @@ classify() {
       ;;
     # release.yml and tap.yml are checked by a dry run of themselves, not by a test.
     docs/* | .claude/* | scripts/* | COPYING | .gitignore | .github/workflows/lcd-audit.yml | \
-      .github/workflows/release.yml | .github/workflows/tap.yml) ;;
+      .github/workflows/release.yml | .github/workflows/tap.yml | .github/dependabot.yml) ;;
     *)
       rust=true gui=true
       raise_vice full
