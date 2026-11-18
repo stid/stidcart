@@ -9,17 +9,17 @@
 
 - **Lane:** Standard
 - **Goal:** `brew install` from the project's own tap, `stid/homebrew-tap`, gives a working app and command on a Mac, and each published release updates the tap (roadmap step 7).
-- **Next action:** create `stid/homebrew-tap` with the two recipes and its tests workflow (S3).
+- **Next action:** README install section and roadmap ticks (S6), then open the PR; its dry run of `tap.yml` is the workflow's check.
 - **Branch:** feat/homebrew-tap · **Updated:** 2026-11-17 20:24
 
 ## STEPS
 
 - [x] S1 — triage and recon dispatched
 - [x] S2 — layout settled: formula `stidcart` and cask `stidcart-app` (D-077)
-- [ ] S3 — create `stid/homebrew-tap` (owner approved, Claude creates it); recipes written against v0.31.1, checked with `brew style` and `brew audit`, and installed on a clean runner by the tap's own workflow  ← next
+- [x] S3 — create `stid/homebrew-tap` (owner approved, Claude creates it); recipes written against v0.31.1, checked with `brew style` and `brew audit`, and installed on a clean runner by the tap's own workflow
 - [ ] S4 — owner makes a token scoped to the tap and sets it as a repository secret
-- [ ] S5 — the release workflow updates the tap when a release is published
-- [ ] S6 — README and CONTRIBUTING say how to install with Homebrew and what the release does to the tap; roadmap steps 6 and 7 ticked
+- [x] S5 — `.github/workflows/tap.yml` updates the tap when a release is published; scope rule and test added
+- [ ] S6 ← next — README and CONTRIBUTING say how to install with Homebrew and what the release does to the tap; roadmap steps 6 and 7 ticked
 - [ ] S7 — check on a clean Mac; `brew upgrade` checked at the next release
 
 ## DECISIONS (this work-item)
@@ -40,6 +40,8 @@
 - `CONTRIBUTING.md`
 - `docs/release-roadmap.md`
 - `docs/lcd/DECISIONS.md`
+- `docs/lcd/MAP.md`
+- `CLAUDE.md`
 - `docs/lcd/ci/scope.sh`
 - `crates/stidcart-cli/tests/scope.rs`
 - `docs/lcd/work/homebrew-tap/JOURNAL.md`
@@ -61,3 +63,4 @@
   - Avoid: cask `preflight`/`postflight` blocks (deprecated in 7.0.0), `HOMEBREW_NO_REQUIRE_TAP_TRUST`, Intel-only handling, and updating the tap from the tag run. Trigger on `release: published`.
   - Recommendation: cask `stidcart-app` for the `.dmg` and formula `stidcart` for the command tarball, updated by a hand-written job on `release: published`.
 - 2026-11-17 20:55 — Owner chose the formula and cask layout and asked Claude to create the tap repository. → D-077.
+- 2026-11-17 21:35 — S3: `stid/homebrew-tap` created and pushed. Recipes pass `brew style`, `brew audit --strict --online` and `brew livecheck` locally (Homebrew 7.0.14), and the tap's `Tests` run installed both on `macos-latest`; `spctl` accepted the app. `depends_on macos:` with a version is disabled in 7.0, so the cask says `depends_on :macos`. S5: `tap.yml` written, the rewrite simulated locally against a made-up 0.32.0, full gate green.

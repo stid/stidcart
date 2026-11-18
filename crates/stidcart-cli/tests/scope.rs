@@ -147,6 +147,13 @@ fn the_release_workflow_runs_nothing() {
     assert_eq!(scope(&["docs/lcd/ci/release-version.sh"]), all());
 }
 
+/// tap.yml points the Homebrew tap at a published release. A pull request that changes it dry-runs
+/// it, as with release.yml.
+#[test]
+fn the_tap_workflow_runs_nothing() {
+    assert_eq!(scope(&[".github/workflows/tap.yml"]), nothing());
+}
+
 #[test]
 fn a_path_no_rule_names_runs_everything() {
     assert_eq!(scope(&["some/new/place.xyz"]), all());

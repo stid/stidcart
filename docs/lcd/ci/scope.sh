@@ -60,9 +60,9 @@ classify() {
     gui/*)
       gui=true
       ;;
-    # release.yml is checked by a dry run of itself ("Run workflow"), not by a test.
+    # release.yml and tap.yml are checked by a dry run of themselves, not by a test.
     docs/* | .claude/* | scripts/* | COPYING | .gitignore | .github/workflows/lcd-audit.yml | \
-      .github/workflows/release.yml) ;;
+      .github/workflows/release.yml | .github/workflows/tap.yml) ;;
     *)
       rust=true gui=true
       raise_vice full
