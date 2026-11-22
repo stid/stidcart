@@ -76,6 +76,7 @@
 
 | Capability (current behaviour, one line) | ACs | Provenance |
 |---|---|---|
+| A `v*` tag on `main` builds a draft GitHub release with `SHA256SUMS`: the command for macOS universal, Linux x86_64, Linux aarch64 (both static musl) and Windows x86_64; the app as a macOS `.dmg`, a `.deb` and an AppImage for Linux x86_64 and for Linux aarch64, and a Windows installer. A pull request that changes the workflow builds the same files as a dry run | — | D-072, D-080 (linux-arm64-release) |
 | The whole library API is one owned value: `CartBuilder` accumulates entries (programs and cartridges), mutates them in place by index, and returns bytes, touching no filesystem and holding no global state. The index-addressed mutators panic on an out-of-range index, as `Vec` indexing does | — | D-015 (backfill) · D-001, D-019, D-023 |
 | An edited cartridge is byte-for-byte a fresh build of the entry set the edits produced: saving runs the one placement path, so entries the edit never mentioned may land at different positions than the input had | AC-30 | D-019 (cart-edit) |
 | Placement puts every cartridge before any program (Ocean first, then 64 KB-aligned ones stepping eight banks, then by height, first fit in both halves), then programs largest first: one fitting a gap below the top bank goes there confined to one half, the rest interleaved at the top; the directory keeps the caller's input order | AC-33, AC-34 | D-026 (cart-entries) · D-025 |

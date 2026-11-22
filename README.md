@@ -111,11 +111,12 @@ Homebrew, the two commands at the top are all it takes, and `brew upgrade` then 
 releases. Everything else is a download from the
 [latest release](https://github.com/stid/stidcart/releases/latest):
 
-| System                        | The app                                      | The command                             |
-| ----------------------------- | -------------------------------------------- | --------------------------------------- |
-| macOS, Intel or Apple silicon | `stidcart-…-macos-universal.dmg`             | `stidcart-cli-…-macos-universal.tar.gz` |
-| Windows 10 or 11, 64-bit      | `stidcart-…-windows-x86_64-setup.exe`        | `stidcart-cli-…-windows-x86_64.zip`     |
-| Linux, x86_64                 | `stidcart-…-linux-x86_64.deb` or `.AppImage` | `stidcart-cli-…-linux-x86_64.tar.gz`    |
+| System                        | The app                                       | The command                             |
+| ----------------------------- | --------------------------------------------- | --------------------------------------- |
+| macOS, Intel or Apple silicon | `stidcart-…-macos-universal.dmg`              | `stidcart-cli-…-macos-universal.tar.gz` |
+| Windows 10 or 11, 64-bit      | `stidcart-…-windows-x86_64-setup.exe`         | `stidcart-cli-…-windows-x86_64.zip`     |
+| Linux, x86_64                 | `stidcart-…-linux-x86_64.deb` or `.AppImage`  | `stidcart-cli-…-linux-x86_64.tar.gz`    |
+| Linux, ARM (aarch64, arm64)   | `stidcart-…-linux-aarch64.deb` or `.AppImage` | `stidcart-cli-…-linux-aarch64.tar.gz`   |
 
 A downloaded command is one file, `stidcart`. Unpack it and put it somewhere on your `PATH`.
 `SHA256SUMS` on the release lists what each file should hash to.

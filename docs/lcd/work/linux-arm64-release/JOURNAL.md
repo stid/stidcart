@@ -4,14 +4,14 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** A `v*` tag also builds Linux for 64-bit ARM: the command as a static `.tar.gz`, the app as a `.deb` and an AppImage, all in `SHA256SUMS` (D-080).
-- **Next action:** open the PR and read its dry run
+- **Next action:** read PR #117's dry run, then the VM check (S5)
 - **Branch:** feat/release-linux-arm64  ·  **Updated:** 2026-11-22
 
 ## STEPS
 - [x] S1 — recon: runner cost and labels, Tauri bundling on ARM, musl for the command
 - [x] S2 — `release.yml`: a `linux-aarch64` leg in `command`, `app-linux` as a matrix of two; D-080
-- [ ] S3 — PR; the dry run's `release` artifact holds the three files and `SHA256SUMS` lists them  ← next
-- [ ] S4 — README install table, RELEASING.md, SPEC.md say the ARM build exists
+- [x] S3 — README install table, RELEASING.md, SPEC.md say the ARM build exists
+- [ ] S4 — PR #117; the dry run's `release` artifact holds the three files and `SHA256SUMS` lists them  ← next
 - [ ] S5 — in the Linux VM: install the dry run's `.deb`, go through the 2026-11-14 test script, run the AppImage and the command archive
 - [ ] S6 — closeout
 
