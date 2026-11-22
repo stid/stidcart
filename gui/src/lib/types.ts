@@ -88,7 +88,7 @@ export type MetaField = 'title' | 'year' | 'author' | 'note' | 'folder';
 export type Unsaved = 'save' | 'discard' | 'cancel';
 
 /** The ids the native menu sends (gui/src-tauri/src/menu.rs). */
-export type MenuId = 'new' | 'open' | 'new-folder' | 'save' | 'save-as' | 'undo' | 'redo' | 'quit';
+export type MenuId = 'new' | 'open' | 'new-folder' | 'save' | 'save-as' | 'undo' | 'redo' | 'find' | 'quit';
 
 export type ViewState =
   { kind: 'empty' } | { kind: 'document'; doc: Document } | { kind: 'error'; file: string; message: string };

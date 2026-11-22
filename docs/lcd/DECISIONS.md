@@ -8,7 +8,31 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-079 -->
+<!-- Next id: D-080 -->
+
+---
+
+## D-079 · 2026-11-22 · The app's filter is view state, and reordering is off while it is on
+
+- **Context:** the listing had no way to find an entry on a full cart. The owner chose, through
+  the question dialog on 2026-11-22: match the name and the title, turn reordering off during a
+  filter, and offer an always-visible box plus Edit ▸ Find (⌘F).
+- **Decision:**
+  - The filter lives in `Listing.svelte` alone. The Rust side, the document and the undo history
+    never hear of it, and a newly opened cart starts unfiltered.
+  - It keeps the entries whose name or title contains the text, ignoring case. Folder names are
+    not matched; a folder shows only while it holds a match, open even when collapsed.
+  - While a filter is on, entries and folders do not drag and Move up/down are disabled. Rename,
+    replace, hide, remove, Move to and the inspector still act on the entry chosen.
+  - `filterTree` in `tree.ts` makes the tree that is drawn; every move still starts from the
+    whole tree, so an edit made during a filter writes the same cart as without one.
+- **Rejected:**
+  - Matching every shown value (author, year, note, kind, folder): wider than asked, and a short
+    text would match too much.
+  - Keeping drags and steps on during a filter: "between these two rows" is ambiguous when hidden
+    entries sit between them, and a move would land somewhere the user cannot see.
+  - Read-only while filtering: finding an entry is usually the step before changing it.
+- **Status:** active
 
 ---
 

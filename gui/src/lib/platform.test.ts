@@ -124,6 +124,7 @@ test('AC-216 (RENDER): each menu shortcut names its menu item, and no other key 
   expect(menuKey(key('Z', { ctrl: true, shift: true }))).toBe('redo');
   expect(menuKey(key('q', { ctrl: true }))).toBe('quit');
   expect(menuKey(key('H', { ctrl: true, shift: true }))).toBe('hex');
+  expect(menuKey(key('f', { ctrl: true }))).toBe('find');
 
   expect(menuKey(key('n'))).toBeNull();
   expect(menuKey(key('h', { ctrl: true }))).toBeNull();

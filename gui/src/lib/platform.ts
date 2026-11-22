@@ -50,6 +50,7 @@ const MENU_KEYS: Record<string, [plain: MenuKey | null, shifted: MenuKey | null]
   z: ['undo', 'redo'],
   q: ['quit', null],
   h: [null, 'hex'],
+  f: ['find', null],
 };
 
 /** The menu item a keydown is the shortcut of, or null. */
