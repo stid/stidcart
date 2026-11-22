@@ -1,6 +1,7 @@
 # Builds what a release ships (D-072): the command for macOS, Linux and Windows, the macOS app as a
-# .dmg, the Linux app as an AppImage and a .deb, and the Windows app as an unsigned installer. For a
-# tag, it attaches them to a draft GitHub release that the owner reads and publishes by hand.
+# .dmg, the Linux app as an AppImage and a .deb, and the Windows app as an unsigned installer. Linux
+# is built twice, for x86_64 and for 64-bit ARM (D-080). For a tag, it attaches them to a draft
+# GitHub release that the owner reads and publishes by hand.
 #
 # The macOS app and command are signed with a Developer ID and notarized when the repository holds
 # the five secrets below (CONTRIBUTING.md says how to make them). Without them, as in a fork's
@@ -102,6 +103,12 @@ jobs:
           - platform: linux-x86_64
             runner: ubuntu-24.04
             targets: x86_64-unknown-linux-musl
+            archive: tar.gz
+          # The same static build for 64-bit ARM, on GitHub's ARM runner, so the job runs what it
+          # built like every other leg (D-080).
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+            targets: aarch64-unknown-linux-musl
             archive: tar.gz
           # The C runtime is linked statically (the Build step), for the same reason: the .exe
           # runs on a Windows that has no Visual C++ redistributable installed.
@@ -317,15 +324,29 @@ jobs:
           if-no-files-found: error
 
   app-linux:
-    name: app (linux-x86_64)
+    name: app (${{ matrix.platform }})
     needs: version
     # The oldest image GitHub still offers, and the oldest Ubuntu with WebKitGTK 4.1. Unlike the
     # static command, the app links the system's glibc and WebKitGTK, so the image it is built on
-    # sets the oldest Linux it runs on.
-    runs-on: ubuntu-22.04
+    # sets the oldest Linux it runs on. Each architecture is built on its own runner: the AppImage
+    # tooling does not cross-build. `deb` is what dpkg calls the architecture, `elf` what `file`
+    # calls it.
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-22.04
+            deb: amd64
+            elf: x86-64
+          - platform: linux-aarch64
+            runner: ubuntu-22.04-arm
+            deb: arm64
+            elf: ARM aarch64
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      NAME: stidcart-${{ needs.version.outputs.version }}-linux-x86_64
+      NAME: stidcart-${{ needs.version.outputs.version }}-${{ matrix.platform }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -366,7 +387,7 @@ jobs:
           # The package: its name, version and architecture, and what it asks the system for.
           dpkg-deb -I "$NAME.deb"
           dpkg-deb -c "$NAME.deb"
-          for field in Package:stidcart Version:"$VERSION" Architecture:amd64; do
+          for field in Package:stidcart Version:"$VERSION" Architecture:${{ matrix.deb }}; do
             built="$(dpkg-deb -f "$NAME.deb" "${field%%:*}")"
             [[ $built == "${field#*:}" ]] || { echo "the .deb says ${field%%:*} $built, not ${field#*:}" >&2; exit 1; }
           done
@@ -382,7 +403,7 @@ jobs:
           app="$(basename "${binaries[0]}")"
           grep -qx "Exec=$app" deb-root/usr/share/applications/stidcart.desktop \
             || { echo "stidcart.desktop does not start $app" >&2; exit 1; }
-          file "${binaries[0]}" | grep -q 'ELF 64-bit LSB .*x86-64'
+          file "${binaries[0]}" | grep -q 'ELF 64-bit LSB .*${{ matrix.elf }}'
           echo "newest glibc it asks for: $(objdump -T "${binaries[0]}" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
 
           # The AppImage holds the same program. --appimage-extract needs no FUSE, which the
@@ -435,7 +456,7 @@ jobs:
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: app-linux-x86_64
+          name: app-${{ matrix.platform }}
           path: |
             ${{ env.NAME }}.deb
             ${{ env.NAME }}.AppImage

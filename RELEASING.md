@@ -15,7 +15,9 @@ A release is built by `.github/workflows/release.yml` from a tag on `main`.
    `git tag v0.31.0 && git push origin v0.31.0`.
 3. The workflow builds the command for macOS, Linux and Windows, the macOS app as a `.dmg`, the
    Linux app as an AppImage and a `.deb` and the Windows app as an installer, and attaches them
-   with a `SHA256SUMS` file to a draft release. Read the draft, try a download, then publish it.
+   with a `SHA256SUMS` file to a draft release. Linux is built for x86_64 and for 64-bit ARM
+   (`aarch64`); macOS is universal and Windows x86_64. Read the draft, try a download, then
+   publish it.
 4. Publishing runs `.github/workflows/tap.yml`, which points the Homebrew tap at the new release
    (see [The Homebrew tap](#the-homebrew-tap)). Its run and the tap's own `Tests` run should both
    end green.
@@ -90,7 +92,6 @@ rights.
 
 These are left out until someone asks for them:
 
-- Linux arm64 builds.
 - An updater inside the app. On a Mac, `brew upgrade` follows new releases; elsewhere an update
   is a new download.
 - Signing for the Windows installer. [SignPath Foundation](https://signpath.org) offers free
