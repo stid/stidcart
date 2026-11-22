@@ -4,17 +4,18 @@
 ## NOW
 - **Lane:** Standard
 - **Goal:** A filter box above the app's entry list narrows it to the entries whose name or title contains the typed text, reachable with Edit ▸ Find (⌘F / Ctrl+F).
-- **Next action:** S4, failing tests for the `find` menu id in `platform.test.ts` and `App.test.ts`
+- **Next action:** done; PR open, waiting for review and merge
 - **Branch:** feat/listing-filter  ·  **Updated:** 2026-11-22 12:00
 
 ## STEPS
 - [x] S1 — `filterTree` in `tree.ts`, test first
 - [x] S2 — the filter box in `Listing.svelte` (AC-219, AC-220), tests first
 - [x] S3 — reordering off while filtering (AC-221), tests first
-- [ ] S4 — Edit ▸ Find: `MenuId`, `menu.rs`, `platform.ts`, `App.svelte` (AC-222), tests first  ← next
-- [ ] S5 — guide, SPEC fold, conventions AC line, gate, live check, PR
+- [x] S4 — Edit ▸ Find: `MenuId`, `menu.rs`, `platform.ts`, `App.svelte` (AC-222), tests first
+- [x] S5 — guide, SPEC fold, conventions AC line, gate, live check, PR
 
 ## DECISIONS (this work-item)
+- All four mirrored as D-079.
 - Matches name and title, case-insensitive substring (user, 2026-11-22). Folder names are not matched.
 - While a filter is on, drags and Move up/down are off for entries and folders; every other edit stays (user, 2026-11-22).
 - An always-visible box plus Edit ▸ Find, Esc clears (user, 2026-11-22).
@@ -56,3 +57,8 @@
 
 - 2026-11-22 — triaged Standard; the three design forks answered by the user through the question dialog.
 - 2026-11-22 — S1 to S3 green: the box filters by name and title, folders without a match drop out, drags and steps are off while filtering.
+- 2026-11-22 — S4 green: `find` menu id, Edit ▸ Find, forwarded on Windows. D-079 logged.
+- 2026-11-22 — gate `origin/main` green (frontend 148 tests, GUI cargo suite).
+- 2026-11-22 — live check in the dev app on macOS: ⌘F focused the box, "ramp" kept 3 of 5 (two by name, one by title, the Tools folder gone), Esc cleared, "zzz" showed the no-match line. Not driven live: the disabled drag and Move up/down (covered by tests only). Seen: with no match the header columns reflow, since no row sizes them.
+- 2026-11-22 — audit: PASS (test-presence)
+- 2026-11-22 — reconciled: folded AC-219..222 → SPEC.md/RENDER
