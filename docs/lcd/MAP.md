@@ -4,7 +4,7 @@
 > you) don't re-derive the project's shape every session — and don't reinvent a place that already
 > exists. Update it in the same commit as any change that makes it wrong. Keep under ~150 lines.
 
-**Generated:** 2026-08-10 · **Last refined:** 2026-11-13
+**Generated:** 2026-08-10 · **Last refined:** 2026-11-22
 
 ---
 
@@ -13,8 +13,8 @@
 A Cargo workspace producing EasyFlash cartridge images for the Commodore 64, targeting EasyFlash 3
 hardware. Two crates: a pure library that knows the binary format and a thin binary that drives it.
 The split is deliberate and load-bearing — the library owns no global state and makes no I/O policy
-decisions, which is what keeps a future GUI (toolkit undecided) a matter of adding a crate rather
-than restructuring. Successor to ndefpack; no code is shared, and the binary format was extracted
+decisions, which is what let the desktop app (`gui/`, its own workspace) arrive as one more
+consumer of the library rather than a restructuring. Successor to ndefpack; no code is shared, and the binary format was extracted
 to a written spec before this repo existed.
 
 What it does *now* is not restated here — `SPEC.md` is the current-state capability index, and

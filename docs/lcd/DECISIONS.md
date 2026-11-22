@@ -191,7 +191,8 @@
   - macOS universal comes first, then Linux x86_64, then Windows x64 once the owner has run a
     build on a real PC or a VM. A platform nobody has run is held back or labelled untested.
   - Mac users install and update through the project's own Homebrew tap.
-  - The work is split into steps in `docs/release-roadmap.md`, one work-item each.
+  - The work is split into steps in `docs/release-roadmap.md`, one work-item each. (All seven
+    closed and the file was deleted on 2026-11-22; `RELEASING.md` says how a release is cut.)
 - **Rejected:**
   - Unsigned macOS builds with a README workaround. Free, but every download meets a Gatekeeper
     block that current macOS only lifts from System Settings.

@@ -88,3 +88,5 @@
 2026-11-17 · guides-polish · 1 signals · Quick · hard:no · risk:no
 2026-11-22 · listing-filter · 3 signals · Standard · hard:no · risk:no
 2026-11-22 · listing-filter · closeout · Standard · audit: PASS (test-presence) · re-routes: 0 · interventions: 0
+2026-11-22 · retire release roadmap · 1 signals · Quick · hard:no · risk:no
+2026-11-22 · homebrew-tap · closeout · Standard · audit: n/a (no surface) · re-routes: 0 · interventions: 0

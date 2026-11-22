@@ -85,3 +85,15 @@ safe and out of the repository.
 The Windows installer is not signed, so SmartScreen stops it with "Windows protected your PC":
 "More info", then "Run anyway". It installs for the current user and asks for no administrator
 rights.
+
+## What is not built
+
+These are left out until someone asks for them:
+
+- Linux arm64 builds.
+- An updater inside the app. On a Mac, `brew upgrade` follows new releases; elsewhere an update
+  is a new download.
+- Signing for the Windows installer. [SignPath Foundation](https://signpath.org) offers free
+  signing to open source projects, by application; that is the first thing to look at, and its
+  terms need reading first.
+- The official `homebrew-cask` repository, and crates.io.
