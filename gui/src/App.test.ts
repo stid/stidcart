@@ -85,3 +85,16 @@ test('AC-203 (RENDER): selecting an entry tells the host, which moves an open he
   screen.getByText(two.rows[1].name).click();
   await vi.waitFor(() => expect(host.selectEntry).toHaveBeenLastCalledWith(1));
 });
+
+test('AC-222 (RENDER): Edit ▸ Find puts the cursor in the filter box of the open cart', async () => {
+  const { host, drop } = fakeHost(async () => clean);
+  render(App, { props: { host } });
+  drop(['/carts/two.crt']);
+  await screen.findByRole('table');
+  const box = screen.getByRole('searchbox', { name: /filter entries/i });
+  expect(box).not.toHaveFocus();
+
+  const menu = vi.mocked(host.onMenu).mock.calls[0][0];
+  menu('find');
+  expect(box).toHaveFocus();
+});

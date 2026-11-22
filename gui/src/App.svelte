@@ -17,12 +17,17 @@
   /** The open cart's listing, which owns its folder tree: New Folder acts there (D-063). */
   let listingView = $state<ReturnType<typeof Listing> | null>(null);
 
-  // Shortcuts (⌘N, ⌘O, ⌘S, ⌘⇧S, ⌘Z, ⌘⇧Z) arrive only through the native menu. The webview sees
+  // Shortcuts (⌘N, ⌘O, ⌘S, ⌘⇧S, ⌘Z, ⌘⇧Z, ⌘F) arrive only through the native menu. The webview sees
   // the same keydown too, so handling it here as well would run each command twice (T2 spike).
   // On Windows the menu never sees the key, and `forwardMenuKeys` (platform.ts) sends it there.
   onMount(() => {
     host.onDrop((paths) => void viewer.drop(paths));
-    host.onMenu((id) => (id === 'new-folder' ? void listingView?.newFolder() : void viewer.menu(id)));
+    host.onMenu((id) => {
+      // New Folder and Find act on the open cart's listing, which owns its tree and its filter.
+      if (id === 'new-folder') void listingView?.newFolder();
+      else if (id === 'find') listingView?.focusFilter();
+      else void viewer.menu(id);
+    });
     host.onCloseRequested(() => viewer.requestClose());
     host.onExitRequested(() => void viewer.requestQuit());
   });

@@ -41,6 +41,15 @@ These are the values `stidcart list` prints. A file the app can't describe shows
   without it.
 - **Names:** click the cart name or the header name to change either one.
 
+## Finding an entry
+
+The box above the list filters it as you type: only the entries whose name or title contains the
+text stay, and the count beside the box says how many of the cart's entries those are. Edit ▸ Find
+(⌘F) puts the cursor in the box, and Esc clears it.
+
+A folder shows only while one of its entries matches. Dragging and Move up and Move down are off
+until the filter is cleared; everything else works on the entries shown.
+
 ## Titles and details
 
 Click an entry to show it in the inspector beside the list: its number, name, kind and size, and

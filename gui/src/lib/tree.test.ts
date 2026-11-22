@@ -5,6 +5,7 @@ import {
   addFolder,
   buildTree,
   deleteFolder,
+  filterTree,
   untitledName,
   indexAfter,
   moveEntry,
@@ -172,4 +173,15 @@ test('AC-193 (RENDER): deleting a folder moves its entries to the end of the loo
   // An entry dropped into an empty folder goes in.
   const spare = addFolder(tree, 'Spare');
   expect(moveEntry(spare, 4, { into: 'Spare' }).folders[2]).toEqual({ name: 'Spare', entries: [4] });
+});
+
+test('AC-220 (RENDER): a filtered tree keeps the matching entries in place and drops the folders left without one', () => {
+  const tree = buildTree(rows(['Games', 'Games', 'Tools', '', '']), ['Empty']);
+  expect(filterTree(tree, (i) => i === 1 || i === 4)).toEqual({
+    folders: [{ name: 'Games', entries: [1] }],
+    loose: [4],
+  });
+  expect(filterTree(tree, () => false)).toEqual({ folders: [], loose: [] });
+  // The tree given is left as it was.
+  expect(tree.folders.map((f) => f.name)).toEqual(['Empty', 'Games', 'Tools']);
 });

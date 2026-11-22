@@ -509,3 +509,111 @@ test('AC-203 (RENDER): the listing reports its selection, on a view-only cart to
   expect(onselect).toHaveBeenLastCalledWith(0);
   expect(onselect).toHaveBeenCalledTimes(3);
 });
+
+const filterBox = () => screen.getByRole('searchbox', { name: /filter entries/i });
+const shownEntries = () => entryRows().map((r) => r.getAttribute('data-entry'));
+
+async function filterBy(text: string) {
+  await fireEvent.input(filterBox(), { target: { value: text } });
+}
+
+test('AC-219 (RENDER): the filter box shows only the entries whose name or title contains the text', async () => {
+  render(Listing, { props: { listing: annotated(), file: 'two.crt' } });
+  expect(shownEntries()).toEqual(['0', '1']);
+
+  // By name, ignoring case and the spaces around.
+  await filterBy(' RAM ');
+  expect(shownEntries()).toEqual(['1']);
+  expect(screen.getByText('1 of 2')).toBeInTheDocument();
+
+  // By title.
+  await filterBy('there');
+  expect(shownEntries()).toEqual(['0']);
+
+  await filterBy('zzz');
+  expect(shownEntries()).toEqual([]);
+  expect(screen.getByText(/no entries match/i)).toHaveTextContent('zzz');
+  expect(screen.getByText('0 of 2')).toBeInTheDocument();
+
+  // Esc clears the box and brings every entry back.
+  await fireEvent.keyDown(filterBox(), { key: 'Escape' });
+  expect(filterBox()).toHaveValue('');
+  expect(shownEntries()).toEqual(['0', '1']);
+  expect(screen.queryByText(/ of 2$/)).toBeNull();
+});
+
+test('AC-219 (RENDER): a cart without entries has no filter box', () => {
+  render(Listing, { props: { listing: { ...listing, rows: [] }, file: 'two.crt' } });
+  expect(screen.queryByRole('searchbox')).toBeNull();
+});
+
+test('AC-220 (RENDER): a filter shows only the folders holding a match, open, then the matching loose entries', async () => {
+  render(Listing, { props: { listing: foldered(), file: 'two.crt' } });
+  await filterBy('ramp');
+  expect(folderRows()).toHaveLength(0);
+  expect(shownEntries()).toEqual(['1']);
+
+  await filterBy('hello');
+  expect(folderRows()).toHaveLength(1);
+  expect(shownEntries()).toEqual(['0']);
+  expect(screen.queryByText('// not in a folder')).toBeNull();
+  cleanup();
+
+  render(Listing, { props: { listing: foldered(['Games', 'Games']), file: 'two.crt' } });
+  // A collapsed folder opens for a match, and its count is the matches'.
+  await fireEvent.click(within(folderRows()[0]).getByRole('button', { name: /games/i }));
+  expect(shownEntries()).toEqual([]);
+  await filterBy('ramp');
+  expect(shownEntries()).toEqual(['1']);
+  expect(within(folderRows()[0]).getByText('1')).toBeInTheDocument();
+});
+
+/** Both entries titled alike, so one filter text keeps them both in view. */
+function demos(folders: string[]): ListingData {
+  const base = foldered(folders);
+  return { ...base, rows: base.rows.map((r, i) => ({ ...r, title: `Demo ${i}` })) };
+}
+
+test('AC-221 (RENDER): while a filter is on, entries and folders do not drag', async () => {
+  const { onedit } = editable({ listing: demos(['Games', '']) });
+  await filterBy('demo');
+  expect(shownEntries()).toEqual(['0', '1']);
+  const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  await drag(ramp, folderRows()[0]);
+  expect(onedit).not.toHaveBeenCalled();
+  vi.restoreAllMocks();
+
+  // Without the filter the same drag moves the entry.
+  await filterBy('');
+  const again = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  await drag(again, folderRows()[0]);
+  expect(onedit).toHaveBeenCalledOnce();
+  vi.restoreAllMocks();
+});
+
+test('AC-221 (RENDER): while a filter is on, Move up is disabled and the other edits still work', async () => {
+  const { onedit } = editable({ listing: demos(['Games', 'Games']) });
+  await filterBy('demo');
+  const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  await fireEvent.contextMenu(ramp);
+  // Found by text: jsdom hides menus opened inside the scrolling table.
+  const up = (await screen.findByText('Move up')).closest('[role="menuitem"]')!;
+  expect(up).toHaveAttribute('aria-disabled', 'true');
+  await fireEvent.click(screen.getByText('Hide'));
+  expect(onedit).toHaveBeenCalledExactlyOnceWith({ kind: 'setHidden', index: 1, hidden: true });
+});
+
+test('AC-221 (RENDER): without a filter the second entry of a folder can move up', async () => {
+  editable({ listing: demos(['Games', 'Games']) });
+  const ramp = entryRows().find((r) => r.getAttribute('data-entry') === '1')!;
+  await fireEvent.contextMenu(ramp);
+  const up = (await screen.findByText('Move up')).closest('[role="menuitem"]')!;
+  expect(up).not.toHaveAttribute('aria-disabled', 'true');
+});
+
+test('AC-222 (RENDER): focusFilter puts the cursor in the filter box', () => {
+  const { component } = render(Listing, { props: { listing, file: 'two.crt' } });
+  expect(filterBox()).not.toHaveFocus();
+  component.focusFilter();
+  expect(filterBox()).toHaveFocus();
+});

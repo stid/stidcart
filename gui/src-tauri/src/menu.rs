@@ -21,7 +21,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 use crate::document::DocumentDto;
 
 /// The ids the window listens for, as the `menu` event's payload.
-const IDS: [&str; 8] = [
+const IDS: [&str; 9] = [
     "new",
     "open",
     "new-folder",
@@ -29,6 +29,7 @@ const IDS: [&str; 8] = [
     "save-as",
     "undo",
     "redo",
+    "find",
     "quit",
 ];
 
@@ -122,6 +123,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, DocumentItems)> {
         .item(&PredefinedMenuItem::copy(app, None)?)
         .item(&PredefinedMenuItem::paste(app, None)?)
         .item(&PredefinedMenuItem::select_all(app, None)?)
+        .separator()
+        // Puts the cursor in the listing's filter box; the window ignores it with no cart open.
+        .item(&item("find", "Find…", "CmdOrCtrl+F")?)
         .build()?;
     let view = SubmenuBuilder::new(app, "View")
         .item(&item(HEX, "Hex Viewer", "CmdOrCtrl+Shift+H")?)
