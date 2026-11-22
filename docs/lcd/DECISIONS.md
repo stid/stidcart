@@ -8,7 +8,41 @@
 > (in-flight, context freshest), not retroactively at closeout — and keep the alternatives-rejected
 > line honest: the entry is what a future session reasons from when it re-encounters the fork.
 
-<!-- Next id: D-080 -->
+<!-- Next id: D-081 -->
+
+---
+
+## D-080 · 2026-11-22 · Linux releases also come for 64-bit ARM, named `linux-aarch64`
+
+- **Context:** linux-arm64-release. A release held macOS universal, Linux x86_64 and Windows x86_64.
+  D-072 holds back a platform nobody has run, and Linux on ARM is the one Linux the app has been
+  run on by hand: on 2026-11-14 it was built from source in an ARM Ubuntu 26.04 VM and went through
+  the test script there. Recon on 2026-11-22: GitHub's `ubuntu-22.04-arm` and `ubuntu-24.04-arm`
+  runners are standard runners, free for a public repository; Tauri bundles a `.deb` and an AppImage
+  on them unchanged; `aarch64-unknown-linux-musl` is a Tier 2 target with host tools that rustup
+  ships for the pinned toolchain; the root lockfile holds no C dependency.
+- **Decision:**
+  - The files are named `linux-aarch64`, beside `linux-x86_64`: both are what `uname -m` prints on
+    the machine, and Rust's target and Tauri's AppImage use the same word. The README says "ARM
+    (aarch64, arm64)" so either name finds it.
+  - The command is a static musl build, as on x86_64, built on `ubuntu-24.04-arm`. Native, not
+    cross-built, so the job runs what it built, like every other leg.
+  - The app is a second leg of the `app-linux` job, a matrix over the two architectures with the
+    same steps and checks. It builds on `ubuntu-22.04-arm`, the same Ubuntu as the x86_64 leg, so
+    both packages ask for the same glibc and WebKitGTK.
+  - The Homebrew tap, macOS and Windows are unchanged.
+- **Rejected:**
+  - `linux-arm64`: the more common word, and what dpkg calls it, but it pairs with `amd64`, and
+    the existing files say `x86_64`. Renaming those would break links to a published release.
+  - A glibc build of the command: it would run only on systems as new as the runner, for no gain
+    in a program with no C dependency.
+  - Cross-building from the x86_64 runner: the command would need a linker set up and could not
+    be run by its job, and the AppImage tooling does not cross-build at all.
+  - A separate `app-linux-arm64` job: the steps would be a copy that drifts.
+- **Note:** GitHub removes both `ubuntu-22.04` images on 2027-04-17 (deprecated since 2026-09-17).
+  Both app legs then move to a newer Ubuntu together, which raises the oldest system the `.deb`
+  installs on. Not decided here.
+- **Status:** active
 
 ---
 
