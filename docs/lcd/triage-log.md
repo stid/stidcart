@@ -91,3 +91,4 @@
 2026-11-22 · retire release roadmap · 1 signals · Quick · hard:no · risk:no
 2026-11-22 · homebrew-tap · closeout · Standard · audit: n/a (no surface) · re-routes: 0 · interventions: 0
 2026-11-22 · linux-arm64-release · 3 signals · Standard · hard:no · risk:no
+2026-11-22 · linux-arm64-release · closeout · Standard · audit: n/a (no surface declared) · re-routes: 0 · interventions: 0

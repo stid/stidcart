@@ -7,7 +7,7 @@
 > section for the surface/area you're about to touch, not the whole file. Opt-in: this file
 > exists only when `living-spec: on` in `.claude/rules/lcd-conventions.md`.
 
-**Last compacted:** 2026-11-22 (listing-filter)
+**Last compacted:** 2026-11-22 (linux-arm64-release)
 
 ---
 
