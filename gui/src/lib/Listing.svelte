@@ -275,27 +275,49 @@
             />{:else}{listing.builtBy}{/if}</span
         >
       </p>
-      {#if menuPicker}
-        <label class="menu">
-          menu
-          <select
-            value={listing.menu}
-            onchange={(e) => {
-              const menu = e.currentTarget.value;
-              // The listing changes only once the cart has the new menu; a refused switch leaves it,
-              // so the choice goes back to the menu the cart has until then.
-              e.currentTarget.value = listing.menu;
-              edit({ kind: 'setMenu', menu });
-            }}
-          >
-            {#each MENUS as m (m)}<option value={m}>{m}</option>{/each}
-            <!-- An earlier build of our menu (D-049): shown as what the cart holds, never chosen. -->
-            {#if !MENUS.includes(listing.menu)}<option value={listing.menu} disabled>{listing.menu}</option>{/if}
-          </select>
-        </label>
-      {:else}
-        <p class="menu">menu <span>{listing.menu}</span></p>
-      {/if}
+      <!-- The menu picker and the filter share a line, so the filter costs the header no height. -->
+      <div class="tools">
+        {#if menuPicker}
+          <label class="menu">
+            menu
+            <select
+              value={listing.menu}
+              onchange={(e) => {
+                const menu = e.currentTarget.value;
+                // The listing changes only once the cart has the new menu; a refused switch leaves it,
+                // so the choice goes back to the menu the cart has until then.
+                e.currentTarget.value = listing.menu;
+                edit({ kind: 'setMenu', menu });
+              }}
+            >
+              {#each MENUS as m (m)}<option value={m}>{m}</option>{/each}
+              <!-- An earlier build of our menu (D-049): shown as what the cart holds, never chosen. -->
+              {#if !MENUS.includes(listing.menu)}<option value={listing.menu} disabled>{listing.menu}</option>{/if}
+            </select>
+          </label>
+        {:else}
+          <p class="menu">menu <span>{listing.menu}</span></p>
+        {/if}
+        {#if listing.rows.length > 0 || tree.folders.length > 0}
+          <div class="filter">
+            <input
+              bind:this={filterInput}
+              bind:value={query}
+              type="search"
+              aria-label="Filter entries"
+              placeholder="Filter by name or title"
+              autocomplete="off"
+              spellcheck="false"
+              onkeydown={(e) => {
+                if (e.key !== 'Escape') return;
+                if (query === '') e.currentTarget.blur();
+                query = '';
+              }}
+            />
+            {#if filtering}<span class="matches" role="status">{matching.size} of {listing.rows.length}</span>{/if}
+          </div>
+        {/if}
+      </div>
       {#if listing.metaDropped > 0}
         <p class="meta-note">
           {listing.metaDropped} metadata {listing.metaDropped === 1 ? 'record' : 'records'} dropped: no entry
@@ -321,23 +343,6 @@
   {#if listing.rows.length === 0 && tree.folders.length === 0}
     <p class="none">No entries{editable ? ' — drop programs or cartridge images here, or use Add…' : ''}</p>
   {:else}
-    <div class="filter">
-      <input
-        bind:this={filterInput}
-        bind:value={query}
-        type="search"
-        aria-label="Filter entries"
-        placeholder="Filter by name or title"
-        autocomplete="off"
-        spellcheck="false"
-        onkeydown={(e) => {
-          if (e.key !== 'Escape') return;
-          if (query === '') e.currentTarget.blur();
-          query = '';
-        }}
-      />
-      {#if filtering}<span class="matches" role="status">{matching.size} of {listing.rows.length}</span>{/if}
-    </div>
     <div class="body">
     <div class="table-wrap">
       <table class:tree={hasFolders}>
@@ -603,15 +608,26 @@
     font-weight: 500;
   }
 
+  .tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin-top: var(--space-1);
+  }
+
+  .tools .menu {
+    margin: 0;
+  }
+
   .filter {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    padding: 0 var(--space-6) var(--space-3);
   }
 
   .filter input {
-    width: 260px;
+    width: 220px;
     max-width: 100%;
     font: inherit;
     font-size: var(--text-sm);
