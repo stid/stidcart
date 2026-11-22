@@ -48,6 +48,17 @@ export function buildTree(rows: Row[], folders: string[] = []): Tree {
   return tree;
 }
 
+/** The tree as a filter shows it: only the entries `keep` accepts, and only the folders that still
+ * hold one. It is for drawing; every move starts from the whole tree. */
+export function filterTree(tree: Tree, keep: (index: number) => boolean): Tree {
+  return {
+    folders: tree.folders
+      .map((f) => ({ name: f.name, entries: f.entries.filter(keep) }))
+      .filter((f) => f.entries.length > 0),
+    loose: tree.loose.filter(keep),
+  };
+}
+
 function copy(tree: Tree): Tree {
   return { folders: tree.folders.map((f) => ({ name: f.name, entries: [...f.entries] })), loose: [...tree.loose] };
 }

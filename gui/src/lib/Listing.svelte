@@ -10,6 +10,7 @@
     addFolder,
     buildTree,
     deleteFolder,
+    filterTree,
     untitledName,
     canStep,
     indexAfter,
@@ -97,6 +98,32 @@
   /** The columns between the tree's two edges. */
   const inner = $derived(columns - 2);
 
+  /** The filter box's text. View state only: the cart never hears of it, and another cart starts
+   * without one, since the window makes a new listing per cart. */
+  let query = $state('');
+  let filterInput = $state<HTMLInputElement | null>(null);
+  const needle = $derived(query.trim().toLowerCase());
+  const filtering = $derived(needle !== '');
+  /** The entries the filter keeps: those whose name or title contains the text, ignoring case. */
+  const matching = $derived(
+    new Set(
+      listing.rows
+        .filter((r) => r.name.toLowerCase().includes(needle) || r.title.toLowerCase().includes(needle))
+        .map((r) => r.index),
+    ),
+  );
+  /** The tree as drawn. Moves and menus work from `tree`, the whole cart. */
+  const shown = $derived(filtering ? filterTree(tree, (i) => matching.has(i)) : tree);
+  /** Dragging and stepping place an entry among its neighbours, and a filter hides some of them,
+   * so both are off until it is cleared. */
+  const reorder = $derived(editable && !filtering);
+
+  /** Edit ▸ Find: put the cursor in the filter box. */
+  export function focusFilter() {
+    filterInput?.focus();
+    filterInput?.select();
+  }
+
   /** Folders whose entries are hidden; every folder opens expanded. */
   let collapsed = $state<string[]>([]);
   /** The folder whose name is being edited, started from its menu's Rename. */
@@ -178,8 +205,8 @@
       {@const actions = rows[at.i] ?? { alignable: false }}
       {@const menu = {
         folders: folderNames,
-        canUp: canStep(tree, index, -1),
-        canDown: canStep(tree, index, 1),
+        canUp: reorder && canStep(tree, index, -1),
+        canDown: reorder && canStep(tree, index, 1),
         onmove: (m: EntryMove) => moved(index, m),
         onhex,
       }}
@@ -191,7 +218,7 @@
             data-folder={row.folder || undefined}
             aria-selected={selected === row.index}
             onclick={() => (selected = row.index)}
-            {@attach dragRow({ kind: 'entry', index: row.index }, dropped, `⠿  ${row.index}  ${row.name}`)}
+            {@attach reorder && dragRow({ kind: 'entry', index: row.index }, dropped, `⠿  ${row.index}  ${row.name}`)}
           >
             {#if hasFolders}<td class="edge" aria-hidden="true"></td>{/if}
             {@render cells(row)}
@@ -294,6 +321,23 @@
   {#if listing.rows.length === 0 && tree.folders.length === 0}
     <p class="none">No entries{editable ? ' — drop programs or cartridge images here, or use Add…' : ''}</p>
   {:else}
+    <div class="filter">
+      <input
+        bind:this={filterInput}
+        bind:value={query}
+        type="search"
+        aria-label="Filter entries"
+        placeholder="Filter by name or title"
+        autocomplete="off"
+        spellcheck="false"
+        onkeydown={(e) => {
+          if (e.key !== 'Escape') return;
+          if (query === '') e.currentTarget.blur();
+          query = '';
+        }}
+      />
+      {#if filtering}<span class="matches" role="status">{matching.size} of {listing.rows.length}</span>{/if}
+    </div>
     <div class="body">
     <div class="table-wrap">
       <table class:tree={hasFolders}>
@@ -316,14 +360,15 @@
           </tr>
         </thead>
         {#if hasFolders}
-          {#each tree.folders as folder, f (folder.name)}
-            {@const open = !collapsed.includes(folder.name)}
+          {#each shown.folders as folder (folder.name)}
+            {@const f = folderNames.indexOf(folder.name)}
+            {@const open = filtering || !collapsed.includes(folder.name)}
             <tbody class="gap" aria-hidden="true"><tr><td colspan={columns}></td></tr></tbody>
             <tbody class="card">
               <tr
                 class="folder-row"
                 data-folder-row={folder.name}
-                {@attach editable && dragRow({ kind: 'folder', name: folder.name }, dropped, `▸  ${folder.name}  ${folder.entries.length}`)}
+                {@attach reorder && dragRow({ kind: 'folder', name: folder.name }, dropped, `▸  ${folder.name}  ${folder.entries.length}`)}
               >
                 <td class="edge" aria-hidden="true"></td>
                 <td class="name in-tree" colspan={inner - (editable ? 1 : 0)} data-name={folder.name}>
@@ -351,8 +396,8 @@
                   <td class="more-col">
                     <FolderMenu
                       name={folder.name}
-                      canUp={f > 0}
-                      canDown={f < tree.folders.length - 1}
+                      canUp={reorder && f > 0}
+                      canDown={reorder && f < tree.folders.length - 1}
                       onrename={(name) => (renamingFolder = name)}
                       onmove={(name, dir) => void arrange(stepFolder(tree, name, dir))}
                       ondelete={(name) => void arrange(deleteFolder(tree, name))}
@@ -394,14 +439,14 @@
             </tbody>
           {/if}
           <tbody class="loose">
-            {#if tree.loose.length > 0}
+            {#if shown.loose.length > 0}
               <tr class="loose-label">
                 <td class="edge" aria-hidden="true"></td>
                 <td class="in-tree" colspan={inner}>// not in a folder</td>
                 <td class="edge" aria-hidden="true"></td>
               </tr>
             {/if}
-            {#each tree.loose as index (index)}
+            {#each shown.loose as index (index)}
               {@render entry(index)}
             {/each}
             {#if editable}
@@ -415,12 +460,15 @@
           </tbody>
         {:else}
           <tbody>
-            {#each tree.loose as index (index)}
+            {#each shown.loose as index (index)}
               {@render entry(index)}
             {/each}
           </tbody>
         {/if}
       </table>
+      {#if filtering && matching.size === 0}
+        <p class="none">No entries match “{query.trim()}”</p>
+      {/if}
       {#if editable}
         <!-- The list's empty space: a right-click here makes a folder, as in a file browser (D-063). -->
         <ContextMenu.Root>
@@ -553,6 +601,40 @@
     margin: 2px 0 0;
     font-size: var(--text-md);
     font-weight: 500;
+  }
+
+  .filter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 0 var(--space-6) var(--space-3);
+  }
+
+  .filter input {
+    width: 260px;
+    max-width: 100%;
+    font: inherit;
+    font-size: var(--text-sm);
+    color: var(--text);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .filter input::placeholder {
+    color: var(--text-faint);
+  }
+
+  .filter input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .matches {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
   }
 
   /* The list and the inspector side by side, each scrolling on its own (D-063). */
