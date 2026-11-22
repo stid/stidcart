@@ -73,7 +73,7 @@ dependencies = [
 
 [[package]]
 name = "stidcart-cli"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "stidcart-core",
  "toml",
@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "stidcart-core"
-version = "0.32.0"
+version = "0.32.1"
 
 [[package]]
 name = "syn"
